@@ -31,7 +31,7 @@ Config.ini
 --------------
 - See https://github.com/mdhiggins/PlexAutoSkip/wiki/Configuration
 
-Config.ini
+Docker
 --------------
 Coming soon
 
