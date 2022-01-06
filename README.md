@@ -29,7 +29,7 @@ Setup
 
 Config.ini
 --------------
-- TODO
+- See https://github.com/mdhiggins/PlexAutoSkip/wiki/Configuration
 
 Special Thanks
 --------------
