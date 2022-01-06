@@ -29,14 +29,14 @@ class FancyConfigParser(configparser.ConfigParser, object):
 
 class Settings:
     defaults = {
-        "Plex": {
+        "Plex.tv": {
             "username": "",
             "password": "",
+            "token": "",
             "servername": "",
         },
         "Server": {
             "address": "",
-            "token": "",
             "ssl": True,
             "port": 32400,
         },
@@ -95,12 +95,12 @@ class Settings:
             self.log.exception("Error writing to autoProcess.ini.")
 
     def readConfig(self, config):
-        self.username = config.get("Plex", "username")
-        self.password = config.get("Plex", "password", raw=True)
-        self.servername = config.get("Plex", "servername")
+        self.username = config.get("Plex.tv", "username")
+        self.password = config.get("Plex.tv", "password", raw=True)
+        self.servername = config.get("Plex.tv", "servername")
+        self.token = config.get("Plex.tv", "token", raw=True)
 
         self.address = config.get("Server", "address")
-        self.token = config.get("Server", "token")
         self.ssl = config.getboolean("Server", "ssl")
         self.port = config.getint("Server", "port")
 

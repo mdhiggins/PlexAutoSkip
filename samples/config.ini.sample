@@ -1,11 +1,11 @@
-[Plex]
+[Plex.tv]
 username = 
 password = 
+token = 
 servername = 
 
 [Server]
 address = 
-token = 
 ssl = True
 port = 32400
 
