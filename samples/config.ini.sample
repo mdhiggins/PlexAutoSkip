@@ -1,0 +1,18 @@
+[Plex]
+username = 
+password = 
+servername = 
+
+[Server]
+address = 
+token = 
+ssl = True
+port = 32400
+
+[Security]
+ignore-certs = False
+
+[Offsets]
+start = 2000
+end = 1000
+

@@ -1,2 +1,31 @@
-# PlexAutoSkip
- Automatically skip tagging content in Plex
+PlexAutoSkip
+==============
+ **Automatically skip tagged content in Plex**
+
+A background python script that monitors local playback on your server (LAN only) and will automatically 'press' the Skip Intro button or skip other similarly tagged content automatically
+
+Requirements
+--------------
+- Python3
+- PlexPass (for skip intro feature)
+- PIP
+- PlexAPI
+- Websocket-client
+
+Setup
+--------------
+1. Clone the repository
+2. Install requirements using `pip install -R requirements.txt`
+3. Run `main.py` once to generate config files or copy samples from the samples directory
+4. Edit `config.ini` with your Plex account or Plex server settings
+5. Run `main.py`
+
+Config.ini
+--------------
+- TODO
+
+Special Thanks
+--------------
+- PlexAPI
+- Skippex
+- https://github.com/Casvt/Plex-scripts/blob/main/stream_control/intro_skipper.py

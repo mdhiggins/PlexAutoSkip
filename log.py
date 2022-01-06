@@ -23,7 +23,7 @@ defaults = {
     'handler_consoleHandler': {
         'class': 'StreamHandler',
         'level': 'INFO',
-        'formatter': 'simpleFormatter',
+        'formatter': 'minimalFormatter',
         'args': '(sys.stdout,)',
     },
     'handler_fileHandler': {
@@ -37,7 +37,7 @@ defaults = {
         'datefmt': '%Y-%m-%d %H:%M:%S',
     },
     'formatter_minimalFormatter': {
-        'format': '%(message)s',
+        'format': '%(levelname)s - %(message)s',
         'datefmt': ''
     }
 }

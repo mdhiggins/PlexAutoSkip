@@ -3,11 +3,36 @@ import os
 import logging
 
 
+class FancyConfigParser(configparser.ConfigParser, object):
+    def getlist(self, section, option, vars=None, separator=",", default=[], lower=True, replace=[' '], modifier=None):
+        value = self.get(section, option, vars=vars)
+
+        if not isinstance(value, str) and isinstance(value, list):
+            return value
+
+        if value == '':
+            return list(default)
+
+        value = value.split(separator)
+
+        for r in replace:
+            value = [x.replace(r, '') for x in value]
+        if lower:
+            value = [x.lower() for x in value]
+
+        value = [x.strip() for x in value]
+
+        if modifier:
+            value = [modifier(x) for x in value]
+        return value
+
+
 class Settings:
     defaults = {
         "Plex": {
             "username": "",
             "password": "",
+            "servername": "",
         },
         "Server": {
             "address": "",
@@ -17,6 +42,20 @@ class Settings:
         },
         "Security": {
             "ignore-certs": False
+        },
+        "Offsets": {
+            "start": 2000,
+            "end": 1000
+        },
+        "Allowed": {
+            "keys": '',
+            "seasons": '',
+            "shows": ''
+        },
+        "Blocked": {
+            "keys": '',
+            "seasons": '',
+            "shows": ''
         }
     }
 
@@ -24,7 +63,7 @@ class Settings:
         self.log = log or logging.getLogger(__name__)
         configFile = os.environ.get("SKIP_CONFIG", "config.ini")
         configFile = os.path.realpath(configFile)
-        config = configparser.ConfigParser()
+        config = FancyConfigParser()
         if os.path.isfile(configFile):
             config.read(configFile)
 
@@ -57,7 +96,8 @@ class Settings:
 
     def readConfig(self, config):
         self.username = config.get("Plex", "username")
-        self.password = config.get("Plex", "password")
+        self.password = config.get("Plex", "password", raw=True)
+        self.servername = config.get("Plex", "servername")
 
         self.address = config.get("Server", "address")
         self.token = config.get("Server", "token")
@@ -65,3 +105,16 @@ class Settings:
         self.port = config.getint("Server", "port")
 
         self.ignore_certs = config.getboolean("Security", "ignore-certs")
+
+        self.leftoffset = config.getint("Offsets", "start")
+        self.rightoffset = config.getint("Offsets", "end")
+
+        self.allowed = {}
+        self.allowed["keys"] = config.getlist("Allowed", "keys", modifier=int)
+        self.allowed["parents"] = config.getlist("Allowed", "seasons", modifier=int)
+        self.allowed["grandparents"] = config.getlist("Allowed", "shows", modifier=int)
+
+        self.blocked = {}
+        self.blocked["keys"] = config.getlist("Blocked", "keys", modifier=int)
+        self.blocked["parents"] = config.getlist("Blocked", "seasons", modifier=int)
+        self.blocked["grandparents"] = config.getlist("Blocked", "shows", modifier=int)
