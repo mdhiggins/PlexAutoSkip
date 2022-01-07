@@ -1,5 +1,8 @@
 import requests
+import sys
+import os
 
+from argparse import ArgumentParser
 from resources.log import getLogger
 from ssl import CERT_NONE
 from resources.settings import Settings
@@ -10,7 +13,18 @@ from resources.introSkipper import IntroSkipper
 
 if __name__ == '__main__':
     log = getLogger(__name__)
-    settings = Settings(logger=log)
+
+    parser = ArgumentParser(description="Plex Autoskip")
+    parser.add_argument('-c', '--config', help='Specify an alternate configuration file location')
+    args = vars(parser.parse_args())
+
+    if args['config'] and os.path.exists(args['config']):
+        settings = Settings(args['config'], logger=log)
+    elif args['config'] and os.path.exists(os.path.join(os.path.dirname(sys.argv[0]), args['config'])):
+        settings = Settings(os.path.join(os.path.dirname(sys.argv[0]), args['config']), logger=log)
+    else:
+        settings = Settings(logger=log)
+
     plex = None
     sslopt = None
     session = None
