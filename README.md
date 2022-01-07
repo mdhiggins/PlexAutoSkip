@@ -14,7 +14,7 @@ Currently Plex users markers and chapters to tag potentially skippable content a
 Requirements
 --------------
 - Python3
-- PlexPass (for skip intro feature)
+- PlexPass (markers are not available otherwise)
 - PIP
 - PlexAPI
 - Websocket-client
@@ -30,6 +30,10 @@ Setup
 Config.ini
 --------------
 - See https://github.com/mdhiggins/PlexAutoSkip/wiki/Configuration
+
+Docker
+--------------
+Coming soon
 
 Special Thanks
 --------------
