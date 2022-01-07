@@ -5,6 +5,8 @@ import time
 from sslAlertListener import SSLAlertListener
 from mediaWrapper import MediaWrapper
 from xml.etree import ElementTree
+from urllib3.exceptions import ReadTimeoutError
+from requests.exceptions import ReadTimeout
 
 
 class IntroSkipper():
@@ -91,9 +93,14 @@ class IntroSkipper():
                     self.log.info("Seeking player %s from %d to %d" % (player.title, mediaWrapper.viewOffset, (targetOffset + self.rightOffset)))
                     try:
                         player.seekTo(targetOffset + self.rightOffset)
+                        mediaWrapper.updateOffset(targetOffset + self.rightOffset)
+                        break
                     except ElementTree.ParseError:
+                        mediaWrapper.updateOffset(targetOffset + self.rightOffset)
                         self.log.debug("ParseError, seems to be certain players but still functional, continuing")
-                    mediaWrapper.updateOffset(targetOffset + self.rightOffset)
+                    except ReadTimeout or ReadTimeoutError:
+                        mediaWrapper.updateOffset(targetOffset + self.rightOffset)
+                        self.log.debug("Timeout Error")
             except:
                 self.log.exception("Error seeking")
         mediaWrapper.seeking = False
@@ -124,7 +131,7 @@ class IntroSkipper():
                     elif not self.media_sessions[sessionKey].seeking:
                         self.log.debug("Updating an existing %s media session %s playing %d with viewOffset %d (previous %d)" % (media.type, sessionKey, media.ratingKey, media.viewOffset, self.media_sessions[sessionKey].viewOffset))
                         self.media_sessions[sessionKey] = wrapper
-                    else:
+                    elif self.media_sessions[sessionKey].seeking:
                         self.log.debug("Skipping update as session %s appears to be actively seeking" % (sessionKey))
                 else:
                     pass
