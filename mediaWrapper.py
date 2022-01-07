@@ -34,7 +34,6 @@ class MediaWrapper():
         self._viewOffset = offset
         self.media.viewOffset = offset
         self.lastUpdate = datetime.now()
-        print("Updating offset to %d" % offset)
 
     def updateMedia(self, media):
         self.media = media
