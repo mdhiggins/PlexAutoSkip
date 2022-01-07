@@ -7,6 +7,7 @@ from mediaWrapper import MediaWrapper
 from xml.etree import ElementTree
 from urllib3.exceptions import ReadTimeoutError
 from requests.exceptions import ReadTimeout
+from socket import timeout
 
 
 class IntroSkipper():
@@ -49,12 +50,9 @@ class IntroSkipper():
         except:
             self.log.exception("Exception caught")
         while self.listener.is_alive():
-            for k in self.media_sessions:
-                self.checkMedia(self.media_sessions[k])
+            for session in list(self.media_sessions.values()):
+                self.checkMedia(session)
             time.sleep(1)
-            for d in self.delete:
-                del self.media_sessions[d]
-            self.delete.clear()
 
     def checkMedia(self, mediaWrapper):
         if hasattr(mediaWrapper.media, 'chapters'):
@@ -76,12 +74,13 @@ class IntroSkipper():
         if mediaWrapper.sinceLastUpdate > self.timeout:
             self.log.debug("Session %d hasn't been updated in %d seconds, checking if still playing" % (mediaWrapper.media.sessionKey, self.timeout))
             try:
+                # Check to see if media is still playing before being deleted, probably overkill so using a bool (timeoutWithoutCheck) to bypass this check for now
                 if self.timeoutWithoutCheck or not self.stillPlaying(mediaWrapper):
                     self.log.debug("Session %s will be removed from cache" % (mediaWrapper.media.sessionKey))
-                    self.delete.append(mediaWrapper.media.sessionKey)
+                    del self.media_sessions[mediaWrapper.media.sessionKey]
             except:
                 self.log.error("Error checking player status, removing session %s anyway" % (mediaWrapper.media.sessionKey))
-                self.delete.append(mediaWrapper.media.sessionKey)
+                del self.media_sessions[mediaWrapper.media.sessionKey]
 
     def seekTo(self, mediaWrapper, targetOffset):
         for player in mediaWrapper.media.players:
@@ -94,12 +93,10 @@ class IntroSkipper():
                     try:
                         player.seekTo(targetOffset + self.rightOffset)
                         mediaWrapper.updateOffset(targetOffset + self.rightOffset)
-                        break
                     except ElementTree.ParseError:
                         mediaWrapper.updateOffset(targetOffset + self.rightOffset)
                         self.log.debug("ParseError, seems to be certain players but still functional, continuing")
-                    except ReadTimeout or ReadTimeoutError:
-                        mediaWrapper.updateOffset(targetOffset + self.rightOffset)
+                    except (ReadTimeout, ReadTimeoutError, timeout):
                         self.log.debug("Timeout Error")
             except:
                 self.log.exception("Error seeking")
@@ -109,7 +106,7 @@ class IntroSkipper():
         for player in mediaWrapper.media.players:
             try:
                 player.proxyThroughServer(True, self.server)
-                if player.isPlayingMedia(False) and player.timeline.key == mediaWrapper.media.key:
+                if not player.timeline or (player.isPlayingMedia(False) and player.timeline.key == mediaWrapper.media.key):
                     return True
             except:
                 self.log.exception("Error while checking player")
