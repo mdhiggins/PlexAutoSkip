@@ -87,7 +87,7 @@ class IntroSkipper():
             try:
                 player.proxyThroughServer(True, self.server)
                 # Playback / Media check fails if the timeline cannot be pulled but not all players return a timeline so check first
-                if not player.timeline or (player.isPlayingMedia(False) and player.timeline.key == mediaWrapper.media.key):
+                if self.checkPlayerForMedia(player, mediaWrapper.media):
                     mediaWrapper.seeking = True
                     self.log.info("Seeking player %s from %d to %d" % (player.title, mediaWrapper.viewOffset, (targetOffset + self.rightOffset)))
                     try:
@@ -102,11 +102,14 @@ class IntroSkipper():
                 self.log.exception("Error seeking")
         mediaWrapper.seeking = False
 
+    def checkPlayerForMedia(self, player, media):
+        return not player.timeline or (player.isPlayingMedia(False) and player.timeline.key == media.key)
+
     def stillPlaying(self, mediaWrapper):
         for player in mediaWrapper.media.players:
             try:
                 player.proxyThroughServer(True, self.server)
-                if not player.timeline or (player.isPlayingMedia(False) and player.timeline.key == mediaWrapper.media.key):
+                if self.checkPlayerForMedia(player, mediaWrapper.media):
                     return True
             except:
                 self.log.exception("Error while checking player")
