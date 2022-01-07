@@ -43,18 +43,14 @@ class IntroSkipper():
 
     def start(self, sslopt=None):
         self.listener = SSLAlertListener(self.server, self.processAlert, self.error, sslopt=sslopt)
-        try:
-            self.listener.start()
-        except KeyboardInterrupt:
-            self.listener.stop()
-        except:
-            self.log.exception("Exception caught")
+        self.listener.start()
         while self.listener.is_alive():
             try:
                 for session in list(self.media_sessions.values()):
                     self.checkMedia(session)
                 time.sleep(1)
             except KeyboardInterrupt:
+                self.listener.stop()
                 break
 
     def checkMedia(self, mediaWrapper):
@@ -76,13 +72,9 @@ class IntroSkipper():
 
         if mediaWrapper.sinceLastUpdate > self.timeout:
             self.log.debug("Session %d hasn't been updated in %d seconds, checking if still playing" % (mediaWrapper.media.sessionKey, self.timeout))
-            try:
-                # Check to see if media is still playing before being deleted, probably overkill so using a bool (timeoutWithoutCheck) to bypass this check for now
-                if self.timeoutWithoutCheck or not self.stillPlaying(mediaWrapper):
-                    self.log.debug("Session %s will be removed from cache" % (mediaWrapper.media.sessionKey))
-                    del self.media_sessions[mediaWrapper.media.sessionKey]
-            except:
-                self.log.error("Error checking player status, removing session %s anyway" % (mediaWrapper.media.sessionKey))
+            # Check to see if media is still playing before being deleted, probably overkill so using a bool (timeoutWithoutCheck) to bypass this check for now
+            if self.timeoutWithoutCheck or not self.stillPlaying(mediaWrapper):
+                self.log.debug("Session %s will be removed from cache" % (mediaWrapper.media.sessionKey))
                 del self.media_sessions[mediaWrapper.media.sessionKey]
 
     def seekTo(self, mediaWrapper, targetOffset):
