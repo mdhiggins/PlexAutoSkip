@@ -33,7 +33,7 @@ Config.ini
 
 Docker
 --------------
-Coming soon
+- https://github.com/mdhiggins/plexautoskip-docker
 
 Special Thanks
 --------------
