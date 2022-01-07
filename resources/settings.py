@@ -1,6 +1,7 @@
 import configparser
 import os
 import logging
+import sys
 
 
 class FancyConfigParser(configparser.ConfigParser, object):
@@ -28,6 +29,16 @@ class FancyConfigParser(configparser.ConfigParser, object):
 
 
 class Settings:
+    CONFIG_DEFAULT = "config.ini"
+    CONFIG_DIRECTORY = "./config"
+    RESOURCE_DIRECTORY = "./resources"
+    RELATIVE_TO_ROOT = "../"
+    ENV_CONFIG_VAR = "PAS_CONFIG"
+
+    @property
+    def CONFIG_RELATIVEPATH(self):
+        return os.path.join(self.CONFIG_DIRECTORY, self.CONFIG_DEFAULT)
+
     defaults = {
         "Plex.tv": {
             "username": "",
@@ -59,10 +70,31 @@ class Settings:
         }
     }
 
-    def __init__(self, log=None):
-        self.log = log or logging.getLogger(__name__)
-        configFile = os.environ.get("SKIP_CONFIG", "config.ini")
-        configFile = os.path.realpath(configFile)
+    def __init__(self, configFile=None, logger=None,):
+        self.log = logger or logging.getLogger(__name__)
+
+        self.log.info(sys.executable)
+        if sys.version_info.major == 2:
+            self.log.warning("Python 2 is not officially supported, use with caution")
+
+        rootpath = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), self.RELATIVE_TO_ROOT))
+
+        defaultConfigFile = os.path.normpath(os.path.join(rootpath, self.CONFIG_RELATIVEPATH))
+        envConfigFile = os.environ.get(self.ENV_CONFIG_VAR)
+
+        if envConfigFile and os.path.exists(os.path.realpath(envConfigFile)):
+            configFile = os.path.realpath(envConfigFile)
+            self.log.debug("%s environment variable override found." % (self.ENV_CONFIG_VAR))
+        elif not configFile:
+            configFile = defaultConfigFile
+            self.log.debug("Loading default config file.")
+
+        if os.path.isdir(configFile):
+            configFile = os.path.realpath(os.path.join(configFile, self.CONFIG_RELATIVEPATH))
+            self.log.debug("Configuration file specified is a directory, joining with %s." % (self.CONFIG_DEFAULT))
+
+        self.log.info("Loading config file %s." % configFile)
+
         config = FancyConfigParser()
         if os.path.isfile(configFile):
             config.read(configFile)
@@ -101,6 +133,11 @@ class Settings:
         self.token = config.get("Plex.tv", "token", raw=True)
 
         self.address = config.get("Server", "address")
+        for prefix in ['http://', 'https://']:
+            if self.address.startswith(prefix):
+                self.address = self.address[len(prefix):]
+        while self.address.endswith("/"):
+            self.address = self.address[:1]
         self.ssl = config.getboolean("Server", "ssl")
         self.port = config.getint("Server", "port")
 

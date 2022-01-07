@@ -22,9 +22,9 @@ Requirements
 Setup
 --------------
 1. Clone the repository
-2. Install requirements using `pip install -R requirements.txt`
-3. Run `main.py` once to generate config files or copy samples from the samples directory
-4. Edit `config.ini` with your Plex account or Plex server settings
+2. Install requirements using `pip install -R ./setup/requirements.txt`
+3. Run `main.py` once to generate config files or copy samples from the `./setup` directory
+4. Edit `./config/config.ini` with your Plex account or Plex server settings
 5. Run `main.py`
 
 Config.ini

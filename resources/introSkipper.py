@@ -2,8 +2,8 @@
 
 import logging
 import time
-from sslAlertListener import SSLAlertListener
-from mediaWrapper import MediaWrapper
+from resources.sslAlertListener import SSLAlertListener
+from resources.mediaWrapper import MediaWrapper
 from xml.etree import ElementTree
 from urllib3.exceptions import ReadTimeoutError
 from requests.exceptions import ReadTimeout
@@ -24,9 +24,9 @@ class IntroSkipper():
         'grandparents': []
     }
 
-    def __init__(self, server, leftOffset=0, rightOffset=0, timeout=60 * 2, log=None):
+    def __init__(self, server, leftOffset=0, rightOffset=0, timeout=60 * 2, logger=None):
         self.server = server
-        self.log = log or logging.getLogger(__name__)
+        self.log = logger or logging.getLogger(__name__)
         self.leftOffset = leftOffset
         self.rightOffset = rightOffset
         self.timeout = timeout
@@ -50,9 +50,12 @@ class IntroSkipper():
         except:
             self.log.exception("Exception caught")
         while self.listener.is_alive():
-            for session in list(self.media_sessions.values()):
-                self.checkMedia(session)
-            time.sleep(1)
+            try:
+                for session in list(self.media_sessions.values()):
+                    self.checkMedia(session)
+                time.sleep(1)
+            except KeyboardInterrupt:
+                break
 
     def checkMedia(self, mediaWrapper):
         if hasattr(mediaWrapper.media, 'chapters'):
@@ -97,7 +100,8 @@ class IntroSkipper():
                         mediaWrapper.updateOffset(targetOffset + self.rightOffset)
                         self.log.debug("ParseError, seems to be certain players but still functional, continuing")
                     except (ReadTimeout, ReadTimeoutError, timeout):
-                        self.log.debug("Timeout Error")
+                        self.log.debug("TimeoutError, removing from cache to prevent false triggers, will be restored with next sync")
+                        del self.media_sessions[mediaWrapper.media.sessionKey]
             except:
                 self.log.exception("Error seeking")
         mediaWrapper.seeking = False

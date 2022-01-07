@@ -1,16 +1,16 @@
 import requests
 
-from log import getLogger
+from resources.log import getLogger
 from ssl import CERT_NONE
-from settings import Settings
+from resources.settings import Settings
 from plexapi.server import PlexServer
 from plexapi.myplex import MyPlexAccount
-from introSkipper import IntroSkipper
+from resources.introSkipper import IntroSkipper
 
 
 if __name__ == '__main__':
     log = getLogger(__name__)
-    settings = Settings(log=log)
+    settings = Settings(logger=log)
     plex = None
     sslopt = None
     session = None
@@ -42,6 +42,7 @@ if __name__ == '__main__':
                     account = None
             if account:
                 plex = account.resource(settings.servername).connect()
+            log.info("Connected to Plex server %s using plex.tv account" % (plex.friendlyName))
         except:
             log.exception("Error connecting to plex.tv account")
 
@@ -49,13 +50,14 @@ if __name__ == '__main__':
         protocol = "https://" if settings.ssl else "http://"
         try:
             plex = PlexServer(protocol + settings.address + ':' + str(settings.port), settings.token, session=session)
+            log.info("Connected to Plex server %s using server settings" % (plex.friendlyName))
         except:
             log.exception("Error connecting to Plex server")
     elif plex and settings.address and settings.token:
         log.debug("Connected to server using plex.tv account, ignoring manual server settings")
 
     if plex:
-        intro_skipper = IntroSkipper(plex, settings.leftoffset, settings.rightoffset, log=log)
+        intro_skipper = IntroSkipper(plex, settings.leftoffset, settings.rightoffset, logger=log)
         intro_skipper.allowed = settings.allowed
         intro_skipper.blocked = settings.blocked
         intro_skipper.start(sslopt=sslopt)
