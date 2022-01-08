@@ -55,7 +55,7 @@ class IntroSkipper():
 
     def checkMedia(self, mediaWrapper):
         if hasattr(mediaWrapper.media, 'chapters'):
-            for chapter in [x for x in mediaWrapper.media.chapters if x.title.lower() == 'advertisement']:
+            for chapter in [x for x in mediaWrapper.media.chapters if x.title and x.title.lower() == 'advertisement']:
                 self.log.debug("Checking chapter %s (%d-%d)" % (chapter.title, chapter.start, chapter.end))
                 if (chapter.start + self.leftOffset) <= mediaWrapper.viewOffset <= chapter.end:
                     self.log.info("Found an advertisement chapter for media %s with range %d-%d and viewOffset %d" % (mediaWrapper.media.key, chapter.start + self.leftOffset, chapter.end, mediaWrapper.viewOffset))
@@ -63,7 +63,7 @@ class IntroSkipper():
                     return
 
         if hasattr(mediaWrapper.media, 'markers'):
-            for marker in [x for x in mediaWrapper.media.markers if x.type.lower() in ['intro', 'commercial']]:
+            for marker in [x for x in mediaWrapper.media.markers if x.type and x.type.lower() in ['intro', 'commercial']]:
                 self.log.debug("Checking marker %s (%d-%d)" % (marker.type, marker.start, marker.end))
                 if (marker.start + self.leftOffset) <= mediaWrapper.viewOffset <= marker.end:
                     self.log.info("Found an intro marker for media %s with range %d-%d and viewOffset %d" % (mediaWrapper.media.key, marker.start + self.leftOffset, marker.end, mediaWrapper.viewOffset))
