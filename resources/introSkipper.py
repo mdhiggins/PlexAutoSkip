@@ -83,14 +83,14 @@ class IntroSkipper():
                 player.proxyThroughServer(True, self.server)
                 # Playback / Media check fails if the timeline cannot be pulled but not all players return a timeline so check first
                 if self.checkPlayerForMedia(player, mediaWrapper.media):
-                    mediaWrapper.seeking = True
+                    mediaWrapper.willSeek()
                     self.log.info("Seeking player %s from %d to %d" % (player.title, mediaWrapper.viewOffset, (targetOffset + self.rightOffset)))
                     try:
                         player.seekTo(targetOffset + self.rightOffset)
                         mediaWrapper.updateOffset(targetOffset + self.rightOffset)
                     except ElementTree.ParseError:
-                        mediaWrapper.updateOffset(targetOffset + self.rightOffset)
                         self.log.debug("ParseError, seems to be certain players but still functional, continuing")
+                        mediaWrapper.updateOffset(targetOffset + self.rightOffset)
                     except (ReadTimeout, ReadTimeoutError, timeout):
                         self.log.debug("TimeoutError, removing from cache to prevent false triggers, will be restored with next sync")
                         del self.media_sessions[mediaWrapper.media.sessionKey]
@@ -124,11 +124,13 @@ class IntroSkipper():
                             self.media_sessions[sessionKey] = wrapper
                         else:
                             self.log.debug("Ignoring LAN session %d" % (sessionKey))
-                    elif not self.media_sessions[sessionKey].seeking:
+                    elif not self.media_sessions[sessionKey].seeking and not self.media_sessions[sessionKey].buffering:
                         self.log.debug("Updating an existing %s media session %s playing %d with viewOffset %d (previous %d)" % (media.type, sessionKey, media.ratingKey, media.viewOffset, self.media_sessions[sessionKey].viewOffset))
                         self.media_sessions[sessionKey] = wrapper
                     elif self.media_sessions[sessionKey].seeking:
                         self.log.debug("Skipping update as session %s appears to be actively seeking" % (sessionKey))
+                    elif self.media_sessions[sessionKey].buffering:
+                        self.log.debug("Skipping update as session %s appears to be actively buffering from a recent seek" % (sessionKey))
                 else:
                     pass
             except:

@@ -6,11 +6,17 @@ class MediaWrapper():
     lastUpdate = datetime.now()
     _viewOffset = 0
     seeking = False
+    lastSeek = datetime(1970, 1, 1)
+    seekBuffer = 5
 
     def __init__(self, media):
         self._viewOffset = media.viewOffset
         self.media = media
         self.lastUpdate = datetime.now()
+
+    @property
+    def buffering(self):
+        return (datetime.now() - self.lastSeek).total_seconds() < self.seekBuffer
 
     @property
     def playerName(self):
@@ -29,6 +35,10 @@ class MediaWrapper():
 
     def updated(self):
         self.lastUpdate = datetime.now()
+
+    def willSeek(self):
+        self.seeking = True
+        self.lastSeek = datetime.now()
 
     def updateOffset(self, offset):
         self._viewOffset = offset
