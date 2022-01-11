@@ -34,9 +34,9 @@ class IntroSkipper():
 
     def getDataFromSessions(self, sessionKey):
         try:
-            for media in self.server.sessions():
-                if media.sessionKey == sessionKey:
-                    return media
+            for session in self.server.sessions():
+                if session.sessionKey == sessionKey:
+                    return session
         except:
             self.log.exception("getDataFromSessions Error")
         return None
@@ -56,25 +56,25 @@ class IntroSkipper():
     def checkMedia(self, mediaWrapper):
         if hasattr(mediaWrapper.media, 'chapters'):
             for chapter in [x for x in mediaWrapper.media.chapters if x.title and x.title.lower() == 'advertisement']:
-                self.log.debug("Checking chapter %s (%d-%d)" % (chapter.title, chapter.start, chapter.end))
+                # self.log.debug("Checking chapter %s (%d-%d)" % (chapter.title, chapter.start, chapter.end))
                 if (chapter.start + self.leftOffset) <= mediaWrapper.viewOffset <= chapter.end:
-                    self.log.info("Found an advertisement chapter for media %s with range %d-%d and viewOffset %d" % (mediaWrapper.media.key, chapter.start + self.leftOffset, chapter.end, mediaWrapper.viewOffset))
+                    self.log.info("Found an advertisement chapter for media %s with range %d-%d and viewOffset %d" % (mediaWrapper, chapter.start + self.leftOffset, chapter.end, mediaWrapper.viewOffset))
                     self.seekTo(mediaWrapper, chapter.end)
                     return
 
         if hasattr(mediaWrapper.media, 'markers'):
             for marker in [x for x in mediaWrapper.media.markers if x.type and x.type.lower() in ['intro', 'commercial']]:
-                self.log.debug("Checking marker %s (%d-%d)" % (marker.type, marker.start, marker.end))
+                # self.log.debug("Checking marker %s (%d-%d)" % (marker.type, marker.start, marker.end))
                 if (marker.start + self.leftOffset) <= mediaWrapper.viewOffset <= marker.end:
-                    self.log.info("Found an intro marker for media %s with range %d-%d and viewOffset %d" % (mediaWrapper.media.key, marker.start + self.leftOffset, marker.end, mediaWrapper.viewOffset))
+                    self.log.info("Found an intro marker for media %s with range %d-%d and viewOffset %d" % (mediaWrapper, marker.start + self.leftOffset, marker.end, mediaWrapper.viewOffset))
                     self.seekTo(mediaWrapper, marker.end)
                     return
 
         if mediaWrapper.sinceLastUpdate > self.timeout:
-            self.log.debug("Session %d hasn't been updated in %d seconds, checking if still playing" % (mediaWrapper.media.sessionKey, self.timeout))
+            self.log.debug("Session %s hasn't been updated in %d seconds, checking if still playing" % (mediaWrapper, self.timeout))
             # Check to see if media is still playing before being deleted, probably overkill so using a bool (timeoutWithoutCheck) to bypass this check for now
             if self.timeoutWithoutCheck or not self.stillPlaying(mediaWrapper):
-                self.log.debug("Session %s will be removed from cache" % (mediaWrapper.media.sessionKey))
+                self.log.debug("Session %s will be removed from cache" % (mediaWrapper))
                 del self.media_sessions[mediaWrapper.media.sessionKey]
 
     def seekTo(self, mediaWrapper, targetOffset):
@@ -84,7 +84,7 @@ class IntroSkipper():
                 # Playback / Media check fails if the timeline cannot be pulled but not all players return a timeline so check first
                 if self.checkPlayerForMedia(player, mediaWrapper.media):
                     mediaWrapper.willSeek()
-                    self.log.info("Seeking player %s from %d to %d" % (player.title, mediaWrapper.viewOffset, (targetOffset + self.rightOffset)))
+                    self.log.info("Seeking player %s playing %s from %d to %d" % (player.title, mediaWrapper, mediaWrapper.viewOffset, (targetOffset + self.rightOffset)))
                     try:
                         player.seekTo(targetOffset + self.rightOffset)
                         mediaWrapper.updateOffset(targetOffset + self.rightOffset)
@@ -120,17 +120,17 @@ class IntroSkipper():
                     wrapper = MediaWrapper(media)
                     if sessionKey not in self.media_sessions:
                         if self.shouldAdd(wrapper):
-                            self.log.info("Found a new %s LAN session %d playing %d with viewOffset %d" % (media.type, sessionKey, media.ratingKey, media.viewOffset))
+                            self.log.info("Found a new %s LAN session %s with viewOffset %d" % (media.type, wrapper, media.viewOffset))
                             self.media_sessions[sessionKey] = wrapper
                         else:
-                            self.log.debug("Ignoring LAN session %d" % (sessionKey))
+                            self.log.debug("Ignoring LAN session %s" % (wrapper))
                     elif not self.media_sessions[sessionKey].seeking and not self.media_sessions[sessionKey].buffering:
-                        self.log.debug("Updating an existing %s media session %s playing %d with viewOffset %d (previous %d)" % (media.type, sessionKey, media.ratingKey, media.viewOffset, self.media_sessions[sessionKey].viewOffset))
+                        self.log.debug("Updating an existing %s media session %s with viewOffset %d (previous %d)" % (media.type, wrapper, media.viewOffset, self.media_sessions[sessionKey].viewOffset))
                         self.media_sessions[sessionKey] = wrapper
                     elif self.media_sessions[sessionKey].seeking:
-                        self.log.debug("Skipping update as session %s appears to be actively seeking" % (sessionKey))
+                        self.log.debug("Skipping update as session %s appears to be actively seeking" % (wrapper))
                     elif self.media_sessions[sessionKey].buffering:
-                        self.log.debug("Skipping update as session %s appears to be actively buffering from a recent seek" % (sessionKey))
+                        self.log.debug("Skipping update as session %s appears to be actively buffering from a recent seek" % (wrapper))
                 else:
                     pass
             except:

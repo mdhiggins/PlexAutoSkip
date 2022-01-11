@@ -14,6 +14,14 @@ class MediaWrapper():
         self.media = media
         self.lastUpdate = datetime.now()
 
+    def __repr__(self) -> str:
+        base = "%d [%d]" % (self.media.sessionKey, self.media.ratingKey)
+        if hasattr(self.media, "title"):
+            if hasattr(self.media, "grandparentTitle") and hasattr(self.media, "seasonEpisode"):
+                return "%s (%s %s - %s) %s" % (base, self.media.grandparentTitle, self.media.seasonEpisode, self.media.title, self.playerName)
+            return "%s (%s) %s" % (base, self.media.title, self.playerName)
+        return "%s %s" % (base, self.playerName)
+
     @property
     def buffering(self):
         return (datetime.now() - self.lastSeek).total_seconds() < self.seekBuffer
@@ -21,7 +29,7 @@ class MediaWrapper():
     @property
     def playerName(self):
         if len(self.media.players) > 0:
-            return self.media.players[0].name
+            return self.media.players[0].title
         return "Player"
 
     @property
