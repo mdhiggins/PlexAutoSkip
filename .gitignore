@@ -1,9 +1,8 @@
 ###############################
 ## PlexAutoSkip
 #############################
-config.ini
-config.*.ini
-logging.ini
+*.ini
+*.json
 *.sh
 *.bat
 *.backup*

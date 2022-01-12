@@ -8,6 +8,7 @@ class MediaWrapper():
     seeking = False
     lastSeek = datetime(1970, 1, 1)
     seekBuffer = 5
+    customMarkers = []
 
     def __init__(self, media):
         self._viewOffset = media.viewOffset

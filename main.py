@@ -72,8 +72,7 @@ if __name__ == '__main__':
 
     if plex:
         intro_skipper = IntroSkipper(plex, settings.leftoffset, settings.rightoffset, logger=log)
-        intro_skipper.allowed = settings.allowed
-        intro_skipper.blocked = settings.blocked
+        intro_skipper.customEntries = settings.customEntries
         intro_skipper.start(sslopt=sslopt)
     else:
         log.error("Unable to establish Plex Server object via PlexAPI")

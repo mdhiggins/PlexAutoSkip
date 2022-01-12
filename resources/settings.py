@@ -3,6 +3,8 @@ import os
 import logging
 import sys
 
+from resources.customEntries import CustomEntries
+
 
 class FancyConfigParser(configparser.ConfigParser, object):
     def getlist(self, section, option, vars=None, separator=",", default=[], lower=True, replace=[' '], modifier=None):
@@ -30,10 +32,12 @@ class FancyConfigParser(configparser.ConfigParser, object):
 
 class Settings:
     CONFIG_DEFAULT = "config.ini"
+    CUSTOM_DEFAULT = "custom.json"
     CONFIG_DIRECTORY = "./config"
     RESOURCE_DIRECTORY = "./resources"
     RELATIVE_TO_ROOT = "../"
     ENV_CONFIG_VAR = "PAS_CONFIG"
+    customEntries = None
 
     @property
     def CONFIG_RELATIVEPATH(self):
@@ -57,16 +61,6 @@ class Settings:
         "Offsets": {
             "start": 2000,
             "end": 1000
-        },
-        "Allowed": {
-            "keys": '',
-            "seasons": '',
-            "shows": ''
-        },
-        "Blocked": {
-            "keys": '',
-            "seasons": '',
-            "shows": ''
         }
     }
 
@@ -114,6 +108,14 @@ class Settings:
 
         self.readConfig(config)
 
+        customFile = os.path.join(os.path.dirname(configFile), self.CUSTOM_DEFAULT)
+        if os.path.exists(customFile):
+            try:
+                self.customEntries = CustomEntries(customFile, self.log)
+                self.log.debug("Custom file found, loading %s" % customFile)
+            except:
+                self.log.exception("Found custom file %s but failed to load" % (customFile))
+
     def writeConfig(self, config, cfgfile):
         if not os.path.isdir(os.path.dirname(cfgfile)):
             os.makedirs(os.path.dirname(cfgfile))
@@ -145,13 +147,3 @@ class Settings:
 
         self.leftoffset = config.getint("Offsets", "start")
         self.rightoffset = config.getint("Offsets", "end")
-
-        self.allowed = {}
-        self.allowed["keys"] = config.getlist("Allowed", "keys", modifier=int)
-        self.allowed["parents"] = config.getlist("Allowed", "seasons", modifier=int)
-        self.allowed["grandparents"] = config.getlist("Allowed", "shows", modifier=int)
-
-        self.blocked = {}
-        self.blocked["keys"] = config.getlist("Blocked", "keys", modifier=int)
-        self.blocked["parents"] = config.getlist("Blocked", "seasons", modifier=int)
-        self.blocked["grandparents"] = config.getlist("Blocked", "shows", modifier=int)

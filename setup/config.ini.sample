@@ -15,4 +15,3 @@ ignore-certs = False
 [Offsets]
 start = 2000
 end = 1000
-

@@ -2,6 +2,7 @@
 
 import logging
 import time
+from resources.customEntries import CustomEntries
 from resources.sslAlertListener import SSLAlertListener
 from resources.mediaWrapper import MediaWrapper
 from xml.etree import ElementTree
@@ -13,16 +14,7 @@ from socket import timeout
 class IntroSkipper():
     media_sessions = {}
     delete = []
-    allowed = {
-        'keys': [],
-        'parents': [],
-        'grandparents': []
-    }
-    blocked = {
-        'keys': [],
-        'parents': [],
-        'grandparents': []
-    }
+    customEntries = None
 
     def __init__(self, server, leftOffset=0, rightOffset=0, timeout=60 * 2, logger=None):
         self.server = server
@@ -54,12 +46,19 @@ class IntroSkipper():
                 break
 
     def checkMedia(self, mediaWrapper):
+        for marker in mediaWrapper.customMarkers:
+            # self.log.debug("Checking custom marker %s (%d-%d)" % (marker.type, marker.start, marker.end))
+            if (marker.start) <= mediaWrapper.viewOffset <= marker.end:
+                self.log.info("Found a custom marker for media %s with range %d-%d and viewOffset %d" % (mediaWrapper, marker.start, marker.end, mediaWrapper.viewOffset))
+                self.seekTo(mediaWrapper, marker.end)
+                return
+
         if hasattr(mediaWrapper.media, 'chapters'):
             for chapter in [x for x in mediaWrapper.media.chapters if x.title and x.title.lower() == 'advertisement']:
                 # self.log.debug("Checking chapter %s (%d-%d)" % (chapter.title, chapter.start, chapter.end))
                 if (chapter.start + self.leftOffset) <= mediaWrapper.viewOffset <= chapter.end:
                     self.log.info("Found an advertisement chapter for media %s with range %d-%d and viewOffset %d" % (mediaWrapper, chapter.start + self.leftOffset, chapter.end, mediaWrapper.viewOffset))
-                    self.seekTo(mediaWrapper, chapter.end)
+                    self.seekTo(mediaWrapper, chapter.end + self.rightOffset)
                     return
 
         if hasattr(mediaWrapper.media, 'markers'):
@@ -67,7 +66,7 @@ class IntroSkipper():
                 # self.log.debug("Checking marker %s (%d-%d)" % (marker.type, marker.start, marker.end))
                 if (marker.start + self.leftOffset) <= mediaWrapper.viewOffset <= marker.end:
                     self.log.info("Found an intro marker for media %s with range %d-%d and viewOffset %d" % (mediaWrapper, marker.start + self.leftOffset, marker.end, mediaWrapper.viewOffset))
-                    self.seekTo(mediaWrapper, marker.end)
+                    self.seekTo(mediaWrapper, marker.end + self.rightOffset)
                     return
 
         if mediaWrapper.sinceLastUpdate > self.timeout:
@@ -86,11 +85,11 @@ class IntroSkipper():
                     mediaWrapper.willSeek()
                     self.log.info("Seeking player %s playing %s from %d to %d" % (player.title, mediaWrapper, mediaWrapper.viewOffset, (targetOffset + self.rightOffset)))
                     try:
-                        player.seekTo(targetOffset + self.rightOffset)
-                        mediaWrapper.updateOffset(targetOffset + self.rightOffset)
+                        player.seekTo(targetOffset)
+                        mediaWrapper.updateOffset(targetOffset)
                     except ElementTree.ParseError:
                         self.log.debug("ParseError, seems to be certain players but still functional, continuing")
-                        mediaWrapper.updateOffset(targetOffset + self.rightOffset)
+                        mediaWrapper.updateOffset(targetOffset)
                     except (ReadTimeout, ReadTimeoutError, timeout):
                         self.log.debug("TimeoutError, removing from cache to prevent false triggers, will be restored with next sync")
                         del self.media_sessions[mediaWrapper.media.sessionKey]
@@ -117,48 +116,54 @@ class IntroSkipper():
             try:
                 media = self.getDataFromSessions(sessionKey)
                 if media and media.session and len(media.session) > 0 and media.session[0].location == 'lan':
-                    wrapper = MediaWrapper(media)
                     if sessionKey not in self.media_sessions:
-                        if self.shouldAdd(wrapper):
+
+                        if self.shouldAdd(media):
+                            wrapper = MediaWrapper(media)
+                            if self.customEntries:
+                                self.customEntries.loadCustomMarkers(wrapper)
                             self.log.info("Found a new %s LAN session %s with viewOffset %d" % (media.type, wrapper, media.viewOffset))
                             self.media_sessions[sessionKey] = wrapper
                         else:
-                            self.log.debug("Ignoring LAN session %s" % (wrapper))
+                            self.log.debug("Ignoring LAN session %s" % (sessionKey))
                     elif not self.media_sessions[sessionKey].seeking and not self.media_sessions[sessionKey].buffering:
-                        self.log.debug("Updating an existing %s media session %s with viewOffset %d (previous %d)" % (media.type, wrapper, media.viewOffset, self.media_sessions[sessionKey].viewOffset))
-                        self.media_sessions[sessionKey] = wrapper
+                        self.log.debug("Updating an existing %s media session %s with viewOffset %d (previous %d)" % (media.type, self.media_sessions[sessionKey], media.viewOffset, self.media_sessions[sessionKey].viewOffset))
+                        self.media_sessions[sessionKey].updateOffset(media.viewOffset)
                     elif self.media_sessions[sessionKey].seeking:
-                        self.log.debug("Skipping update as session %s appears to be actively seeking" % (wrapper))
+                        self.log.debug("Skipping update as session %s appears to be actively seeking" % (self.media_sessions[sessionKey]))
                     elif self.media_sessions[sessionKey].buffering:
-                        self.log.debug("Skipping update as session %s appears to be actively buffering from a recent seek" % (wrapper))
+                        self.log.debug("Skipping update as session %s appears to be actively buffering from a recent seek" % (self.media_sessions[sessionKey]))
                 else:
                     pass
             except:
                 self.log.exception("Unexpected error getting media data from session alert")
 
-    def shouldAdd(self, mediaWrapper):
-        if mediaWrapper.media.ratingKey in self.allowed['keys']:
-            self.log.debug("Allowing media based on key %s" % (mediaWrapper.media.key))
+    def shouldAdd(self, media):
+        if not self.customEntries:
             return True
-        if mediaWrapper.media.ratingKey in self.blocked['keys']:
-            self.log.debug("Blocking media based on key %s" % (mediaWrapper.media.key))
+
+        if media.ratingKey in self.customEntries.allowed.get('keys', []):
+            self.log.debug("Allowing media based on key %s" % (media.key))
+            return True
+        if media.ratingKey in self.customEntries.blocked.get('keys', []):
+            self.log.debug("Blocking media based on key %s" % (media.key))
             return False
-        if hasattr(mediaWrapper.media, "parentRatingKey"):
-            if mediaWrapper.media.parentRatingKey in self.allowed['parents']:
-                self.log.debug("Allowing media based on parent key %s" % (mediaWrapper.media.parentRatingKey))
+        if hasattr(media, "parentRatingKey"):
+            if media.parentRatingKey in self.customEntries.allowed.get('parents', []):
+                self.log.debug("Allowing media based on parent key %s" % (media.parentRatingKey))
                 return True
-            if mediaWrapper.media.parentRatingKey in self.blocked['parents']:
-                self.log.debug("Blocking media based on parent key %s" % (mediaWrapper.media.parentRatingKey))
+            if media.parentRatingKey in self.customEntries.blocked.get('parents', []):
+                self.log.debug("Blocking media based on parent key %s" % (media.parentRatingKey))
                 return False
-        if hasattr(mediaWrapper.media, "grandparentRatingKey"):
-            if mediaWrapper.media.grandparentRatingKey in self.allowed['grandparents']:
-                self.log.debug("Allowing media based on grandparent key %s" % (mediaWrapper.media.grandparentRatingKey))
+        if hasattr(media, "grandparentRatingKey"):
+            if media.grandparentRatingKey in self.customEntries.allowed.get('grandparents', []):
+                self.log.debug("Allowing media based on grandparent key %s" % (media.grandparentRatingKey))
                 return True
-            if mediaWrapper.media.grandparentRatingKey in self.allowed['grandparents']:
-                self.log.debug("Blocking media based on grandparent key %s" % (mediaWrapper.media.grandparentRatingKey))
+            if media.grandparentRatingKey in self.customEntries.blocked.get('grandparents', []):
+                self.log.debug("Blocking media based on grandparent key %s" % (media.grandparentRatingKey))
                 return False
-        for k in self.allowed:
-            if len(self.allowed[k]) > 0:
+        for k in self.customEntries.allowed:
+            if len(self.customEntries.allowed[k]) > 0:
                 self.log.debug("Blocking media because it was not on the allowed list")
                 return False
         return True

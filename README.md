@@ -14,7 +14,7 @@ Currently Plex users markers and chapters to tag potentially skippable content a
 Requirements
 --------------
 - Python3
-- PlexPass (markers are not available otherwise)
+- PlexPass (for automatic markers)
 - PIP
 - PlexAPI
 - Websocket-client
@@ -27,8 +27,13 @@ Setup
 4. Edit `./config/config.ini` with your Plex account or Plex server settings
 5. Run `main.py`
 
-Config.ini
+config.ini
 --------------
+- See https://github.com/mdhiggins/PlexAutoSkip/wiki/Configuration
+
+custom.json
+--------------
+Optional custom parameters for which movie, show, season, or episode should be included or blocked. You can also define custom skip segments for media if you do not have Plex Pass or would like to skip additional areas of content
 - See https://github.com/mdhiggins/PlexAutoSkip/wiki/Configuration
 
 Docker
