@@ -1,11 +1,10 @@
 import json
 import logging
 from plexapi import media
-from plexapi.media import Marker
 
 
 class CustomEntries():
-    data = {
+    defaults = {
         "markers": {},
         "allowed": {
             'keys': [],
@@ -28,10 +27,19 @@ class CustomEntries():
         return self.data.get("blocked", {})
 
     def __init__(self, path, logger=None) -> None:
+        self.data = self.defaults
         self.log = logger or logging.getLogger(__name__)
         if path:
             with open(path) as f:
                 self.data = json.load(f)
+
+        # Make sure default entries are present to prevent exceptions
+        for k in self.defaults:
+            if k not in self.data:
+                self.data[k] = {}
+            for sk in self.defaults[k]:
+                if sk not in self.data[k]:
+                    self.data[k][sk] = []
 
     def loadCustomMarkers(self, mediaWrapper) -> None:
         if str(mediaWrapper.media.ratingKey) in self.data.get("markers", {}):
@@ -39,6 +47,20 @@ class CustomEntries():
                 cm = CustomMarker(markerdata)
                 if cm not in mediaWrapper.customMarkers:
                     self.log.debug("Found a custom marker range %s entry for %s" % (cm, mediaWrapper))
+                    mediaWrapper.customMarkers.append(cm)
+
+        if hasattr(mediaWrapper.media, "parentRatingKey") and str(mediaWrapper.media.parentRatingKey) in self.data.get("markers", {}):
+            for markerdata in self.data['markers'][str(mediaWrapper.media.parentRatingKey)]:
+                cm = CustomMarker(markerdata)
+                if cm not in mediaWrapper.customMarkers:
+                    self.log.debug("Found a custom marker range %s entry for %s (parentRatingKey match)" % (cm, mediaWrapper))
+                    mediaWrapper.customMarkers.append(cm)
+
+        if hasattr(mediaWrapper.media, "grandparentRatingKey") and str(mediaWrapper.media.grandparentRatingKey) in self.data.get("markers", {}):
+            for markerdata in self.data['markers'][str(mediaWrapper.media.grandparentRatingKey)]:
+                cm = CustomMarker(markerdata)
+                if cm not in mediaWrapper.customMarkers:
+                    self.log.debug("Found a custom marker range %s entry for %s (grandparentRatingKey match)" % (cm, mediaWrapper))
                     mediaWrapper.customMarkers.append(cm)
 
 
