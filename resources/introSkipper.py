@@ -14,6 +14,7 @@ from socket import timeout
 class IntroSkipper():
     media_sessions = {}
     delete = []
+    ignored = []
     customEntries = None
 
     def __init__(self, server, leftOffset=0, rightOffset=0, timeout=60 * 2, logger=None):
@@ -113,19 +114,31 @@ class IntroSkipper():
     def processAlert(self, data):
         if data['type'] == 'playing':
             sessionKey = int(data['PlaySessionStateNotification'][0]['sessionKey'])
+
+            if sessionKey in self.ignored:
+                return
+
             try:
                 media = self.getDataFromSessions(sessionKey)
                 if media and media.session and len(media.session) > 0 and media.session[0].location == 'lan':
                     if sessionKey not in self.media_sessions:
-
+                        wrapper = MediaWrapper(media)
+                        if self.customEntries:
+                            self.customEntries.loadCustomMarkers(wrapper)
                         if self.shouldAdd(media):
-                            wrapper = MediaWrapper(media)
-                            if self.customEntries:
-                                self.customEntries.loadCustomMarkers(wrapper)
                             self.log.info("Found a new %s LAN session %s with viewOffset %d" % (media.type, wrapper, media.viewOffset))
                             self.media_sessions[sessionKey] = wrapper
                         else:
-                            self.log.debug("Ignoring LAN session %s" % (sessionKey))
+                            if len(wrapper.customMarkers) > 0:
+                                self.log.info("Found a blocked %s LAN session %s with viewOffset %d, adding only custom markers" % (media.type, wrapper, media.viewOffset))
+                                if hasattr(wrapper.media, 'markers'):
+                                    del wrapper.media.markers[:]
+                                if hasattr(wrapper.media, 'chapters'):
+                                    del wrapper.media.chapters[:]
+                                self.media_sessions[sessionKey] = wrapper
+                            else:
+                                self.log.debug("Ignoring LAN session %s" % (sessionKey))
+                                self.ignored.append(sessionKey)
                     elif not self.media_sessions[sessionKey].seeking and not self.media_sessions[sessionKey].buffering:
                         self.log.debug("Updating an existing %s media session %s with viewOffset %d (previous %d)" % (media.type, self.media_sessions[sessionKey], media.viewOffset, self.media_sessions[sessionKey].viewOffset))
                         self.media_sessions[sessionKey].updateOffset(media.viewOffset)
