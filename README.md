@@ -4,6 +4,8 @@ PlexAutoSkip
 
 A background python script that monitors local playback on your server (LAN only) and will automatically 'press' the Skip Intro button or skip other similarly tagged content automatically
 
+Only works on LAN sessions (not remote) as Plex does not allow seeking adjustments via the API for remote sessions
+
 Currently Plex uses markers and chapters to tag potentially skippable content as follows:
 - Markers
   - Intros
