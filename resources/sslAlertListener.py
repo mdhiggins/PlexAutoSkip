@@ -1,3 +1,4 @@
+import logging
 from plexapi.alert import AlertListener
 
 
@@ -15,8 +16,13 @@ class SSLAlertListener(AlertListener):
             sslopt (dict): ssl socket optional dict.
                 :samp:`{"cert_reqs": ssl.CERT_NONE}`
     """
-    def __init__(self, server, callback=None, callbackError=None, sslopt=None):
-        super(SSLAlertListener, self).__init__(server, callback, callbackError)
+    def __init__(self, server, callback=None, callbackError=None, sslopt=None, logger=None):
+        self.log = logger or logging.getLogger(__name__)
+        try:
+            super(SSLAlertListener, self).__init__(server, callback, callbackError)
+        except TypeError:
+            self.log.error("AlertListener error detected, you may need to update your version of PlexAPI, attempting backwards compatibility")
+            super(SSLAlertListener, self).__init__(server, callback)
         self._sslopt = sslopt
 
     def run(self):

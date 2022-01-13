@@ -35,7 +35,7 @@ class IntroSkipper():
         return None
 
     def start(self, sslopt=None):
-        self.listener = SSLAlertListener(self.server, self.processAlert, self.error, sslopt=sslopt)
+        self.listener = SSLAlertListener(self.server, self.processAlert, self.error, sslopt=sslopt, logger=self.log)
         self.listener.start()
         while self.listener.is_alive():
             try:
