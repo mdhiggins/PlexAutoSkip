@@ -99,7 +99,11 @@ class IntroSkipper():
         mediaWrapper.seeking = False
 
     def checkPlayerForMedia(self, player, media):
-        return not player.timeline or (player.isPlayingMedia(False) and player.timeline.key == media.key)
+        try:
+            return not player.timeline or (player.isPlayingMedia(False) and player.timeline.key == media.key)
+        except:
+            self.log.debug("checkPlayerForMedia failed, some players do not support this, will pass true to maintain functionality", exc_info=1)
+            return True
 
     def stillPlaying(self, mediaWrapper):
         for player in mediaWrapper.media.players:
