@@ -14,18 +14,19 @@ Currently Plex uses markers and chapters to tag potentially skippable content as
 Requirements
 --------------
 - Python3
-- PlexPass (for automatic markers)
 - PIP
+- PlexPass (for automatic markers)
 - PlexAPI
 - Websocket-client
 
 Setup
 --------------
-1. Clone the repository
-2. Install requirements using `pip install -R ./setup/requirements.txt`
-3. Run `main.py` once to generate config files or copy samples from the `./setup` directory
-4. Edit `./config/config.ini` with your Plex account or Plex server settings
-5. Run `main.py`
+1. Ensure you have [Python](https://docs.python-guide.org/starting/installation/#installation) and [PIP](https://packaging.python.org/en/latest/tutorials/installing-packages/) installed
+2. Clone the repository
+3. Install requirements using `pip install -R ./setup/requirements.txt`
+4. Run `main.py` once to generate config files or copy samples from the `./setup` directory
+5. Edit `./config/config.ini` with your Plex account or Plex server settings
+6. Run `main.py`
 
 config.ini
 --------------
