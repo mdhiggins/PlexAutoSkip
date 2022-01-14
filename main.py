@@ -56,7 +56,8 @@ if __name__ == '__main__':
                     account = None
             if account:
                 plex = account.resource(settings.servername).connect()
-            log.info("Connected to Plex server %s using plex.tv account" % (plex.friendlyName))
+            if plex:
+                log.info("Connected to Plex server %s using plex.tv account" % (plex.friendlyName))
         except:
             log.exception("Error connecting to plex.tv account")
 
