@@ -160,7 +160,7 @@ class IntroSkipper():
                         if self.customEntries:
                             self.customEntries.loadCustomMarkers(wrapper)
                         if self.shouldAdd(media):
-                            self.log.info("Found a new %s LAN session %s with viewOffset %d users %s" % (media.type, wrapper, media.viewOffset, media.usernames))
+                            self.log.info("Found a new %s LAN session %s with viewOffset %d %s" % (media.type, wrapper, media.viewOffset, media.usernames))
                             self.media_sessions[sessionKey] = wrapper
                         else:
                             if len(wrapper.customMarkers) > 0:
