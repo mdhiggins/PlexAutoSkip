@@ -19,7 +19,9 @@ class IntroSkipper():
     reconnect = True
 
     GDM_ERROR = "FrameworkException: Unable to find player with identifier"
+    GDM_ERROR_MSG = "BadRequest Error: Please enable 'Local Network Discovery (GDM)' in your Plex Server > Settings > Network options and ensure that all your devices are on the same subnet. You may also try relogging your devices and refreshing your access token""
     FORBIDDEN_ERROR = "HTTPError: HTTP Error 403: Forbidden"
+    FORBIDDEN_ERROR_MSG = "Forbidden Error: Please enable 'Advertise as player' in your Plex client settings and verify your server credentials/token"
     IGNORED_CAP = 200
 
     def __init__(self, server, leftOffset=0, rightOffset=0, timeout=60 * 2, logger=None):
@@ -108,9 +110,9 @@ class IntroSkipper():
                         del self.media_sessions[mediaWrapper.media.sessionKey]
                     except BadRequest as br:
                         if self.GDM_ERROR in br.args[0]:
-                            self.log.error("BadRequest Error: Please enable 'Local Network Discovery (GDM)' in your Plex Server > Settings > Network options")
+                            self.log.error(self.GDM_ERROR_MSG)
                         elif self.FORBIDDEN_ERROR in br.args[0]:
-                            self.log.error("Forbidden Error: Please enable 'Advertise as player' in your Plex client settings and verify your server credentials/token")
+                            self.log.error(self.FORBIDDEN_ERROR_MSG)
                         else:
                             self.log.exception("BadRequest Error")
             except KeyboardInterrupt as ki:
@@ -124,9 +126,9 @@ class IntroSkipper():
             return not player.timeline or (player.isPlayingMedia(False) and player.timeline.key == media.key)
         except BadRequest as br:
             if self.GDM_ERROR in br.args[0]:
-                self.log.error("BadRequest Error: Please enable 'Local Network Discovery (GDM)' in your Plex Server > Settings > Network options")
+                self.log.error(self.GDM_ERROR_MSG)
             elif self.FORBIDDEN_ERROR in br.args[0]:
-                self.log.error("Forbidden Error: Please enable 'Advertise as player' in your Plex client settings and verify your server credentials/token")
+                self.log.error(self.FORBIDDEN_ERROR_MSG)
             else:
                 self.log.debug("checkPlayerForMedia failed with BadRequest", exc_info=1)
             return False
