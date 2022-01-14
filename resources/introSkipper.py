@@ -19,9 +19,9 @@ class IntroSkipper():
     reconnect = True
 
     GDM_ERROR = "FrameworkException: Unable to find player with identifier"
-    GDM_ERROR_MSG = "BadRequest Error: Please enable 'Local Network Discovery (GDM)' in your Plex Server > Settings > Network options and ensure that all your devices are on the same subnet. You may also try relogging your devices and refreshing your access token"
+    GDM_ERROR_MSG = "BadRequest Error, see https://github.com/mdhiggins/PlexAutoSkip/wiki/Troubleshooting#badrequest-error"
     FORBIDDEN_ERROR = "HTTPError: HTTP Error 403: Forbidden"
-    FORBIDDEN_ERROR_MSG = "Forbidden Error: Please enable 'Advertise as player' in your Plex client settings and verify your server credentials/token"
+    FORBIDDEN_ERROR_MSG = "Forbidden Error, see https://github.com/mdhiggins/PlexAutoSkip/wiki/Troubleshooting#forbidden-error"
     IGNORED_CAP = 200
 
     def __init__(self, server, leftOffset=0, rightOffset=0, timeout=60 * 2, logger=None):
