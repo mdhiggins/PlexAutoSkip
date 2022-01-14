@@ -112,7 +112,7 @@ class Settings:
         if os.path.exists(customFile):
             try:
                 self.customEntries = CustomEntries(customFile, self.log)
-                self.log.debug("Custom file found, loading %s" % customFile)
+                self.log.info("Loading custom JSON file %s" % customFile)
             except:
                 self.log.exception("Found custom file %s but failed to load" % (customFile))
 
