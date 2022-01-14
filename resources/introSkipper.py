@@ -18,6 +18,7 @@ class IntroSkipper():
     customEntries = None
 
     GDM_ERROR = "FrameworkException: Unable to find player with identifier"
+    FORBIDDEN_ERROR = "HTTPError: HTTP Error 403: Forbidden"
 
     def __init__(self, server, leftOffset=0, rightOffset=0, timeout=60 * 2, logger=None):
         self.server = server
@@ -99,6 +100,8 @@ class IntroSkipper():
                     except BadRequest as br:
                         if self.GDM_ERROR in br.args[0]:
                             self.log.error("BadRequest Error: Please enable 'Local Network Discovery (GDM)' in your Plex Server > Settings > Network options")
+                        elif self.FORBIDDEN_ERROR in br.args[0]:
+                            self.log.error("Forbidden Error: Please enable 'Advertise as player' in your Plex client settings and verify your server credentials/token")
             except:
                 self.log.exception("Error seeking")
         mediaWrapper.seeking = False
@@ -109,10 +112,11 @@ class IntroSkipper():
         except BadRequest as br:
             if self.GDM_ERROR in br.args[0]:
                 self.log.error("BadRequest Error: Please enable 'Local Network Discovery (GDM)' in your Plex Server > Settings > Network options")
-                return False
+            elif self.FORBIDDEN_ERROR in br.args[0]:
+                self.log.error("Forbidden Error: Please enable 'Advertise as player' in your Plex client settings and verify your server credentials/token")
             else:
                 self.log.debug("checkPlayerForMedia failed with BadRequest", exc_info=1)
-                return False
+            return False
 
     def stillPlaying(self, mediaWrapper):
         for player in mediaWrapper.media.players:
