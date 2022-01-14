@@ -19,6 +19,7 @@ class IntroSkipper():
 
     GDM_ERROR = "FrameworkException: Unable to find player with identifier"
     FORBIDDEN_ERROR = "HTTPError: HTTP Error 403: Forbidden"
+    IGNORED_CAP = 200
 
     def __init__(self, server, leftOffset=0, rightOffset=0, timeout=60 * 2, logger=None):
         self.server = server
@@ -156,6 +157,7 @@ class IntroSkipper():
                             else:
                                 self.log.debug("Ignoring LAN session %s" % (sessionKey))
                                 self.ignored.append(sessionKey)
+                                self.ignored = self.ignored[-self.IGNORED_CAP:]
                     elif not self.media_sessions[sessionKey].seeking and not self.media_sessions[sessionKey].buffering:
                         self.log.debug("Updating an existing %s media session %s with viewOffset %d (previous %d)" % (media.type, self.media_sessions[sessionKey], media.viewOffset, self.media_sessions[sessionKey].viewOffset))
                         self.media_sessions[sessionKey].updateOffset(media.viewOffset)
@@ -166,7 +168,7 @@ class IntroSkipper():
                 else:
                     pass
             except:
-                self.log.exception("Unexpected error getting media data from session alert")
+                self.log.exception("Unexpected error getting data from session alert")
 
     def shouldAdd(self, media):
         if not self.customEntries:
