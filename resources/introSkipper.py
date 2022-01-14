@@ -16,6 +16,7 @@ class IntroSkipper():
     delete = []
     ignored = []
     customEntries = None
+    reconnect = True
 
     GDM_ERROR = "FrameworkException: Unable to find player with identifier"
     FORBIDDEN_ERROR = "HTTPError: HTTP Error 403: Forbidden"
@@ -34,12 +35,15 @@ class IntroSkipper():
             for session in self.server.sessions():
                 if session.sessionKey == sessionKey:
                     return session
+        except KeyboardInterrupt as ki:
+            raise(ki)
         except:
             self.log.exception("getDataFromSessions Error")
         return None
 
     def start(self, sslopt=None):
         self.listener = SSLAlertListener(self.server, self.processAlert, self.error, sslopt=sslopt, logger=self.log)
+        self.log.debug("Starting listener")
         self.listener.start()
         while self.listener.is_alive():
             try:
@@ -47,8 +51,12 @@ class IntroSkipper():
                     self.checkMedia(session)
                 time.sleep(1)
             except KeyboardInterrupt:
+                self.log.debug("Stopping listener")
+                self.reconnect = False
                 self.listener.stop()
                 break
+        if self.reconnect:
+            self.start(sslopt)
 
     def checkMedia(self, mediaWrapper):
         for marker in mediaWrapper.customMarkers:
@@ -103,6 +111,10 @@ class IntroSkipper():
                             self.log.error("BadRequest Error: Please enable 'Local Network Discovery (GDM)' in your Plex Server > Settings > Network options")
                         elif self.FORBIDDEN_ERROR in br.args[0]:
                             self.log.error("Forbidden Error: Please enable 'Advertise as player' in your Plex client settings and verify your server credentials/token")
+                        else:
+                            self.log.exception("BadRequest Error")
+            except KeyboardInterrupt as ki:
+                raise(ki)
             except:
                 self.log.exception("Error seeking")
         mediaWrapper.seeking = False
@@ -125,6 +137,8 @@ class IntroSkipper():
                 player.proxyThroughServer(True, self.server)
                 if self.checkPlayerForMedia(player, mediaWrapper.media):
                     return True
+            except KeyboardInterrupt as ki:
+                raise(ki)
             except:
                 self.log.exception("Error while checking player")
         return False
@@ -167,6 +181,8 @@ class IntroSkipper():
                         self.log.debug("Skipping update as session %s appears to be actively buffering from a recent seek" % (self.media_sessions[sessionKey]))
                 else:
                     pass
+            except KeyboardInterrupt as ki:
+                raise(ki)
             except:
                 self.log.exception("Unexpected error getting data from session alert")
 
