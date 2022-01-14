@@ -115,7 +115,14 @@ class IntroSkipper():
                         del self.media_sessions[mediaWrapper.media.sessionKey]
                     except BadRequest as br:
                         if self.GDM_ERROR in br.args[0]:
-                            self.log.error(self.GDM_ERROR_MSG)
+                            try:
+                                player = self.recoverPlayer(player)
+                                player.seekTo(targetOffset)
+                                mediaWrapper.updateOffset(targetOffset)
+                            except BadRequest:
+                                self.log.error(self.GDM_ERROR_MSG)
+                            except Exception as e:
+                                raise(e)
                         elif self.FORBIDDEN_ERROR in br.args[0]:
                             self.log.error(self.FORBIDDEN_ERROR_MSG)
                         else:
@@ -131,12 +138,23 @@ class IntroSkipper():
             return not player.timeline or (player.isPlayingMedia(False) and player.timeline.key == media.key)
         except BadRequest as br:
             if self.GDM_ERROR in br.args[0]:
-                self.log.error(self.GDM_ERROR_MSG)
+                try:
+                    player = self.recoverPlayer(player)
+                    return not player.timeline or (player.isPlayingMedia(False) and player.timeline.key == media.key)
+                except BadRequest:
+                    self.log.error(self.GDM_ERROR_MSG)
+                except Exception as e:
+                    raise(e)
             elif self.FORBIDDEN_ERROR in br.args[0]:
                 self.log.error(self.FORBIDDEN_ERROR_MSG)
             else:
                 self.log.debug("checkPlayerForMedia failed with BadRequest", exc_info=1)
             return False
+
+    def recoverPlayer(self, player, protocol="http://", port=32500):
+        baseurl = "%s%s:%d" % (protocol, player.address, port)
+        self.log.debug("GDM client error, attempting to connect directly using baseURL %s" % (baseurl))
+        return PlexClient(self.server, baseurl=baseurl, token=self.server._token)
 
     def stillPlaying(self, mediaWrapper):
         for player in mediaWrapper.media.players:
