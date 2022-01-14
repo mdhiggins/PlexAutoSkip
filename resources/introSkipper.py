@@ -200,7 +200,7 @@ class IntroSkipper():
             if media.grandparentRatingKey in self.customEntries.blockedGrandparentKeys:
                 self.log.debug("Blocking media based on grandparent key %s" % (media.grandparentRatingKey))
                 return False
-        if any(len(a) for a in self.customEntries.allowed.values()):
+        if self.customEntries.allowedKeys + self.customEntries.allowedParentKeys + self.customEntries.allowedGrandparentKeys:
             self.log.debug("Blocking media because it was not on the allowed list")
             return False
 
