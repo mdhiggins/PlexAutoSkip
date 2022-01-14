@@ -17,7 +17,8 @@ class CustomEntries():
             'keys': [],
             'parents': [],
             'grandparents': []
-        }
+        },
+        "clients": {}
     }
 
     @property
@@ -60,11 +61,15 @@ class CustomEntries():
     def blockedGrandparentKeys(self):
         return self.blocked.get("grandparents", [])
 
+    @property
+    def clients(self):
+        return self.data.get("clients", [])
+
     def __init__(self, path, logger=None) -> None:
         self.data = self.defaults
         self.log = logger or logging.getLogger(__name__)
         if path:
-            with open(path) as f:
+            with open(path, encoding='utf-8') as f:
                 self.data = json.load(f)
 
         # Make sure default entries are present to prevent exceptions

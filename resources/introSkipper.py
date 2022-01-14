@@ -9,6 +9,7 @@ from urllib3.exceptions import ReadTimeoutError
 from requests.exceptions import ReadTimeout
 from socket import timeout
 from plexapi.exceptions import BadRequest
+from plexapi.client import PlexClient
 
 
 class IntroSkipper():
@@ -94,11 +95,15 @@ class IntroSkipper():
     def seekTo(self, mediaWrapper, targetOffset):
         for player in mediaWrapper.media.players:
             try:
+                if player.title in self.customEntries.clients:
+                    self.log.debug("Overriding player %s using custom baseURL %s" % (player.title, self.customEntries.clients[player.title]))
+                    player = PlexClient(self.server, baseurl=self.customEntries.clients[player.title], token=self.server._token)
+
                 player.proxyThroughServer(True, self.server)
                 # Playback / Media check fails if the timeline cannot be pulled but not all players return a timeline so check first
                 if self.checkPlayerForMedia(player, mediaWrapper.media):
                     mediaWrapper.willSeek()
-                    self.log.info("Seeking player %s playing %s from %d to %d" % (player.title, mediaWrapper, mediaWrapper.viewOffset, (targetOffset + self.rightOffset)))
+                    self.log.info("Seeking player playing %s from %d to %d" % (mediaWrapper, mediaWrapper.viewOffset, (targetOffset + self.rightOffset)))
                     try:
                         player.seekTo(targetOffset)
                         mediaWrapper.updateOffset(targetOffset)
