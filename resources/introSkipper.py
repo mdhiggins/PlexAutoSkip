@@ -95,7 +95,7 @@ class IntroSkipper():
     def seekTo(self, mediaWrapper, targetOffset):
         for player in mediaWrapper.media.players:
             try:
-                if player.title in self.customEntries.clients:
+                if self.customEntries and player.title in self.customEntries.clients:
                     self.log.debug("Overriding player %s using custom baseURL %s" % (player.title, self.customEntries.clients[player.title]))
                     player = PlexClient(self.server, baseurl=self.customEntries.clients[player.title], token=self.server._token)
 
@@ -127,6 +127,8 @@ class IntroSkipper():
                             self.log.error(self.FORBIDDEN_ERROR_MSG)
                         else:
                             self.log.exception("BadRequest Error")
+                else:
+                    self.log.debug("Not seeking, checkPlayerForMedia returned False")
             except KeyboardInterrupt as ki:
                 raise(ki)
             except:
