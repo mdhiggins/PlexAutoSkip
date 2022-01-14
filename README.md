@@ -2,7 +2,7 @@ PlexAutoSkip
 ==============
  **Automatically skip tagged content in Plex**
 
-A background python script that monitors local playback on your server (LAN only) and will automatically 'press' the Skip Intro button or skip other similarly tagged content automatically
+A background python script that monitors local playback on your server and will automatically 'press' the Skip Intro button or skip other similarly tagged content automatically
 
 Only works on LAN sessions (not remote) as Plex does not allow seeking adjustments via the API for remote sessions
 
@@ -23,12 +23,14 @@ Requirements
 
 Setup
 --------------
-1. Ensure you have [Python](https://docs.python-guide.org/starting/installation/#installation) and [PIP](https://packaging.python.org/en/latest/tutorials/installing-packages/) installed
-2. Clone the repository
-3. Install requirements using `pip install -R ./setup/requirements.txt`
-4. Run `main.py` once to generate config files or copy samples from the `./setup` directory
-5. Edit `./config/config.ini` with your Plex account or Plex server settings
-6. Run `main.py`
+1. Enable `Enable local network discovery (GDM)` in your Plex Server > Network settings
+2. Enable `Advertise as player` on Plex players
+3. Ensure you have [Python](https://docs.python-guide.org/starting/installation/#installation) and [PIP](https://packaging.python.org/en/latest/tutorials/installing-packages/) installed
+4. Clone the repository
+5. Install requirements using `pip install -R ./setup/requirements.txt`
+6. Run `main.py` once to generate config files or copy samples from the `./setup` directory and rename removing the `.sample` suffix
+7. Edit `./config/config.ini` with your Plex account or Plex server settings
+8. Run `main.py`
 
 config.ini
 --------------
