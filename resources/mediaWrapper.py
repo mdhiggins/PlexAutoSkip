@@ -39,7 +39,6 @@ class MediaWrapper():
 
     @property
     def viewOffset(self):
-        x = round((datetime.now() - self.lastUpdate).total_seconds() * 1000)
         return self._viewOffset + round((datetime.now() - self.lastUpdate).total_seconds() * 1000)
 
     def updated(self):
