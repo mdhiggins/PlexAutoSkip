@@ -143,7 +143,7 @@ class IntroSkipper():
                         if self.customEntries:
                             self.customEntries.loadCustomMarkers(wrapper)
                         if self.shouldAdd(media):
-                            self.log.info("Found a new %s LAN session %s with viewOffset %d" % (media.type, wrapper, media.viewOffset))
+                            self.log.info("Found a new %s LAN session %s with viewOffset %d users %s" % (media.type, wrapper, media.viewOffset, media.usernames))
                             self.media_sessions[sessionKey] = wrapper
                         else:
                             if len(wrapper.customMarkers) > 0:
@@ -172,30 +172,38 @@ class IntroSkipper():
         if not self.customEntries:
             return True
 
-        if media.ratingKey in self.customEntries.allowed.get('keys', []):
+        if any(b for b in self.customEntries.blockedUsers if b in media.usernames):
+            self.log.debug("Blocking session based on blocked user %s" % (media.usernames))
+            return False
+
+        if self.customEntries.allowedUsers and not any(u for u in media.usernames if u in self.customEntries.allowedUsers):
+            self.log.debug("Blocking session based on not allowed user %s" % (media.usernames))
+            return False
+
+        if media.ratingKey in self.customEntries.allowedKeys:
             self.log.debug("Allowing media based on key %s" % (media.key))
             return True
-        if media.ratingKey in self.customEntries.blocked.get('keys', []):
+        if media.ratingKey in self.customEntries.blockedKeys:
             self.log.debug("Blocking media based on key %s" % (media.key))
             return False
         if hasattr(media, "parentRatingKey"):
-            if media.parentRatingKey in self.customEntries.allowed.get('parents', []):
+            if media.parentRatingKey in self.customEntries.allowedParentKeys:
                 self.log.debug("Allowing media based on parent key %s" % (media.parentRatingKey))
                 return True
-            if media.parentRatingKey in self.customEntries.blocked.get('parents', []):
+            if media.parentRatingKey in self.customEntries.blockedParentKeys:
                 self.log.debug("Blocking media based on parent key %s" % (media.parentRatingKey))
                 return False
         if hasattr(media, "grandparentRatingKey"):
-            if media.grandparentRatingKey in self.customEntries.allowed.get('grandparents', []):
+            if media.grandparentRatingKey in self.customEntries.allowedGrandparentKeys:
                 self.log.debug("Allowing media based on grandparent key %s" % (media.grandparentRatingKey))
                 return True
-            if media.grandparentRatingKey in self.customEntries.blocked.get('grandparents', []):
+            if media.grandparentRatingKey in self.customEntries.blockedGrandparentKeys:
                 self.log.debug("Blocking media based on grandparent key %s" % (media.grandparentRatingKey))
                 return False
-        for k in self.customEntries.allowed:
-            if len(self.customEntries.allowed[k]) > 0:
-                self.log.debug("Blocking media because it was not on the allowed list")
-                return False
+        if any(len(a) for a in self.customEntries.allowed.values()):
+            self.log.debug("Blocking media because it was not on the allowed list")
+            return False
+
         return True
 
     def error(self, data):

@@ -7,11 +7,13 @@ class CustomEntries():
     defaults = {
         "markers": {},
         "allowed": {
+            'users': [],
             'keys': [],
             'parents': [],
             'grandparents': []
         },
         "blocked": {
+            'users': [],
             'keys': [],
             'parents': [],
             'grandparents': []
@@ -23,8 +25,40 @@ class CustomEntries():
         return self.data.get("allowed", {})
 
     @property
+    def allowedUsers(self):
+        return self.allowed.get("users", [])
+
+    @property
+    def allowedKeys(self):
+        return self.allowed.get("keys", [])
+
+    @property
+    def allowedParentKeys(self):
+        return self.allowed.get("parents", [])
+
+    @property
+    def allowedGrandparentKeys(self):
+        return self.allowed.get("grandparents", [])
+
+    @property
     def blocked(self):
         return self.data.get("blocked", {})
+
+    @property
+    def blockedUsers(self):
+        return self.blocked.get("users", [])
+
+    @property
+    def blockedKeys(self):
+        return self.blocked.get("keys", [])
+
+    @property
+    def blockedParentKeys(self):
+        return self.blocked.get("parents", [])
+
+    @property
+    def blockedGrandparentKeys(self):
+        return self.blocked.get("grandparents", [])
 
     def __init__(self, path, logger=None) -> None:
         self.data = self.defaults
