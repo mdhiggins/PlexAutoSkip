@@ -2,13 +2,13 @@
 
 import logging
 import time
-from resources.customEntries import CustomEntries
 from resources.sslAlertListener import SSLAlertListener
 from resources.mediaWrapper import MediaWrapper
 from xml.etree import ElementTree
 from urllib3.exceptions import ReadTimeoutError
 from requests.exceptions import ReadTimeout
 from socket import timeout
+from plexapi.exceptions import BadRequest
 
 
 class IntroSkipper():
@@ -16,6 +16,8 @@ class IntroSkipper():
     delete = []
     ignored = []
     customEntries = None
+
+    GDM_ERROR = "FrameworkException: Unable to find player with identifier"
 
     def __init__(self, server, leftOffset=0, rightOffset=0, timeout=60 * 2, logger=None):
         self.server = server
@@ -94,6 +96,9 @@ class IntroSkipper():
                     except (ReadTimeout, ReadTimeoutError, timeout):
                         self.log.debug("TimeoutError, removing from cache to prevent false triggers, will be restored with next sync")
                         del self.media_sessions[mediaWrapper.media.sessionKey]
+                    except BadRequest as br:
+                        if self.GDM_ERROR in br.args[0]:
+                            self.log.error("BadRequest Error: Please enable 'Local Network Discovery (GDM)' in your Plex Server > Settings > Network options")
             except:
                 self.log.exception("Error seeking")
         mediaWrapper.seeking = False
@@ -101,9 +106,13 @@ class IntroSkipper():
     def checkPlayerForMedia(self, player, media):
         try:
             return not player.timeline or (player.isPlayingMedia(False) and player.timeline.key == media.key)
-        except:
-            self.log.debug("checkPlayerForMedia failed, some players do not support this, will pass true to maintain functionality", exc_info=1)
-            return True
+        except BadRequest as br:
+            if self.GDM_ERROR in br.args[0]:
+                self.log.error("BadRequest Error: Please enable 'Local Network Discovery (GDM)' in your Plex Server > Settings > Network options")
+                return False
+            else:
+                self.log.debug("checkPlayerForMedia failed with BadRequest", exc_info=1)
+                return False
 
     def stillPlaying(self, mediaWrapper):
         for player in mediaWrapper.media.players:
