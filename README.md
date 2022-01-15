@@ -36,12 +36,12 @@ _Script has fallback methods for when GDM is not enabled or is nonfunctional_
 
 config.ini
 --------------
-- See https://github.com/mdhiggins/PlexAutoSkip/wiki/Configuration
+- See https://github.com/mdhiggins/PlexAutoSkip/wiki/Configuration#configuration-options-for-configini
 
 custom.json
 --------------
 Optional custom parameters for which movie, show, season, or episode should be included or blocked. You can also define custom skip segments for media if you do not have Plex Pass or would like to skip additional areas of content
-- See https://github.com/mdhiggins/PlexAutoSkip/wiki/Configuration
+- See https://github.com/mdhiggins/PlexAutoSkip/wiki/Configuration#configuration-options-for-customjson
 
 Docker
 --------------
