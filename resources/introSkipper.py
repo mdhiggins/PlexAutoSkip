@@ -95,13 +95,15 @@ class IntroSkipper():
     def seekTo(self, mediaWrapper, targetOffset):
         for player in mediaWrapper.media.players:
             try:
+                player.proxyThroughServer(True, self.server)
+
                 if self.customEntries and player.title in self.customEntries.clients:
                     self.log.debug("Overriding player %s using custom baseURL %s" % (player.title, self.customEntries.clients[player.title]))
                     player = PlexClient(self.server, baseurl=self.customEntries.clients[player.title], token=self.server._token)
+                    player.proxyThroughServer(False)
 
-                player.proxyThroughServer(True, self.server)
-                # Playback / Media check fails if the timeline cannot be pulled but not all players return a timeline so check first
-                if self.checkPlayerForMedia(player, mediaWrapper.media):
+                player = self.checkPlayerForMedia(player, mediaWrapper.media)
+                if player:
                     mediaWrapper.willSeek()
                     self.log.info("Seeking player playing %s from %d to %d" % (mediaWrapper, mediaWrapper.viewOffset, (targetOffset + self.rightOffset)))
                     try:
@@ -116,8 +118,7 @@ class IntroSkipper():
                     except BadRequest as br:
                         if self.GDM_ERROR in br.args[0]:
                             try:
-                                player = self.recoverPlayer(player)
-                                player.seekTo(targetOffset)
+                                self.recoverPlayer(player).seekTo(targetOffset)
                                 mediaWrapper.updateOffset(targetOffset)
                             except BadRequest:
                                 self.log.error(self.GDM_ERROR_MSG)
@@ -137,12 +138,14 @@ class IntroSkipper():
 
     def checkPlayerForMedia(self, player, media):
         try:
-            return not player.timeline or (player.isPlayingMedia(False) and player.timeline.key == media.key)
+            if not player.timeline or (player.isPlayingMedia(False) and player.timeline.key == media.key):
+                return player
         except BadRequest as br:
             if self.GDM_ERROR in br.args[0]:
                 try:
-                    player = self.recoverPlayer(player)
-                    return not player.timeline or (player.isPlayingMedia(False) and player.timeline.key == media.key)
+                    alt = self.recoverPlayer(player)
+                    if not alt.timeline or (alt.isPlayingMedia(False) and alt.timeline.key == media.key):
+                        return alt
                 except BadRequest:
                     self.log.error(self.GDM_ERROR_MSG)
                 except Exception as e:
@@ -151,12 +154,15 @@ class IntroSkipper():
                 self.log.error(self.FORBIDDEN_ERROR_MSG)
             else:
                 self.log.debug("checkPlayerForMedia failed with BadRequest", exc_info=1)
-            return False
+        return None
 
-    def recoverPlayer(self, player, protocol="http://", port=32500):
+    def recoverPlayer(self, player, protocol="http://"):
+        port = 8324 if "roku" in player.device.lower() else 32500
         baseurl = "%s%s:%d" % (protocol, player.address, port)
         self.log.debug("GDM client error, attempting to connect directly using baseURL %s" % (baseurl))
-        return PlexClient(self.server, baseurl=baseurl, token=self.server._token)
+        p = PlexClient(self.server, baseurl=baseurl, token=self.server._token)
+        p.proxyThroughServer(False)
+        return p
 
     def stillPlaying(self, mediaWrapper):
         for player in mediaWrapper.media.players:
