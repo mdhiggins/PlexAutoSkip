@@ -32,6 +32,8 @@ Setup
 7. Edit `./config/config.ini` with your Plex account or Plex server settings
 8. Run `main.py`
 
+_Script has fallback methods for when GDM is not enabled or is nonfunctional_
+
 config.ini
 --------------
 - See https://github.com/mdhiggins/PlexAutoSkip/wiki/Configuration
