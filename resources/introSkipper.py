@@ -23,6 +23,16 @@ class IntroSkipper():
     GDM_ERROR_MSG = "BadRequest Error, see https://github.com/mdhiggins/PlexAutoSkip/wiki/Troubleshooting#badrequest-error"
     FORBIDDEN_ERROR = "HTTPError: HTTP Error 403: Forbidden"
     FORBIDDEN_ERROR_MSG = "Forbidden Error, see https://github.com/mdhiggins/PlexAutoSkip/wiki/Troubleshooting#forbidden-error"
+
+    CLIENT_PORTS = {
+        "Plex for Roku": 8324,
+        "Plex for Android (TV)": 32500,
+        "Plex for Android (Mobile)": 32500,
+        "Plex for iOS": 32500
+    }
+    PROXY_ONLY = ["Plex Web"]
+    DEFAULT_CLIENT_PORT = 32500
+
     IGNORED_CAP = 200
 
     def __init__(self, server, leftOffset=0, rightOffset=0, timeout=60 * 2, logger=None):
@@ -38,8 +48,8 @@ class IntroSkipper():
             for session in self.server.sessions():
                 if session.sessionKey == sessionKey:
                     return session
-        except KeyboardInterrupt as ki:
-            raise(ki)
+        except KeyboardInterrupt:
+            raise
         except:
             self.log.exception("getDataFromSessions Error")
         return None
@@ -69,21 +79,19 @@ class IntroSkipper():
                 self.seekTo(mediaWrapper, marker.end)
                 return
 
-        if hasattr(mediaWrapper.media, 'chapters'):
-            for chapter in [x for x in mediaWrapper.media.chapters if x.title and x.title.lower() == 'advertisement']:
-                # self.log.debug("Checking chapter %s (%d-%d)" % (chapter.title, chapter.start, chapter.end))
-                if (chapter.start + self.leftOffset) <= mediaWrapper.viewOffset <= chapter.end:
-                    self.log.info("Found an advertisement chapter for media %s with range %d-%d and viewOffset %d" % (mediaWrapper, chapter.start + self.leftOffset, chapter.end, mediaWrapper.viewOffset))
-                    self.seekTo(mediaWrapper, chapter.end + self.rightOffset)
-                    return
+        for chapter in mediaWrapper.chapters:
+            # self.log.debug("Checking chapter %s (%d-%d)" % (chapter.title, chapter.start, chapter.end))
+            if (chapter.start + self.leftOffset) <= mediaWrapper.viewOffset <= chapter.end:
+                self.log.info("Found an advertisement chapter for media %s with range %d-%d and viewOffset %d" % (mediaWrapper, chapter.start + self.leftOffset, chapter.end, mediaWrapper.viewOffset))
+                self.seekTo(mediaWrapper, chapter.end + self.rightOffset)
+                return
 
-        if hasattr(mediaWrapper.media, 'markers'):
-            for marker in [x for x in mediaWrapper.media.markers if x.type and x.type.lower() in ['intro', 'commercial']]:
-                # self.log.debug("Checking marker %s (%d-%d)" % (marker.type, marker.start, marker.end))
-                if (marker.start + self.leftOffset) <= mediaWrapper.viewOffset <= marker.end:
-                    self.log.info("Found an intro marker for media %s with range %d-%d and viewOffset %d" % (mediaWrapper, marker.start + self.leftOffset, marker.end, mediaWrapper.viewOffset))
-                    self.seekTo(mediaWrapper, marker.end + self.rightOffset)
-                    return
+        for marker in mediaWrapper.markers:
+            # self.log.debug("Checking marker %s (%d-%d)" % (marker.type, marker.start, marker.end))
+            if (marker.start + self.leftOffset) <= mediaWrapper.viewOffset <= marker.end:
+                self.log.info("Found an intro marker for media %s with range %d-%d and viewOffset %d" % (mediaWrapper, marker.start + self.leftOffset, marker.end, mediaWrapper.viewOffset))
+                self.seekTo(mediaWrapper, marker.end + self.rightOffset)
+                return
 
         if mediaWrapper.sinceLastUpdate > self.timeout:
             self.log.debug("Session %s hasn't been updated in %d seconds, checking if still playing" % (mediaWrapper, self.timeout))
@@ -93,85 +101,88 @@ class IntroSkipper():
                 del self.media_sessions[mediaWrapper.media.sessionKey]
 
     def seekTo(self, mediaWrapper, targetOffset):
+        mediaWrapper.willSeek()
         for player in mediaWrapper.media.players:
             try:
-                player.proxyThroughServer(True, self.server)
-
-                if self.customEntries and player.title in self.customEntries.clients:
-                    self.log.debug("Overriding player %s using custom baseURL %s" % (player.title, self.customEntries.clients[player.title]))
-                    player = PlexClient(self.server, baseurl=self.customEntries.clients[player.title], token=self.server._token)
-                    player.proxyThroughServer(False)
-
-                player = self.checkPlayerForMedia(player, mediaWrapper.media)
-                if player:
-                    mediaWrapper.willSeek()
+                if self.seekPlayerTo(player, mediaWrapper.media, targetOffset):
                     self.log.info("Seeking player playing %s from %d to %d" % (mediaWrapper, mediaWrapper.viewOffset, (targetOffset + self.rightOffset)))
-                    try:
-                        player.seekTo(targetOffset)
-                        mediaWrapper.updateOffset(targetOffset)
-                    except ElementTree.ParseError:
-                        self.log.debug("ParseError, seems to be certain players but still functional, continuing")
-                        mediaWrapper.updateOffset(targetOffset)
-                    except (ReadTimeout, ReadTimeoutError, timeout):
-                        self.log.debug("TimeoutError, removing from cache to prevent false triggers, will be restored with next sync")
-                        del self.media_sessions[mediaWrapper.media.sessionKey]
-                    except BadRequest as br:
-                        if self.GDM_ERROR in br.args[0]:
-                            try:
-                                self.recoverPlayer(player).seekTo(targetOffset)
-                                mediaWrapper.updateOffset(targetOffset)
-                            except BadRequest:
-                                self.log.error(self.GDM_ERROR_MSG)
-                            except Exception as e:
-                                raise(e)
-                        elif self.FORBIDDEN_ERROR in br.args[0]:
-                            self.log.error(self.FORBIDDEN_ERROR_MSG)
-                        else:
-                            self.log.exception("BadRequest Error")
-                else:
-                    self.log.debug("Not seeking, checkPlayerForMedia returned False")
-            except KeyboardInterrupt as ki:
-                raise(ki)
+                    mediaWrapper.updateOffset(targetOffset)
+            except (ReadTimeout, ReadTimeoutError, timeout):
+                self.log.debug("TimeoutError, removing from cache to prevent false triggers, will be restored with next sync")
+                del self.media_sessions[mediaWrapper.media.sessionKey]
+                break
             except:
                 self.log.exception("Error seeking")
         mediaWrapper.seeking = False
 
+    def seekPlayerTo(self, player, media, targetOffset):
+        if not player:
+            return False
+
+        try:
+            player = self.checkPlayerForMedia(player, media)
+            if player:
+                try:
+                    player.seekTo(targetOffset)
+                    return True
+                except ElementTree.ParseError:
+                    self.log.debug("ParseError, seems to be certain players but still functional, continuing")
+                    return True
+                except BadRequest as br:
+                    if self.GDM_ERROR in br.args[0]:
+                        self.log.error(self.GDM_ERROR_MSG)
+                    elif self.FORBIDDEN_ERROR in br.args[0]:
+                        self.log.error(self.FORBIDDEN_ERROR_MSG)
+                    else:
+                        self.log.exception("BadRequest exception")
+                    return self.seekPlayerTo(self.recoverPlayer(player), media, targetOffset)
+            else:
+                self.log.debug("Not seeking player %s, checkPlayerForMedia returned False" % (player.title))
+                return False
+        except:
+            raise
+
     def checkPlayerForMedia(self, player, media):
+        if not player:
+            return None
+
         try:
             if not player.timeline or (player.isPlayingMedia(False) and player.timeline.key == media.key):
                 return player
         except BadRequest as br:
             if self.GDM_ERROR in br.args[0]:
-                try:
-                    alt = self.recoverPlayer(player)
-                    if not alt.timeline or (alt.isPlayingMedia(False) and alt.timeline.key == media.key):
-                        return alt
-                except BadRequest:
-                    self.log.error(self.GDM_ERROR_MSG)
-                except Exception as e:
-                    raise(e)
+                self.log.error(self.GDM_ERROR_MSG)
             elif self.FORBIDDEN_ERROR in br.args[0]:
                 self.log.error(self.FORBIDDEN_ERROR_MSG)
             else:
                 self.log.debug("checkPlayerForMedia failed with BadRequest", exc_info=1)
+            return self.checkPlayerForMedia(self.recoverPlayer(player), media)
         return None
 
     def recoverPlayer(self, player, protocol="http://"):
-        port = 8324 if "roku" in player.device.lower() else 32500
+        if player.product in self.PROXY_ONLY:
+            self.log.debug("Player %s (%s) does not support direct IP connections, nothing to fall back upon, returning None" % (player.title, player.product))
+            return None
+
+        if not player._proxyThroughServer:
+            self.log.debug("Player %s (%s) is already not proxying through server, no fallback options left" % (player.title, player.product))
+            return None
+
+        port = self.CLIENT_PORTS.get(player.product, self.DEFAULT_CLIENT_PORT)
         baseurl = "%s%s:%d" % (protocol, player.address, port)
-        self.log.debug("GDM client error, attempting to connect directly using baseURL %s for player %s" % (baseurl, player.title))
-        p = PlexClient(self.server, baseurl=baseurl, token=self.server._token)
-        p.proxyThroughServer(False)
-        return p
+        self.log.debug("Modifying client for direct connection using baseURL %s for player %s (%s)" % (baseurl, player.title, player._baseurl))
+        player._baseurl = baseurl
+        player.proxyThroughServer(False)
+
+        return player
 
     def stillPlaying(self, mediaWrapper):
         for player in mediaWrapper.media.players:
             try:
-                player.proxyThroughServer(True, self.server)
                 if self.checkPlayerForMedia(player, mediaWrapper.media):
                     return True
-            except KeyboardInterrupt as ki:
-                raise(ki)
+            except KeyboardInterrupt:
+                raise
             except:
                 self.log.exception("Error while checking player")
         return False
@@ -187,24 +198,17 @@ class IntroSkipper():
                 media = self.getDataFromSessions(sessionKey)
                 if media and media.session and len(media.session) > 0 and media.session[0].location == 'lan':
                     if sessionKey not in self.media_sessions:
-                        wrapper = MediaWrapper(media)
-                        if self.customEntries:
-                            self.customEntries.loadCustomMarkers(wrapper)
+                        wrapper = MediaWrapper(media, self.server, custom=self.customEntries, logger=self.log)
                         if self.shouldAdd(media):
-                            self.log.info("Found a new %s LAN session %s with viewOffset %d %s" % (media.type, wrapper, media.viewOffset, media.usernames))
-                            self.media_sessions[sessionKey] = wrapper
+                            self.log.info("Found a new %s session %s with viewOffset %d %s" % (media.type, wrapper, media.viewOffset, media.usernames))
+                            self.addSession(sessionKey, wrapper)
                         else:
                             if len(wrapper.customMarkers) > 0:
-                                self.log.info("Found a blocked %s LAN session %s with viewOffset %d, adding only custom markers" % (media.type, wrapper, media.viewOffset))
-                                if hasattr(wrapper.media, 'markers'):
-                                    del wrapper.media.markers[:]
-                                if hasattr(wrapper.media, 'chapters'):
-                                    del wrapper.media.chapters[:]
-                                self.media_sessions[sessionKey] = wrapper
+                                self.log.info("Found a blocked %s session %s with viewOffset %d, will use custom markers only" % (media.type, wrapper, media.viewOffset))
+                                wrapper.customOnly = True
+                                self.addSession(sessionKey, wrapper)
                             else:
-                                self.log.debug("Ignoring LAN session %s" % (sessionKey))
-                                self.ignored.append(sessionKey)
-                                self.ignored = self.ignored[-self.IGNORED_CAP:]
+                                self.ignoreSession(sessionKey)
                     elif not self.media_sessions[sessionKey].seeking and not self.media_sessions[sessionKey].buffering:
                         self.log.debug("Updating an existing %s media session %s with viewOffset %d (previous %d)" % (media.type, self.media_sessions[sessionKey], media.viewOffset, self.media_sessions[sessionKey].viewOffset))
                         self.media_sessions[sessionKey].updateOffset(media.viewOffset)
@@ -214,8 +218,8 @@ class IntroSkipper():
                         self.log.debug("Skipping update as session %s appears to be actively buffering from a recent seek" % (self.media_sessions[sessionKey]))
                 else:
                     pass
-            except KeyboardInterrupt as ki:
-                raise(ki)
+            except KeyboardInterrupt:
+                raise
             except:
                 self.log.exception("Unexpected error getting data from session alert")
 
@@ -264,6 +268,18 @@ class IntroSkipper():
             return False
 
         return True
+
+    def addSession(self, sessionKey, mediaWrapper):
+        if mediaWrapper.media.players:
+            self.media_sessions[sessionKey] = mediaWrapper
+        else:
+            self.log.info("Session %s has no accessible players, it will be ignored" % (sessionKey))
+            self.ignored.append(sessionKey)
+
+    def ignoreSession(self, sessionKey):
+        self.log.debug("Ignoring session %s" % (sessionKey))
+        self.ignored.append(sessionKey)
+        self.ignored = self.ignored[-self.IGNORED_CAP:]
 
     def error(self, data):
         self.log.error(data)
