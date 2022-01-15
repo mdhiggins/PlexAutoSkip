@@ -4,12 +4,11 @@ import logging
 import time
 from resources.sslAlertListener import SSLAlertListener
 from resources.mediaWrapper import MediaWrapper
-from xml.etree import ElementTree
+from xml.etree.ElementTree import ParseError
 from urllib3.exceptions import ReadTimeoutError
 from requests.exceptions import ReadTimeout
 from socket import timeout
 from plexapi.exceptions import BadRequest
-from plexapi.client import PlexClient
 
 
 class IntroSkipper():
@@ -33,21 +32,19 @@ class IntroSkipper():
     PROXY_ONLY = ["Plex Web"]
     DEFAULT_CLIENT_PORT = 32500
 
+    TIMEOUT = 120
+    TIMEOUT_WITHOUT_CHECK = True
     IGNORED_CAP = 200
 
-    def __init__(self, server, leftOffset=0, rightOffset=0, timeout=60 * 2, logger=None):
+    def __init__(self, server, leftOffset=0, rightOffset=0, logger=None):
         self.server = server
         self.log = logger or logging.getLogger(__name__)
         self.leftOffset = leftOffset
         self.rightOffset = rightOffset
-        self.timeout = timeout
-        self.timeoutWithoutCheck = True
 
     def getDataFromSessions(self, sessionKey):
         try:
-            for session in self.server.sessions():
-                if session.sessionKey == sessionKey:
-                    return session
+            return next(iter([session for session in self.server.sessions() if session.sessionKey == sessionKey]), None)
         except KeyboardInterrupt:
             raise
         except:
@@ -93,10 +90,10 @@ class IntroSkipper():
                 self.seekTo(mediaWrapper, marker.end + self.rightOffset)
                 return
 
-        if mediaWrapper.sinceLastUpdate > self.timeout:
-            self.log.debug("Session %s hasn't been updated in %d seconds, checking if still playing" % (mediaWrapper, self.timeout))
+        if mediaWrapper.sinceLastUpdate > self.TIMEOUT:
+            self.log.debug("Session %s hasn't been updated in %d seconds, checking if still playing" % (mediaWrapper, self.TIMEOUT))
             # Check to see if media is still playing before being deleted, probably overkill so using a bool (timeoutWithoutCheck) to bypass this check for now
-            if self.timeoutWithoutCheck or not self.stillPlaying(mediaWrapper):
+            if self.TIMEOUT_WITHOUT_CHECK or not self.stillPlaying(mediaWrapper):
                 self.log.debug("Session %s will be removed from cache" % (mediaWrapper))
                 del self.media_sessions[mediaWrapper.media.sessionKey]
 
@@ -125,7 +122,7 @@ class IntroSkipper():
                 try:
                     player.seekTo(targetOffset)
                     return True
-                except ElementTree.ParseError:
+                except ParseError:
                     self.log.debug("ParseError, seems to be certain players but still functional, continuing")
                     return True
                 except BadRequest as br:
