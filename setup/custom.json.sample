@@ -11,11 +11,15 @@
     "allowed": {
         "users": [
         ],
+        clients: [
+        ],
         "keys": [
         ]
     },
     "blocked": {
         "users": [
+        ],
+        "clients": [
         ],
         "keys": [
         ]

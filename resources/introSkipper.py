@@ -225,6 +225,14 @@ class IntroSkipper():
             self.log.debug("Blocking session based on not allowed user %s" % (media.usernames))
             return False
 
+        if self.customEntries.allowedClients and not any(player for player in media.players if player.title in self.customEntries.allowedClients):
+            self.log.debug("Blocking session based on no allowed player in %s" % ([p.title for p in media.players]))
+            return False
+
+        if self.customEntries.blockedClients and any(player for player in media.players if player.title in self.customEntries.blockedClients):
+            self.log.debug("Blocking session based on blocked player in %s" % ([p.title for p in media.players]))
+            return False
+
         if media.ratingKey in self.customEntries.allowedKeys:
             self.log.debug("Allowing media based on key %s" % (media.ratingKey))
             return True

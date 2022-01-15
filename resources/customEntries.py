@@ -8,10 +8,12 @@ class CustomEntries():
         "markers": {},
         "allowed": {
             'users': [],
+            'clients': [],
             'keys': []
         },
         "blocked": {
             'users': [],
+            'clients': [],
             'keys': []
         },
         "clients": {}
@@ -20,6 +22,10 @@ class CustomEntries():
     @property
     def allowed(self):
         return self.data.get("allowed", {})
+
+    @property
+    def allowedClients(self):
+        return self.allowed.get("clients", [])
 
     @property
     def allowedUsers(self):
@@ -32,6 +38,10 @@ class CustomEntries():
     @property
     def blocked(self):
         return self.data.get("blocked", {})
+
+    @property
+    def blockedClients(self):
+        return self.blocked.get("clients", [])
 
     @property
     def blockedUsers(self):
