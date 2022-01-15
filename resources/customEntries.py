@@ -8,15 +8,11 @@ class CustomEntries():
         "markers": {},
         "allowed": {
             'users': [],
-            'keys': [],
-            'parents': [],
-            'grandparents': []
+            'keys': []
         },
         "blocked": {
             'users': [],
-            'keys': [],
-            'parents': [],
-            'grandparents': []
+            'keys': []
         },
         "clients": {}
     }
@@ -34,14 +30,6 @@ class CustomEntries():
         return self.allowed.get("keys", [])
 
     @property
-    def allowedParentKeys(self):
-        return self.allowed.get("parents", [])
-
-    @property
-    def allowedGrandparentKeys(self):
-        return self.allowed.get("grandparents", [])
-
-    @property
     def blocked(self):
         return self.data.get("blocked", {})
 
@@ -52,14 +40,6 @@ class CustomEntries():
     @property
     def blockedKeys(self):
         return self.blocked.get("keys", [])
-
-    @property
-    def blockedParentKeys(self):
-        return self.blocked.get("parents", [])
-
-    @property
-    def blockedGrandparentKeys(self):
-        return self.blocked.get("grandparents", [])
 
     @property
     def clients(self):

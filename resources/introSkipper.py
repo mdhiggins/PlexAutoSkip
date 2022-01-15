@@ -226,26 +226,26 @@ class IntroSkipper():
             return False
 
         if media.ratingKey in self.customEntries.allowedKeys:
-            self.log.debug("Allowing media based on key %s" % (media.key))
+            self.log.debug("Allowing media based on key %s" % (media.ratingKey))
             return True
         if media.ratingKey in self.customEntries.blockedKeys:
-            self.log.debug("Blocking media based on key %s" % (media.key))
+            self.log.debug("Blocking media based on key %s" % (media.ratingKey))
             return False
         if hasattr(media, "parentRatingKey"):
-            if media.parentRatingKey in self.customEntries.allowedParentKeys:
+            if media.parentRatingKey in self.customEntries.allowedKeys:
                 self.log.debug("Allowing media based on parent key %s" % (media.parentRatingKey))
                 return True
-            if media.parentRatingKey in self.customEntries.blockedParentKeys:
+            if media.parentRatingKey in self.customEntries.blockedKeys:
                 self.log.debug("Blocking media based on parent key %s" % (media.parentRatingKey))
                 return False
         if hasattr(media, "grandparentRatingKey"):
-            if media.grandparentRatingKey in self.customEntries.allowedGrandparentKeys:
+            if media.grandparentRatingKey in self.customEntries.allowedKeys:
                 self.log.debug("Allowing media based on grandparent key %s" % (media.grandparentRatingKey))
                 return True
-            if media.grandparentRatingKey in self.customEntries.blockedGrandparentKeys:
+            if media.grandparentRatingKey in self.customEntries.blockedKeys:
                 self.log.debug("Blocking media based on grandparent key %s" % (media.grandparentRatingKey))
                 return False
-        if self.customEntries.allowedKeys + self.customEntries.allowedParentKeys + self.customEntries.allowedGrandparentKeys:
+        if self.customEntries.allowedKeys:
             self.log.debug("Blocking media because it was not on the allowed list")
             return False
 
