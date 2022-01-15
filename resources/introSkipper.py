@@ -159,7 +159,7 @@ class IntroSkipper():
     def recoverPlayer(self, player, protocol="http://"):
         port = 8324 if "roku" in player.device.lower() else 32500
         baseurl = "%s%s:%d" % (protocol, player.address, port)
-        self.log.debug("GDM client error, attempting to connect directly using baseURL %s" % (baseurl))
+        self.log.debug("GDM client error, attempting to connect directly using baseURL %s for player %s" % (baseurl, player.title))
         p = PlexClient(self.server, baseurl=baseurl, token=self.server._token)
         p.proxyThroughServer(False)
         return p
