@@ -118,7 +118,7 @@ class IntroSkipper():
     def seekPlayerTo(self, player, media, targetOffset):
         if not player:
             return False
-
+        title = player.title
         try:
             player = self.checkPlayerForMedia(player, media)
             if player:
@@ -137,7 +137,7 @@ class IntroSkipper():
                         self.log.exception("BadRequest exception")
                     return self.seekPlayerTo(self.recoverPlayer(player), media, targetOffset)
             else:
-                self.log.debug("Not seeking player %s, checkPlayerForMedia returned False" % (player.title))
+                self.log.debug("Unable to connect to player %s" % (title))
                 return False
         except:
             raise

@@ -2,7 +2,7 @@ import configparser
 import os
 import logging
 import sys
-
+import json
 from resources.customEntries import CustomEntries
 
 
@@ -43,7 +43,7 @@ class Settings:
     def CONFIG_RELATIVEPATH(self):
         return os.path.join(self.CONFIG_DIRECTORY, self.CONFIG_DEFAULT)
 
-    defaults = {
+    DEFAULTS = {
         "Plex.tv": {
             "username": "",
             "password": "",
@@ -62,6 +62,21 @@ class Settings:
             "start": 2000,
             "end": 1000
         }
+    }
+
+    CUSTOM_DEFAULTS = {
+        "markers": {},
+        "allowed": {
+            'users': [],
+            'clients': [],
+            'keys': []
+        },
+        "blocked": {
+            'users': [],
+            'clients': [],
+            'keys': []
+        },
+        "clients": {}
     }
 
     def __init__(self, configFile=None, logger=None,):
@@ -95,13 +110,13 @@ class Settings:
 
         write = False
         # Make sure all sections and all keys for each section are present
-        for s in self.defaults:
+        for s in self.DEFAULTS:
             if not config.has_section(s):
                 config.add_section(s)
                 write = True
-            for k in self.defaults[s]:
+            for k in self.DEFAULTS[s]:
                 if not config.has_option(s, k):
-                    config.set(s, k, str(self.defaults[s][k]))
+                    config.set(s, k, str(self.DEFAULTS[s][k]))
                     write = True
         if write:
             self.writeConfig(config, configFile)
@@ -109,12 +124,30 @@ class Settings:
         self.readConfig(config)
 
         customFile = os.path.join(os.path.dirname(configFile), self.CUSTOM_DEFAULT)
-        if os.path.exists(customFile):
+        data = dict(self.CUSTOM_DEFAULTS)
+        if not os.path.exists(customFile):
+            self.writeCustom(self.CUSTOM_DEFAULTS, customFile)
+        elif os.path.exists(customFile):
             try:
-                self.customEntries = CustomEntries(customFile, self.log)
-                self.log.info("Loading custom JSON file %s" % customFile)
+                with open(customFile, encoding='utf-8') as f:
+                    data = json.load(f)
             except:
-                self.log.exception("Found custom file %s but failed to load" % (customFile))
+                self.log.exception("Found custom file %s but failed to load, using defaults" % (customFile))
+
+            write = False
+            # Make sure default entries are present to prevent exceptions
+            for k in self.CUSTOM_DEFAULTS:
+                if k not in data:
+                    data[k] = {}
+                    write = True
+                for sk in self.CUSTOM_DEFAULTS[k]:
+                    if sk not in data[k]:
+                        data[k][sk] = []
+                        write = True
+            if write:
+                self.writeCustom(data, customFile)
+        self.log.info("Loading custom JSON file %s" % customFile)
+        self.customEntries = CustomEntries(data, logger)
 
     def writeConfig(self, config, cfgfile):
         if not os.path.isdir(os.path.dirname(cfgfile)):
@@ -124,9 +157,18 @@ class Settings:
             config.write(fp)
             fp.close()
         except PermissionError:
-            self.log.exception("Error writing to autoProcess.ini due to permissions.")
+            self.log.exception("Error writing to %s due to permissions" % (cfgfile))
         except IOError:
-            self.log.exception("Error writing to autoProcess.ini.")
+            self.log.exception("Error writing to %s" % (cfgfile))
+
+    def writeCustom(self, data, cfgfile):
+        try:
+            with open(cfgfile, 'w', encoding='utf-8') as cf:
+                json.dump(data, cf, indent=4)
+        except PermissionError:
+            self.log.exception("Error writing to %s due to permissions" % (cfgfile))
+        except IOError:
+            self.log.exception("Error writing to %s" % (cfgfile))
 
     def readConfig(self, config):
         self.username = config.get("Plex.tv", "username")

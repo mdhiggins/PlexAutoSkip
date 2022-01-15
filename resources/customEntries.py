@@ -1,23 +1,7 @@
-import json
 import logging
 
 
 class CustomEntries():
-    defaults = {
-        "markers": {},
-        "allowed": {
-            'users': [],
-            'clients': [],
-            'keys': []
-        },
-        "blocked": {
-            'users': [],
-            'clients': [],
-            'keys': []
-        },
-        "clients": {}
-    }
-
     @property
     def markers(self):
         return self.data.get("markers", {})
@@ -58,17 +42,6 @@ class CustomEntries():
     def clients(self):
         return self.data.get("clients", [])
 
-    def __init__(self, path, logger=None) -> None:
-        self.data = self.defaults
+    def __init__(self, data, logger=None) -> None:
+        self.data = data
         self.log = logger or logging.getLogger(__name__)
-        if path:
-            with open(path, encoding='utf-8') as f:
-                self.data = json.load(f)
-
-        # Make sure default entries are present to prevent exceptions
-        for k in self.defaults:
-            if k not in self.data:
-                self.data[k] = {}
-            for sk in self.defaults[k]:
-                if sk not in self.data[k]:
-                    self.data[k][sk] = []
