@@ -27,9 +27,15 @@ class IntroSkipper():
         "Plex for Roku": 8324,
         "Plex for Android (TV)": 32500,
         "Plex for Android (Mobile)": 32500,
-        "Plex for iOS": 32500
+        "Plex for iOS": 32500,
+        "Plex for Windows": 32700,
+        "Plex for Mac": 32700
     }
-    PROXY_ONLY = ["Plex Web"]
+    PROXY_ONLY = [
+        "Plex Web",
+        "Plex for Windows",
+        "Plex for Mac"
+    ]
     DEFAULT_CLIENT_PORT = 32500
 
     TIMEOUT = 120
@@ -70,21 +76,18 @@ class IntroSkipper():
 
     def checkMedia(self, mediaWrapper):
         for marker in mediaWrapper.customMarkers:
-            # self.log.debug("Checking custom marker %s (%d-%d)" % (marker.type, marker.start, marker.end))
             if (marker.start) <= mediaWrapper.viewOffset <= marker.end:
                 self.log.info("Found a custom marker for media %s with range %d-%d and viewOffset %d" % (mediaWrapper, marker.start, marker.end, mediaWrapper.viewOffset))
                 self.seekTo(mediaWrapper, marker.end)
                 return
 
         for chapter in mediaWrapper.chapters:
-            # self.log.debug("Checking chapter %s (%d-%d)" % (chapter.title, chapter.start, chapter.end))
             if (chapter.start + self.leftOffset) <= mediaWrapper.viewOffset <= chapter.end:
                 self.log.info("Found an advertisement chapter for media %s with range %d-%d and viewOffset %d" % (mediaWrapper, chapter.start + self.leftOffset, chapter.end, mediaWrapper.viewOffset))
                 self.seekTo(mediaWrapper, chapter.end + self.rightOffset)
                 return
 
         for marker in mediaWrapper.markers:
-            # self.log.debug("Checking marker %s (%d-%d)" % (marker.type, marker.start, marker.end))
             if (marker.start + self.leftOffset) <= mediaWrapper.viewOffset <= marker.end:
                 self.log.info("Found an intro marker for media %s with range %d-%d and viewOffset %d" % (mediaWrapper, marker.start + self.leftOffset, marker.end, mediaWrapper.viewOffset))
                 self.seekTo(mediaWrapper, marker.end + self.rightOffset)
@@ -102,7 +105,7 @@ class IntroSkipper():
         for player in mediaWrapper.media.players:
             try:
                 if self.seekPlayerTo(player, mediaWrapper.media, targetOffset):
-                    self.log.info("Seeking player playing %s from %d to %d" % (mediaWrapper, mediaWrapper.viewOffset, targetOffset))
+                    self.log.info("Seeking %s player playing %s from %d to %d" % (player.product, mediaWrapper, mediaWrapper.viewOffset, targetOffset))
                     mediaWrapper.updateOffset(targetOffset)
             except (ReadTimeout, ReadTimeoutError, timeout):
                 self.log.debug("TimeoutError, removing from cache to prevent false triggers, will be restored with next sync")
