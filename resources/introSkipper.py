@@ -102,7 +102,7 @@ class IntroSkipper():
         for player in mediaWrapper.media.players:
             try:
                 if self.seekPlayerTo(player, mediaWrapper.media, targetOffset):
-                    self.log.info("Seeking player playing %s from %d to %d" % (mediaWrapper, mediaWrapper.viewOffset, (targetOffset + self.rightOffset)))
+                    self.log.info("Seeking player playing %s from %d to %d" % (mediaWrapper, mediaWrapper.viewOffset, targetOffset))
                     mediaWrapper.updateOffset(targetOffset)
             except (ReadTimeout, ReadTimeoutError, timeout):
                 self.log.debug("TimeoutError, removing from cache to prevent false triggers, will be restored with next sync")
