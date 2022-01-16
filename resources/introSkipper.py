@@ -18,10 +18,11 @@ class IntroSkipper():
     customEntries = None
     reconnect = True
 
-    GDM_ERROR = "FrameworkException: Unable to find player with identifier"
-    GDM_ERROR_MSG = "BadRequest Error, see https://github.com/mdhiggins/PlexAutoSkip/wiki/Troubleshooting#badrequest-error"
-    FORBIDDEN_ERROR = "HTTPError: HTTP Error 403: Forbidden"
-    FORBIDDEN_ERROR_MSG = "Forbidden Error, see https://github.com/mdhiggins/PlexAutoSkip/wiki/Troubleshooting#forbidden-error"
+    TROUBLESHOOT_URL = "https://github.com/mdhiggins/PlexAutoSkip/wiki/Troubleshooting"
+    ERRORS = {
+        "FrameworkException: Unable to find player with identifier": "BadRequest Error, see %s#badrequest-error" % TROUBLESHOOT_URL,
+        "HTTPError: HTTP Error 403: Forbidden": "Forbidden Error, see %s#forbidden-error" % TROUBLESHOOT_URL
+    }
 
     CLIENT_PORTS = {
         "Plex for Roku": 8324,
@@ -129,12 +130,7 @@ class IntroSkipper():
                     self.log.debug("ParseError, seems to be certain players but still functional, continuing")
                     return True
                 except BadRequest as br:
-                    if self.GDM_ERROR in br.args[0]:
-                        self.log.error(self.GDM_ERROR_MSG)
-                    elif self.FORBIDDEN_ERROR in br.args[0]:
-                        self.log.error(self.FORBIDDEN_ERROR_MSG)
-                    else:
-                        self.log.exception("BadRequest exception")
+                    self.logErrorMessage(br, "BadRequest exception seekPlayerTo")
                     return self.seekPlayerTo(self.recoverPlayer(player), media, targetOffset)
             else:
                 self.log.debug("Unable to connect to player %s" % (title))
@@ -150,12 +146,7 @@ class IntroSkipper():
             if not player.timeline or (player.isPlayingMedia(False) and player.timeline.key == media.key):
                 return player
         except BadRequest as br:
-            if self.GDM_ERROR in br.args[0]:
-                self.log.error(self.GDM_ERROR_MSG)
-            elif self.FORBIDDEN_ERROR in br.args[0]:
-                self.log.error(self.FORBIDDEN_ERROR_MSG)
-            else:
-                self.log.debug("checkPlayerForMedia failed with BadRequest", exc_info=1)
+            self.logErrorMessage(br, "BadRequest exception checkPlayerForMedia")
             return self.checkPlayerForMedia(self.recoverPlayer(player), media)
         return None
 
@@ -283,3 +274,10 @@ class IntroSkipper():
 
     def error(self, data):
         self.log.error(data)
+
+    def logErrorMessage(self, exception, default):
+        for e in self.ERRORS:
+            if e in exception.args[0]:
+                self.log.error(self.ERRORS[e])
+                return
+        self.log.exception("%s, see %s" % (default, self.TROUBLESHOOT_URL))
