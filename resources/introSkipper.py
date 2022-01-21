@@ -12,12 +12,13 @@ from socket import timeout
 from plexapi.exceptions import BadRequest
 from plexapi.client import PlexClient
 from plexapi.server import PlexServer
+from typing import Dict, List
 
 
 class IntroSkipper():
-    media_sessions: dict = {}
-    delete: list[str] = []
-    ignored: list[str] = []
+    media_sessions: Dict[str, Media] = {}
+    delete: List[str] = []
+    ignored: List[str] = []
     customEntries: CustomEntries = None
     reconnect: bool = True
 

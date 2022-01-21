@@ -4,7 +4,7 @@ from plexapi.video import Episode, Movie
 from plexapi.server import PlexServer
 from plexapi.media import Marker, Chapter
 from resources.customEntries import CustomEntries
-from typing import TypeVar
+from typing import TypeVar, List
 
 
 Media = TypeVar("Media", Episode, Movie)
@@ -31,7 +31,7 @@ class MediaWrapper():
     seekBuffer: int = 5
 
     customOnly: bool = False
-    customMarkers: list[CustomMarker] = []
+    customMarkers: List[CustomMarker] = []
 
     MARKER_TAGS = ['intro', 'commercial']
     CHAPTER_TAGS = ['advertisement']
@@ -100,14 +100,14 @@ class MediaWrapper():
         return self._viewOffset + round((datetime.now() - self.lastUpdate).total_seconds() * 1000)
 
     @property
-    def markers(self) -> list[Marker]:
+    def markers(self) -> List[Marker]:
         if hasattr(self.media, 'markers') and not self.customOnly:
             return [x for x in self.media.markers if x.type and x.type.lower() in self.MARKER_TAGS]
         else:
             return []
 
     @property
-    def chapters(self) -> list[Chapter]:
+    def chapters(self) -> List[Chapter]:
         if hasattr(self.media, 'chapters') and not self.customOnly:
             return [x for x in self.media.chapters if x.title and x.title.lower() in self.CHAPTER_TAGS]
         else:
