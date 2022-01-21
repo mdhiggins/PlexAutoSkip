@@ -16,7 +16,7 @@ from typing import Dict
 
 
 class IntroSkipper():
-    media_sessions: Dict[str: Media] = {}
+    media_sessions: Dict[str, Media] = {}
     delete: list[str] = []
     ignored: list[str] = []
     customEntries: CustomEntries = None
