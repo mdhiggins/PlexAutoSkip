@@ -1,13 +1,14 @@
 import logging
+from typing import Dict
 
 
 class CustomEntries():
     @property
-    def markers(self) -> dict[str, list]:
+    def markers(self) -> Dict[str, list]:
         return self.data.get("markers", {})
 
     @property
-    def allowed(self) -> dict[str, list[str]]:
+    def allowed(self) -> Dict[str, list[str]]:
         return self.data.get("allowed", {})
 
     @property
@@ -39,7 +40,7 @@ class CustomEntries():
         return self.blocked.get("keys", [])
 
     @property
-    def clients(self) -> dict[str, str]:
+    def clients(self) -> Dict[str, str]:
         return self.data.get("clients", {})
 
     def __init__(self, data: dict, logger: logging.Logger = None) -> None:
