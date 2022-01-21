@@ -2,21 +2,24 @@
 
 import logging
 import time
+from resources.customEntries import CustomEntries
 from resources.sslAlertListener import SSLAlertListener
-from resources.mediaWrapper import MediaWrapper
+from resources.mediaWrapper import Media, MediaWrapper
 from xml.etree.ElementTree import ParseError
 from urllib3.exceptions import ReadTimeoutError
 from requests.exceptions import ReadTimeout
 from socket import timeout
 from plexapi.exceptions import BadRequest
+from plexapi.client import PlexClient
+from plexapi.server import PlexServer
 
 
 class IntroSkipper():
-    media_sessions = {}
-    delete = []
-    ignored = []
-    customEntries = None
-    reconnect = True
+    media_sessions: dict = {}
+    delete: list[str] = []
+    ignored: list[str] = []
+    customEntries: CustomEntries = None
+    reconnect: bool = True
 
     TROUBLESHOOT_URL = "https://github.com/mdhiggins/PlexAutoSkip/wiki/Troubleshooting"
     ERRORS = {
@@ -43,13 +46,13 @@ class IntroSkipper():
     TIMEOUT_WITHOUT_CHECK = True
     IGNORED_CAP = 200
 
-    def __init__(self, server, leftOffset=0, rightOffset=0, logger=None):
+    def __init__(self, server: PlexServer, leftOffset: int = 0, rightOffset: int = 0, logger: logging.Logger = None) -> None:
         self.server = server
         self.log = logger or logging.getLogger(__name__)
         self.leftOffset = leftOffset
         self.rightOffset = rightOffset
 
-    def getDataFromSessions(self, sessionKey):
+    def getDataFromSessions(self, sessionKey: str) -> Media:
         try:
             return next(iter([session for session in self.server.sessions() if session.sessionKey == sessionKey]), None)
         except KeyboardInterrupt:
@@ -58,7 +61,7 @@ class IntroSkipper():
             self.log.exception("getDataFromSessions Error")
         return None
 
-    def start(self, sslopt=None):
+    def start(self, sslopt: dict = None) -> None:
         self.listener = SSLAlertListener(self.server, self.processAlert, self.error, sslopt=sslopt, logger=self.log)
         self.log.debug("Starting listener")
         self.listener.start()
@@ -75,7 +78,7 @@ class IntroSkipper():
         if self.reconnect:
             self.start(sslopt)
 
-    def checkMedia(self, mediaWrapper):
+    def checkMedia(self, mediaWrapper: MediaWrapper) -> None:
         for marker in mediaWrapper.customMarkers:
             if (marker.start) <= mediaWrapper.viewOffset <= marker.end:
                 self.log.info("Found a custom marker for media %s with range %d-%d and viewOffset %d" % (mediaWrapper, marker.start, marker.end, mediaWrapper.viewOffset))
@@ -101,7 +104,7 @@ class IntroSkipper():
                 self.log.debug("Session %s will be removed from cache" % (mediaWrapper))
                 del self.media_sessions[mediaWrapper.media.sessionKey]
 
-    def seekTo(self, mediaWrapper, targetOffset):
+    def seekTo(self, mediaWrapper: MediaWrapper, targetOffset: int) -> None:
         mediaWrapper.willSeek()
         for player in mediaWrapper.media.players:
             try:
@@ -116,7 +119,7 @@ class IntroSkipper():
                 self.log.exception("Error seeking")
         mediaWrapper.seeking = False
 
-    def seekPlayerTo(self, player, media, targetOffset):
+    def seekPlayerTo(self, player: PlexClient, media: Media, targetOffset: int) -> bool:
         if not player:
             return False
         title = player.title
@@ -138,7 +141,7 @@ class IntroSkipper():
         except:
             raise
 
-    def checkPlayerForMedia(self, player, media):
+    def checkPlayerForMedia(self, player: PlexClient, media: Media) -> PlexClient:
         if not player:
             return None
 
@@ -150,7 +153,7 @@ class IntroSkipper():
             return self.checkPlayerForMedia(self.recoverPlayer(player), media)
         return None
 
-    def recoverPlayer(self, player, protocol="http://"):
+    def recoverPlayer(self, player: PlexClient, protocol: str = "http://") -> PlexClient:
         if player.product in self.PROXY_ONLY:
             self.log.debug("Player %s (%s) does not support direct IP connections, nothing to fall back upon, returning None" % (player.title, player.product))
             return None
@@ -167,7 +170,7 @@ class IntroSkipper():
 
         return player
 
-    def stillPlaying(self, mediaWrapper):
+    def stillPlaying(self, mediaWrapper: MediaWrapper) -> bool:
         for player in mediaWrapper.media.players:
             try:
                 if self.checkPlayerForMedia(player, mediaWrapper.media):
@@ -178,7 +181,7 @@ class IntroSkipper():
                 self.log.exception("Error while checking player")
         return False
 
-    def processAlert(self, data):
+    def processAlert(self, data: dict) -> None:
         if data['type'] == 'playing':
             sessionKey = int(data['PlaySessionStateNotification'][0]['sessionKey'])
 
@@ -214,7 +217,7 @@ class IntroSkipper():
             except:
                 self.log.exception("Unexpected error getting data from session alert")
 
-    def shouldAdd(self, media):
+    def shouldAdd(self, media: Media) -> bool:
         if not self.customEntries:
             return True
 
@@ -260,22 +263,22 @@ class IntroSkipper():
 
         return True
 
-    def addSession(self, sessionKey, mediaWrapper):
+    def addSession(self, sessionKey: str, mediaWrapper: MediaWrapper) -> None:
         if mediaWrapper.media.players:
             self.media_sessions[sessionKey] = mediaWrapper
         else:
             self.log.info("Session %s has no accessible players, it will be ignored" % (sessionKey))
             self.ignored.append(sessionKey)
 
-    def ignoreSession(self, sessionKey):
+    def ignoreSession(self, sessionKey: str) -> None:
         self.log.debug("Ignoring session %s" % (sessionKey))
         self.ignored.append(sessionKey)
         self.ignored = self.ignored[-self.IGNORED_CAP:]
 
-    def error(self, data):
+    def error(self, data: dict) -> None:
         self.log.error(data)
 
-    def logErrorMessage(self, exception, default):
+    def logErrorMessage(self, exception: Exception, default: str) -> None:
         for e in self.ERRORS:
             if e in exception.args[0]:
                 self.log.error(self.ERRORS[e])

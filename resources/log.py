@@ -49,7 +49,7 @@ RELATIVE_TO_ROOT = "../"
 LOG_NAME = "pas.log"
 
 
-def checkLoggingConfig(configfile):
+def checkLoggingConfig(configfile: str) -> None:
     write = True
     config = RawConfigParser()
     if os.path.exists(configfile):
@@ -76,7 +76,7 @@ def checkLoggingConfig(configfile):
         fp.close()
 
 
-def getLogger(name=None, custompath=None):
+def getLogger(name: str = None, custompath: str = None) -> logging.Logger:
     if custompath:
         custompath = os.path.realpath(custompath)
         if not os.path.isdir(custompath):
@@ -110,7 +110,7 @@ def getLogger(name=None, custompath=None):
     return logging.getLogger(name)
 
 
-def rotator(source, dest):
+def rotator(source: str, dest: str) -> None:
     if os.path.exists(source):
         try:
             os.rename(source, dest)

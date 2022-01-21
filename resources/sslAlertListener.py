@@ -1,5 +1,6 @@
 import logging
 from plexapi.alert import AlertListener
+from plexapi.server import PlexServer
 
 
 class SSLAlertListener(AlertListener):
@@ -16,7 +17,7 @@ class SSLAlertListener(AlertListener):
             sslopt (dict): ssl socket optional dict.
                 :samp:`{"cert_reqs": ssl.CERT_NONE}`
     """
-    def __init__(self, server, callback=None, callbackError=None, sslopt=None, logger=None):
+    def __init__(self, server: PlexServer, callback=None, callbackError=None, sslopt=None, logger=None) -> None:
         self.log = logger or logging.getLogger(__name__)
         try:
             super(SSLAlertListener, self).__init__(server, callback, callbackError)
@@ -25,7 +26,7 @@ class SSLAlertListener(AlertListener):
             super(SSLAlertListener, self).__init__(server, callback)
         self._sslopt = sslopt
 
-    def run(self):
+    def run(self) -> None:
         try:
             import websocket
         except ImportError:

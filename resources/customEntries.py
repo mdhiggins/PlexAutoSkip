@@ -3,45 +3,45 @@ import logging
 
 class CustomEntries():
     @property
-    def markers(self):
+    def markers(self) -> dict[str, list]:
         return self.data.get("markers", {})
 
     @property
-    def allowed(self):
+    def allowed(self) -> dict[str, list[str]]:
         return self.data.get("allowed", {})
 
     @property
-    def allowedClients(self):
+    def allowedClients(self) -> list[str]:
         return self.allowed.get("clients", [])
 
     @property
-    def allowedUsers(self):
+    def allowedUsers(self) -> list[str]:
         return self.allowed.get("users", [])
 
     @property
-    def allowedKeys(self):
+    def allowedKeys(self) -> list[str]:
         return self.allowed.get("keys", [])
 
     @property
-    def blocked(self):
+    def blocked(self) -> list[str]:
         return self.data.get("blocked", {})
 
     @property
-    def blockedClients(self):
+    def blockedClients(self) -> list[str]:
         return self.blocked.get("clients", [])
 
     @property
-    def blockedUsers(self):
+    def blockedUsers(self) -> list[str]:
         return self.blocked.get("users", [])
 
     @property
-    def blockedKeys(self):
+    def blockedKeys(self) -> list[str]:
         return self.blocked.get("keys", [])
 
     @property
-    def clients(self):
-        return self.data.get("clients", [])
+    def clients(self) -> dict[str, str]:
+        return self.data.get("clients", {})
 
-    def __init__(self, data, logger=None) -> None:
+    def __init__(self, data: dict, logger: logging.Logger = None) -> None:
         self.data = data
         self.log = logger or logging.getLogger(__name__)

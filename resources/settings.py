@@ -1,4 +1,5 @@
 import configparser
+from http import server
 import os
 import logging
 import sys
@@ -37,10 +38,10 @@ class Settings:
     RESOURCE_DIRECTORY = "./resources"
     RELATIVE_TO_ROOT = "../"
     ENV_CONFIG_VAR = "PAS_CONFIG"
-    customEntries = None
+    customEntries: CustomEntries = None
 
     @property
-    def CONFIG_RELATIVEPATH(self):
+    def CONFIG_RELATIVEPATH(self) -> str:
         return os.path.join(self.CONFIG_DIRECTORY, self.CONFIG_DEFAULT)
 
     DEFAULTS = {
@@ -79,7 +80,19 @@ class Settings:
         "clients": {}
     }
 
-    def __init__(self, configFile=None, logger=None,):
+    log: logging.Logger = None
+    username: str = None
+    password: str = None
+    servername: str = None
+    token: str = None
+    address: str = None
+    ssl: bool = False
+    port: int = 32400
+    ignore_certs: bool = False
+    leftoffset: int = 0
+    rightoffset: int = 0
+
+    def __init__(self, configFile: str = None, logger: logging.Logger = None) -> None:
         self.log = logger or logging.getLogger(__name__)
 
         self.log.info(sys.executable)
@@ -149,7 +162,7 @@ class Settings:
         self.log.info("Loading custom JSON file %s" % customFile)
         self.customEntries = CustomEntries(data, logger)
 
-    def writeConfig(self, config, cfgfile):
+    def writeConfig(self, config, cfgfile) -> None:
         if not os.path.isdir(os.path.dirname(cfgfile)):
             os.makedirs(os.path.dirname(cfgfile))
         try:
@@ -161,7 +174,7 @@ class Settings:
         except IOError:
             self.log.exception("Error writing to %s" % (cfgfile))
 
-    def writeCustom(self, data, cfgfile):
+    def writeCustom(self, data, cfgfile) -> None:
         try:
             with open(cfgfile, 'w', encoding='utf-8') as cf:
                 json.dump(data, cf, indent=4)
@@ -170,7 +183,7 @@ class Settings:
         except IOError:
             self.log.exception("Error writing to %s" % (cfgfile))
 
-    def readConfig(self, config):
+    def readConfig(self, config) -> None:
         self.username = config.get("Plex.tv", "username")
         self.password = config.get("Plex.tv", "password", raw=True)
         self.servername = config.get("Plex.tv", "servername")
