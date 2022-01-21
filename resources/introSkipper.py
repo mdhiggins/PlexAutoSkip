@@ -12,11 +12,10 @@ from socket import timeout
 from plexapi.exceptions import BadRequest
 from plexapi.client import PlexClient
 from plexapi.server import PlexServer
-from typing import Dict
 
 
 class IntroSkipper():
-    media_sessions: Dict[str, Media] = {}
+    media_sessions: dict = {}
     delete: list[str] = []
     ignored: list[str] = []
     customEntries: CustomEntries = None
