@@ -72,7 +72,7 @@ if __name__ == '__main__':
         log.debug("Connected to server using plex.tv account, ignoring manual server settings")
 
     if plex:
-        intro_skipper = IntroSkipper(plex, settings.leftoffset, settings.rightoffset, logger=log)
+        intro_skipper = IntroSkipper(plex, settings.tags, settings.leftoffset, settings.rightoffset, settings.skiplastchapter, logger=log)
         intro_skipper.customEntries = settings.customEntries
         intro_skipper.start(sslopt=sslopt)
     else:

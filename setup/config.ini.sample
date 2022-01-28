@@ -12,6 +12,10 @@ port = 32400
 [Security]
 ignore-certs = False
 
+[Skip]
+tags = intro, commercial, advertisement
+last-chapter = 0.0
+
 [Offsets]
 start = 2000
 end = 1000

@@ -59,6 +59,10 @@ class Settings:
         "Security": {
             "ignore-certs": False
         },
+        "Skip": {
+            "tags": "intro, commercial, advertisement",
+            "last-chapter": 0.0,
+        },
         "Offsets": {
             "start": 2000,
             "end": 1000
@@ -117,7 +121,7 @@ class Settings:
 
         self.log.info("Loading config file %s." % configFile)
 
-        config = FancyConfigParser()
+        config: FancyConfigParser = FancyConfigParser()
         if os.path.isfile(configFile):
             config.read(configFile)
 
@@ -183,7 +187,7 @@ class Settings:
         except IOError:
             self.log.exception("Error writing to %s" % (cfgfile))
 
-    def readConfig(self, config) -> None:
+    def readConfig(self, config: FancyConfigParser) -> None:
         self.username = config.get("Plex.tv", "username")
         self.password = config.get("Plex.tv", "password", raw=True)
         self.servername = config.get("Plex.tv", "servername")
@@ -199,6 +203,9 @@ class Settings:
         self.port = config.getint("Server", "port")
 
         self.ignore_certs = config.getboolean("Security", "ignore-certs")
+
+        self.tags = config.getlist("Skip", "tags")
+        self.skiplastchapter = config.getfloat("Skip", "last-chapter")
 
         self.leftoffset = config.getint("Offsets", "start")
         self.rightoffset = config.getint("Offsets", "end")

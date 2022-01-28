@@ -21,6 +21,8 @@ class IntroSkipper():
     ignored: List[str] = []
     customEntries: CustomEntries = None
     reconnect: bool = True
+    tags: List[str] = []
+    skiplastchapter: float = 0.0
 
     TROUBLESHOOT_URL = "https://github.com/mdhiggins/PlexAutoSkip/wiki/Troubleshooting"
     ERRORS = {
@@ -47,11 +49,13 @@ class IntroSkipper():
     TIMEOUT_WITHOUT_CHECK = True
     IGNORED_CAP = 200
 
-    def __init__(self, server: PlexServer, leftOffset: int = 0, rightOffset: int = 0, logger: logging.Logger = None) -> None:
+    def __init__(self, server: PlexServer, tags: List[str] = [], leftOffset: int = 0, rightOffset: int = 0, skiplastchapter: float = 0.0, logger: logging.Logger = None) -> None:
         self.server = server
-        self.log = logger or logging.getLogger(__name__)
+        self.tags = tags
         self.leftOffset = leftOffset
         self.rightOffset = rightOffset
+        self.skiplastchapter = skiplastchapter
+        self.log = logger or logging.getLogger(__name__)
 
     def getDataFromSessions(self, sessionKey: str) -> Media:
         try:
@@ -86,6 +90,11 @@ class IntroSkipper():
                 self.seekTo(mediaWrapper, marker.end)
                 return
 
+        if self.skiplastchapter and mediaWrapper.lastchapter and (mediaWrapper.lastchapter.start / mediaWrapper.media.duration) > self.skiplastchapter:
+            if mediaWrapper.lastchapter and (mediaWrapper.lastchapter.start + self.leftOffset) <= mediaWrapper.viewOffset <= mediaWrapper.lastchapter.end:
+                self.log.info("Found a valid last chapter for media %s with range %d-%d and viewOffset %d with skip-last-chapter enabled" % (mediaWrapper, mediaWrapper.lastchapter.start + self.leftOffset, mediaWrapper.lastchapter.end, mediaWrapper.viewOffset))
+                self.seekTo(mediaWrapper, mediaWrapper.lastchapter.end)
+
         for chapter in mediaWrapper.chapters:
             if (chapter.start + self.leftOffset) <= mediaWrapper.viewOffset <= chapter.end:
                 self.log.info("Found an advertisement chapter for media %s with range %d-%d and viewOffset %d" % (mediaWrapper, chapter.start + self.leftOffset, chapter.end, mediaWrapper.viewOffset))
@@ -106,19 +115,17 @@ class IntroSkipper():
                 del self.media_sessions[mediaWrapper.media.sessionKey]
 
     def seekTo(self, mediaWrapper: MediaWrapper, targetOffset: int) -> None:
-        mediaWrapper.willSeek()
         for player in mediaWrapper.media.players:
             try:
                 if self.seekPlayerTo(player, mediaWrapper.media, targetOffset):
                     self.log.info("Seeking %s player playing %s from %d to %d" % (player.product, mediaWrapper, mediaWrapper.viewOffset, targetOffset))
-                    mediaWrapper.updateOffset(targetOffset)
+                    mediaWrapper.updateOffset(targetOffset, seeking=True)
             except (ReadTimeout, ReadTimeoutError, timeout):
                 self.log.debug("TimeoutError, removing from cache to prevent false triggers, will be restored with next sync")
                 del self.media_sessions[mediaWrapper.media.sessionKey]
                 break
             except:
                 self.log.exception("Error seeking")
-        mediaWrapper.seeking = False
 
     def seekPlayerTo(self, player: PlexClient, media: Media, targetOffset: int) -> bool:
         if not player:
@@ -193,7 +200,7 @@ class IntroSkipper():
                 media = self.getDataFromSessions(sessionKey)
                 if media and media.session and len(media.session) > 0 and media.session[0].location == 'lan':
                     if sessionKey not in self.media_sessions:
-                        wrapper = MediaWrapper(media, self.server, custom=self.customEntries, logger=self.log)
+                        wrapper = MediaWrapper(media, self.server, tags=self.tags, custom=self.customEntries, logger=self.log)
                         if self.shouldAdd(media):
                             self.log.info("Found a new %s session %s with viewOffset %d %s" % (media.type, wrapper, media.viewOffset, media.usernames))
                             self.addSession(sessionKey, wrapper)
@@ -204,13 +211,10 @@ class IntroSkipper():
                                 self.addSession(sessionKey, wrapper)
                             else:
                                 self.ignoreSession(sessionKey)
-                    elif not self.media_sessions[sessionKey].seeking and not self.media_sessions[sessionKey].buffering:
+                    elif self.media_sessions[sessionKey].updateOffset(media.viewOffset, seeking=False):
                         self.log.debug("Updating an existing %s media session %s with viewOffset %d (previous %d)" % (media.type, self.media_sessions[sessionKey], media.viewOffset, self.media_sessions[sessionKey].viewOffset))
-                        self.media_sessions[sessionKey].updateOffset(media.viewOffset)
-                    elif self.media_sessions[sessionKey].seeking:
+                    else:
                         self.log.debug("Skipping update as session %s appears to be actively seeking" % (self.media_sessions[sessionKey]))
-                    elif self.media_sessions[sessionKey].buffering:
-                        self.log.debug("Skipping update as session %s appears to be actively buffering from a recent seek" % (self.media_sessions[sessionKey]))
                 else:
                     pass
             except KeyboardInterrupt:
