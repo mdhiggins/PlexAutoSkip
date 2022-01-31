@@ -2,6 +2,7 @@
 
 import logging
 import time
+from resources.settings import Settings
 from resources.customEntries import CustomEntries
 from resources.sslAlertListener import SSLAlertListener
 from resources.mediaWrapper import Media, MediaWrapper
@@ -19,10 +20,8 @@ class IntroSkipper():
     media_sessions: Dict[str, Media] = {}
     delete: List[str] = []
     ignored: List[str] = []
-    customEntries: CustomEntries = None
     reconnect: bool = True
     tags: List[str] = []
-    skiplastchapter: float = 0.0
 
     TROUBLESHOOT_URL = "https://github.com/mdhiggins/PlexAutoSkip/wiki/Troubleshooting"
     ERRORS = {
@@ -49,12 +48,13 @@ class IntroSkipper():
     TIMEOUT_WITHOUT_CHECK = True
     IGNORED_CAP = 200
 
-    def __init__(self, server: PlexServer, tags: List[str] = [], leftOffset: int = 0, rightOffset: int = 0, skiplastchapter: float = 0.0, logger: logging.Logger = None) -> None:
+    @property
+    def customEntries(self) -> CustomEntries:
+        return self.settings.customEntries
+
+    def __init__(self, server: PlexServer, settings: Settings, logger: logging.Logger = None) -> None:
         self.server = server
-        self.tags = tags
-        self.leftOffset = leftOffset
-        self.rightOffset = rightOffset
-        self.skiplastchapter = skiplastchapter
+        self.settings = settings
         self.log = logger or logging.getLogger(__name__)
 
     def getDataFromSessions(self, sessionKey: str) -> Media:
@@ -90,21 +90,21 @@ class IntroSkipper():
                 self.seekTo(mediaWrapper, marker.end)
                 return
 
-        if self.skiplastchapter and mediaWrapper.lastchapter and (mediaWrapper.lastchapter.start / mediaWrapper.media.duration) > self.skiplastchapter:
-            if mediaWrapper.lastchapter and (mediaWrapper.lastchapter.start + self.leftOffset) <= mediaWrapper.viewOffset <= mediaWrapper.lastchapter.end:
-                self.log.info("Found a valid last chapter for media %s with range %d-%d and viewOffset %d with skip-last-chapter enabled" % (mediaWrapper, mediaWrapper.lastchapter.start + self.leftOffset, mediaWrapper.lastchapter.end, mediaWrapper.viewOffset))
+        if self.settings.skiplastchapter and mediaWrapper.lastchapter and (mediaWrapper.lastchapter.start / mediaWrapper.media.duration) > self.settings.skiplastchapter:
+            if mediaWrapper.lastchapter and (mediaWrapper.lastchapter.start + self.settings.leftoffset) <= mediaWrapper.viewOffset <= mediaWrapper.lastchapter.end:
+                self.log.info("Found a valid last chapter for media %s with range %d-%d and viewOffset %d with skip-last-chapter enabled" % (mediaWrapper, mediaWrapper.lastchapter.start + self.settings.leftoffset, mediaWrapper.lastchapter.end, mediaWrapper.viewOffset))
                 self.seekTo(mediaWrapper, mediaWrapper.lastchapter.end)
 
         for chapter in mediaWrapper.chapters:
-            if (chapter.start + self.leftOffset) <= mediaWrapper.viewOffset <= chapter.end:
-                self.log.info("Found an advertisement chapter for media %s with range %d-%d and viewOffset %d" % (mediaWrapper, chapter.start + self.leftOffset, chapter.end, mediaWrapper.viewOffset))
-                self.seekTo(mediaWrapper, chapter.end + self.rightOffset)
+            if (chapter.start + self.settings.leftoffset) <= mediaWrapper.viewOffset <= chapter.end:
+                self.log.info("Found an advertisement chapter for media %s with range %d-%d and viewOffset %d" % (mediaWrapper, chapter.start + self.settings.leftoffset, chapter.end, mediaWrapper.viewOffset))
+                self.seekTo(mediaWrapper, chapter.end + self.settings.rightoffset)
                 return
 
         for marker in mediaWrapper.markers:
-            if (marker.start + self.leftOffset) <= mediaWrapper.viewOffset <= marker.end:
-                self.log.info("Found an intro marker for media %s with range %d-%d and viewOffset %d" % (mediaWrapper, marker.start + self.leftOffset, marker.end, mediaWrapper.viewOffset))
-                self.seekTo(mediaWrapper, marker.end + self.rightOffset)
+            if (marker.start + self.settings.leftoffset) <= mediaWrapper.viewOffset <= marker.end:
+                self.log.info("Found an intro marker for media %s with range %d-%d and viewOffset %d" % (mediaWrapper, marker.start + self.settings.leftoffset, marker.end, mediaWrapper.viewOffset))
+                self.seekTo(mediaWrapper, marker.end + self.settings.rightoffset)
                 return
 
         if mediaWrapper.sinceLastUpdate > self.TIMEOUT:
@@ -200,7 +200,7 @@ class IntroSkipper():
                 media = self.getDataFromSessions(sessionKey)
                 if media and media.session and len(media.session) > 0 and media.session[0].location == 'lan':
                     if sessionKey not in self.media_sessions:
-                        wrapper = MediaWrapper(media, self.server, tags=self.tags, custom=self.customEntries, logger=self.log)
+                        wrapper = MediaWrapper(media, self.server, tags=self.settings.tags, custom=self.customEntries, logger=self.log)
                         if self.shouldAdd(media):
                             self.log.info("Found a new %s session %s with viewOffset %d %s" % (media.type, wrapper, media.viewOffset, media.usernames))
                             self.addSession(sessionKey, wrapper)
@@ -210,6 +210,7 @@ class IntroSkipper():
                                 wrapper.customOnly = True
                                 self.addSession(sessionKey, wrapper)
                             else:
+                                self.log.debug("Ignoring a new %s session %s %s" % (media.type, wrapper, media.usernames))
                                 self.ignoreSession(sessionKey)
                     elif self.media_sessions[sessionKey].updateOffset(media.viewOffset, seeking=False):
                         self.log.debug("Updating an existing %s media session %s with viewOffset %d (previous %d)" % (media.type, self.media_sessions[sessionKey], media.viewOffset, self.media_sessions[sessionKey].viewOffset))
@@ -241,6 +242,14 @@ class IntroSkipper():
         if self.customEntries.blockedClients and any(player for player in media.players if player.title in self.customEntries.blockedClients):
             self.log.debug("Blocking session based on blocked player in %s" % ([p.title for p in media.players]))
             return False
+
+        if hasattr(media, "episodeNumber"):
+            if not self.settings.skipE01 and media.episodeNumber == 1:
+                self.log.debug("Blocking media %s as it is the first episode in a season and skip-first-episode-season is %s" % (media.ratingKey, self.settings.skipE01))
+                return False
+            if not self.settings.skipS01E01 and hasattr(media, "seasonNumber") and media.seasonNumber == 1 and media.episodeNumber == 1:
+                self.log.debug("Blocking media %s as it is the first season/episode in a series and skip-first-episode-series is %s" % (media.ratingKey, self.settings.skipS01E01))
+                return False
 
         if media.ratingKey in self.customEntries.allowedKeys:
             self.log.debug("Allowing media based on key %s" % (media.ratingKey))
@@ -276,7 +285,6 @@ class IntroSkipper():
             self.ignored.append(sessionKey)
 
     def ignoreSession(self, sessionKey: str) -> None:
-        self.log.debug("Ignoring session %s" % (sessionKey))
         self.ignored.append(sessionKey)
         self.ignored = self.ignored[-self.IGNORED_CAP:]
 

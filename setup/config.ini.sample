@@ -15,7 +15,9 @@ ignore-certs = False
 [Skip]
 tags = intro, commercial, advertisement
 last-chapter = 0.0
+first-episode-series = False
+first-episode-season = True
 
 [Offsets]
-start = 2000
+start = 3000
 end = 1000

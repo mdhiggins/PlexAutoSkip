@@ -62,9 +62,11 @@ class Settings:
         "Skip": {
             "tags": "intro, commercial, advertisement",
             "last-chapter": 0.0,
+            "first-episode-series": True,
+            "first-episode-season": True,
         },
         "Offsets": {
-            "start": 2000,
+            "start": 3000,
             "end": 1000
         }
     }
@@ -206,6 +208,8 @@ class Settings:
 
         self.tags = config.getlist("Skip", "tags")
         self.skiplastchapter = config.getfloat("Skip", "last-chapter")
+        self.skipS01E01 = config.getboolean("Skip", "first-episode-series")
+        self.skipE01 = config.getboolean("Skip", "first-episode-season")
 
         self.leftoffset = config.getint("Offsets", "start")
         self.rightoffset = config.getint("Offsets", "end")
