@@ -229,11 +229,11 @@ class Settings:
         self.skipunwatched = config.getboolean("Skip", "unwatched")
         self.skiplastchapter = config.getfloat("Skip", "last-chapter")
         try:
-            self.skipS01E01 = self.SKIP_MATCHER.get(config.getboolean("Skip", "first-episode-series")) # Legacy bool support
+            self.skipS01E01 = self.SKIP_MATCHER.get(config.getboolean("Skip", "first-episode-series"))  # Legacy bool support
         except ValueError:
             self.skipS01E01 = self.SKIP_MATCHER.get(config.get("Skip", "first-episode-series").lower(), self.SKIP_TYPES.ALWAYS)
         try:
-            self.skipE01 = self.SKIP_MATCHER.get(config.getboolean("Skip", "first-episode-season")) # Legacy bool support
+            self.skipE01 = self.SKIP_MATCHER.get(config.getboolean("Skip", "first-episode-season"))  # Legacy bool support
         except ValueError:
             self.skipE01 = self.SKIP_MATCHER.get(config.get("Skip", "first-episode-season").lower(), self.SKIP_TYPES.ALWAYS)
 
