@@ -17,7 +17,7 @@ from typing import Dict, List
 
 
 class IntroSkipper():
-    media_sessions: Dict[str, Media] = {}
+    media_sessions: Dict[str, MediaWrapper] = {}
     delete: List[str] = []
     ignored: List[str] = []
     reconnect: bool = True
@@ -55,6 +55,11 @@ class IntroSkipper():
         self.server = server
         self.settings = settings
         self.log = logger or logging.getLogger(__name__)
+        self.log.debug("IntroSeeker init with leftOffset %d rightOffset %d" % (self.settings.leftoffset, self.settings.rightoffset))
+        self.log.debug("Skip tags %s" % (self.settings.tags))
+        self.log.debug("Skip S01E01 %s" % (self.settings.skipS01E01))
+        self.log.debug("Skip S**E01 %s" % (self.settings.skipE01))
+        self.log.debug("Skip last chapter %s" % (self.settings.skiplastchapter))
 
     def getDataFromSessions(self, sessionKey: str) -> Media:
         try:
@@ -107,8 +112,8 @@ class IntroSkipper():
                 return
 
         if mediaWrapper.sinceLastUpdate > self.TIMEOUT:
-            self.log.debug("Session %s hasn't been updated in %d seconds, will be removed from cache" % (mediaWrapper, self.TIMEOUT))
-            del self.media_sessions[mediaWrapper.media.sessionKey]
+            self.log.debug("Session %s hasn't been updated in %d seconds" % (mediaWrapper, self.TIMEOUT))
+            self.removeSession(mediaWrapper)
 
     def seekTo(self, mediaWrapper: MediaWrapper, targetOffset: int) -> None:
         for player in mediaWrapper.media.players:
@@ -118,7 +123,7 @@ class IntroSkipper():
                     mediaWrapper.updateOffset(targetOffset, seeking=True)
             except (ReadTimeout, ReadTimeoutError, timeout):
                 self.log.debug("TimeoutError, removing from cache to prevent false triggers, will be restored with next sync")
-                del self.media_sessions[mediaWrapper.media.sessionKey]
+                self.removeSession(mediaWrapper)
                 break
             except:
                 self.log.exception("Error seeking")
@@ -167,21 +172,16 @@ class IntroSkipper():
                 if media and media.session and len(media.session) > 0 and media.session[0].location == 'lan':
                     if sessionKey not in self.media_sessions:
                         wrapper = MediaWrapper(media, self.server, tags=self.settings.tags, custom=self.customEntries, logger=self.log)
-                        if self.shouldAdd(media):
-                            self.log.info("Found a new %s session %s with viewOffset %d %s" % (media.type, wrapper, media.viewOffset, media.usernames))
+                        if self.shouldAdd(wrapper):
                             self.addSession(sessionKey, wrapper)
                         else:
                             if len(wrapper.customMarkers) > 0:
-                                self.log.info("Found a blocked %s session %s with viewOffset %d, will use custom markers only" % (media.type, wrapper, media.viewOffset))
                                 wrapper.customOnly = True
                                 self.addSession(sessionKey, wrapper)
                             else:
-                                self.log.debug("Ignoring a new %s session %s %s" % (media.type, wrapper, media.usernames))
                                 self.ignoreSession(sessionKey, wrapper)
-                    elif self.media_sessions[sessionKey].updateOffset(media.viewOffset, seeking=False):
-                        self.log.debug("Updating an existing %s media session %s with viewOffset %d" % (media.type, self.media_sessions[sessionKey], media.viewOffset))
                     else:
-                        self.log.debug("Skipping update as session %s appears to be actively seeking" % (self.media_sessions[sessionKey]))
+                        self.media_sessions[sessionKey].updateOffset(media.viewOffset, seeking=False)
                 else:
                     pass
             except KeyboardInterrupt:
@@ -189,67 +189,75 @@ class IntroSkipper():
             except:
                 self.log.exception("Unexpected error getting data from session alert")
 
-    def shouldAdd(self, media: Media) -> bool:
+    def shouldAdd(self, mediaWrapper: MediaWrapper) -> bool:
+        media = mediaWrapper.media
+
+        # Users
         if any(b for b in self.customEntries.blockedUsers if b in media.usernames):
-            self.log.debug("Blocking session based on blocked user %s" % (media.usernames))
+            self.log.debug("Blocking %s based on blocked user in %s" % (mediaWrapper, media.usernames))
             return False
-
         if self.customEntries.allowedUsers and not any(u for u in media.usernames if u in self.customEntries.allowedUsers):
-            self.log.debug("Blocking session based on not allowed user %s" % (media.usernames))
+            self.log.debug("Blocking %s based on no allowed user in %s" % (mediaWrapper, media.usernames))
             return False
+        elif self.customEntries.allowedUsers:
+            self.log.debug("Allowing %s based on allowed user in %s" % (mediaWrapper, media.usernames))
 
+        # Clients/players
         if self.customEntries.allowedClients and not any(player for player in media.players if player.title in self.customEntries.allowedClients):
-            self.log.debug("Blocking session based on no allowed player in %s" % ([p.title for p in media.players]))
+            self.log.debug("Blocking %s based on no allowed player in %s" % (mediaWrapper, [p.title for p in media.players]))
             return False
-
+        elif self.customEntries.allowedClients:
+            self.log.debug("Allowing %s based on allowed player in %s" % (mediaWrapper, [p.title for p in media.players]))
         if self.customEntries.blockedClients and any(player for player in media.players if player.title in self.customEntries.blockedClients):
-            self.log.debug("Blocking session based on blocked player in %s" % ([p.title for p in media.players]))
+            self.log.debug("Blocking %s based on blocked player in %s" % (mediaWrapper, [p.title for p in media.players]))
             return False
 
+        # First episodes
         if hasattr(media, "episodeNumber"):
             if media.episodeNumber == 1:
                 if self.settings.skipE01 == Settings.SKIP_TYPES.NEVER:
-                    self.log.debug("Blocking media %s as it is the first episode in a season and skip-first-episode-season is %s" % (media.ratingKey, self.settings.skipE01))
+                    self.log.debug("Blocking %s, first episode in season and skip-first-episode-season is %s" % (mediaWrapper, self.settings.skipE01))
                     return False
                 elif self.settings.skipE01 == Settings.SKIP_TYPES.WATCHED and not media.isWatched:
-                    self.log.debug("Blocking media %s as it is the first episode in a season and skip-first-episode-season is %s and episode is not watched" % (media.ratingKey, self.settings.skipE01))
+                    self.log.debug("Blocking %s, first episode in season and skip-first-episode-season is %s and isWatched %s" % (mediaWrapper, self.settings.skipE01, media.isWatched))
                     return False
             if hasattr(media, "seasonNumber") and media.seasonNumber == 1 and media.episodeNumber == 1:
                 if self.settings.skipS01E01 == Settings.SKIP_TYPES.NEVER:
-                    self.log.debug("Blocking media %s as it is the first season/episode in a series and skip-first-episode-series is %s" % (media.ratingKey, self.settings.skipS01E01))
+                    self.log.debug("Blocking %s, first episode in series and skip-first-episode-series is %s" % (mediaWrapper, self.settings.skipS01E01))
                     return False
                 elif self.settings.skipS01E01 == Settings.SKIP_TYPES.WATCHED and not media.isWatched:
-                    self.log.debug("Blocking media %s as it is the first season/episode in a series and skip-first-episode-series is %s and episode is not watched" % (media.ratingKey, self.settings.skipS01E01))
+                    self.log.debug("Blocking %s first episode in series and skip-first-episode-series is %s and isWatched %s" % (mediaWrapper, self.settings.skipS01E01, media.isWatched))
                     return False
 
+        # Keys
         allowed = False
-
         if media.ratingKey in self.customEntries.allowedKeys:
-            self.log.debug("Allowing media based on key %s" % (media.ratingKey))
+            self.log.debug("Allowing %s for ratingKey %s" % (mediaWrapper, media.ratingKey))
             allowed = True
         if media.ratingKey in self.customEntries.blockedKeys:
-            self.log.debug("Blocking media based on key %s" % (media.ratingKey))
+            self.log.debug("Blocking %s for ratingKey %s" % (mediaWrapper, media.ratingKey))
             return False
         if hasattr(media, "parentRatingKey"):
             if media.parentRatingKey in self.customEntries.allowedKeys:
-                self.log.debug("Allowing media based on parent key %s" % (media.parentRatingKey))
+                self.log.debug("Allowing %s for parentRatingKey %s" % (mediaWrapper, media.parentRatingKey))
                 allowed = True
             if media.parentRatingKey in self.customEntries.blockedKeys:
-                self.log.debug("Blocking media based on parent key %s" % (media.parentRatingKey))
+                self.log.debug("Blocking %s for parentRatingKey %s" % (mediaWrapper, media.parentRatingKey))
                 return False
         if hasattr(media, "grandparentRatingKey"):
             if media.grandparentRatingKey in self.customEntries.allowedKeys:
-                self.log.debug("Allowing media based on grandparent key %s" % (media.grandparentRatingKey))
+                self.log.debug("Allowing %s for grandparentRatingKey %s" % (mediaWrapper, media.grandparentRatingKey))
                 allowed = True
             if media.grandparentRatingKey in self.customEntries.blockedKeys:
-                self.log.debug("Blocking media based on grandparent key %s" % (media.grandparentRatingKey))
+                self.log.debug("Blocking %s for grandparentRatingKey %s" % (mediaWrapper, media.grandparentRatingKey))
                 return False
         if self.customEntries.allowedKeys and not allowed:
-            self.log.debug("Blocking media because it was not on the allowed list")
+            self.log.debug("Blocking %s, not on allowed list" % (mediaWrapper))
             return False
 
+        # Watched
         if not self.settings.skipunwatched and not media.isWatched:
-            self.log.debug("Blocking media because it is unwatched and skip-unwatched is %s" % (self.settings.skipunwatched))
+            self.log.debug("Blocking %s, unwatched and skip-unwatched is %s" % (mediaWrapper, self.settings.skipunwatched))
             return False
         return True
 
@@ -257,6 +265,10 @@ class IntroSkipper():
         if mediaWrapper.media.players:
             self.purgeOldSessions(mediaWrapper)
             self.media_sessions[sessionKey] = mediaWrapper
+            if mediaWrapper.customOnly:
+                self.log.info("Found blocked session %s viewOffset %d %s, using custom markers only, sessions: %d" % (mediaWrapper, mediaWrapper.media.viewOffset, mediaWrapper.media.usernames, len(self.media_sessions)))
+            else:
+                self.log.info("Found new session %s viewOffset %d %s, sessions: %d" % (mediaWrapper, mediaWrapper.media.viewOffset, mediaWrapper.media.usernames, len(self.media_sessions)))
         else:
             self.log.info("Session %s has no accessible players, it will be ignored" % (sessionKey))
             self.ignoreSession(sessionKey, mediaWrapper)
@@ -265,6 +277,7 @@ class IntroSkipper():
         self.purgeOldSessions(mediaWrapper)
         self.ignored.append(sessionKey)
         self.ignored = self.ignored[-self.IGNORED_CAP:]
+        self.log.debug("Ignoring session %s %s, ignored: %d" % (mediaWrapper, mediaWrapper.media.usernames, len(self.ignored)))
 
     def purgeOldSessions(self, mediaWrapper) -> None:
         mids = [x.machineIdentifier for x in mediaWrapper.media.players]
@@ -272,9 +285,13 @@ class IntroSkipper():
             for session in list(self.media_sessions.values()):
                 for player in session.media.players:
                     if player.machineIdentifier in mids:
-                        self.log.info("Session %s shares a player %s with the newly created session %s, deleting old session %s" % (session, player.machineIdentifier, mediaWrapper, session.media.sessionKey))
-                        del self.media_sessions[session.media.sessionKey]
+                        self.log.info("Session %s shares player (%s) with new session %s, deleting old session %s" % (session, player.machineIdentifier, mediaWrapper, session.media.sessionKey))
+                        self.removeSession(session)
                         break
+
+    def removeSession(self, mediaWrapper):
+        del self.media_sessions[mediaWrapper.media.sessionKey]
+        self.log.debug("Deleting session %s, sessions: %d" % (mediaWrapper, len(self.media_sessions)))
 
     def error(self, data: dict) -> None:
         self.log.error(data)

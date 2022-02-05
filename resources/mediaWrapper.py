@@ -50,7 +50,7 @@ class MediaWrapper():
                 p._baseurl = custom.clients[p.title].strip('/')
                 p._baseurl = p._baseurl if p._baseurl.startswith("http://") else "http://%s" % (p._baseurl)
                 p.proxyThroughServer(False)
-                self.log.debug("Overriding player %s using custom baseURL %s, will not proxy through server" % (p.title, p._baseurl))
+                self.log.debug("Overriding player %s with custom baseURL %s, will not proxy through server" % (p.title, p._baseurl))
             else:
                 p.proxyThroughServer(True, server)
 
@@ -71,21 +71,21 @@ class MediaWrapper():
                 for markerdata in custom.markers[str(self.media.ratingKey)]:
                     cm = CustomMarker(markerdata)
                     if cm not in self.customMarkers:
-                        self.log.debug("Found a custom marker range %s entry for %s" % (cm, self))
+                        self.log.debug("Found custom marker range %s entry for %s" % (cm, self))
                         self.customMarkers.append(cm)
 
             if hasattr(self.media, "parentRatingKey") and str(self.media.parentRatingKey) in custom.markers:
                 for markerdata in custom.markers[str(self.media.parentRatingKey)]:
                     cm = CustomMarker(markerdata)
                     if cm not in self.customMarkers:
-                        self.log.debug("Found a custom marker range %s entry for %s (parentRatingKey match)" % (cm, self))
+                        self.log.debug("Found custom marker range %s entry for %s (parentRatingKey match)" % (cm, self))
                         self.customMarkers.append(cm)
 
             if hasattr(self.media, "grandparentRatingKey") and str(self.media.grandparentRatingKey) in custom.markers:
                 for markerdata in custom.markers[str(self.media.grandparentRatingKey)]:
                     cm = CustomMarker(markerdata)
                     if cm not in self.customMarkers:
-                        self.log.debug("Found a custom marker range %s entry for %s (grandparentRatingKey match)" % (cm, self))
+                        self.log.debug("Found custom marker range %s entry for %s (grandparentRatingKey match)" % (cm, self))
                         self.customMarkers.append(cm)
 
     def __repr__(self) -> str:
@@ -106,7 +106,13 @@ class MediaWrapper():
 
     def updateOffset(self, offset: int, seeking: bool) -> bool:
         if self.seeking and not seeking and (self.viewOffset - self.seekBuffer) > offset:
+            self.log.debug("Skipping update session %s is actively seeking" % (self))
             return False
+        if not seeking:
+            self.log.debug("Updating session %s viewOffset %d, old %d, diff %d (%ds since last update)" % (self, offset, self.viewOffset, (offset - self.viewOffset), (datetime.now() - self.lastUpdate).total_seconds()))
+        if self.seeking and not seeking and (self.viewOffset - self.seekBuffer) < offset:
+            self.log.debug("Recent seek successful, server offset update %d greater than threshold %d, setting seeking to %s" % (offset, (self.viewOffset - self.seekBuffer), seeking))
+
         self._viewOffset = offset
         self.media.viewOffset = offset
         self.lastUpdate = datetime.now()
