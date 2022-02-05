@@ -268,12 +268,13 @@ class IntroSkipper():
 
     def purgeOldSessions(self, mediaWrapper) -> None:
         mids = [x.machineIdentifier for x in mediaWrapper.media.players]
-        for session in list(self.media_sessions.values()):
-            for player in session.media.players:
-                if player.machineIdentifier in mids:
-                    self.log.info("Session %s shares a player %s with the newly created session %s, deleting old session %s" % (session, player.machineIdentifier, mediaWrapper, session.media.sessionKey))
-                    del self.media_sessions[session.media.sessionKey]
-                    break
+        if mids:
+            for session in list(self.media_sessions.values()):
+                for player in session.media.players:
+                    if player.machineIdentifier in mids:
+                        self.log.info("Session %s shares a player %s with the newly created session %s, deleting old session %s" % (session, player.machineIdentifier, mediaWrapper, session.media.sessionKey))
+                        del self.media_sessions[session.media.sessionKey]
+                        break
 
     def error(self, data: dict) -> None:
         self.log.error(data)
