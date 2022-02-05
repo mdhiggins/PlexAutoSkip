@@ -44,8 +44,7 @@ class IntroSkipper():
     ]
     DEFAULT_CLIENT_PORT = 32500
 
-    TIMEOUT = 120
-    TIMEOUT_WITHOUT_CHECK = True
+    TIMEOUT = 30
     IGNORED_CAP = 200
 
     @property
@@ -108,11 +107,8 @@ class IntroSkipper():
                 return
 
         if mediaWrapper.sinceLastUpdate > self.TIMEOUT:
-            self.log.debug("Session %s hasn't been updated in %d seconds, checking if still playing" % (mediaWrapper, self.TIMEOUT))
-            # Check to see if media is still playing before being deleted, probably overkill so using a bool (timeoutWithoutCheck) to bypass this check for now
-            if self.TIMEOUT_WITHOUT_CHECK or not self.stillPlaying(mediaWrapper):
-                self.log.debug("Session %s will be removed from cache" % (mediaWrapper))
-                del self.media_sessions[mediaWrapper.media.sessionKey]
+            self.log.debug("Session %s hasn't been updated in %d seconds, will be removed from cache" % (mediaWrapper, self.TIMEOUT))
+            del self.media_sessions[mediaWrapper.media.sessionKey]
 
     def seekTo(self, mediaWrapper: MediaWrapper, targetOffset: int) -> None:
         for player in mediaWrapper.media.players:
@@ -130,36 +126,18 @@ class IntroSkipper():
     def seekPlayerTo(self, player: PlexClient, media: Media, targetOffset: int) -> bool:
         if not player:
             return False
-        title = player.title
         try:
-            player = self.checkPlayerForMedia(player, media)
-            if player:
-                try:
-                    player.seekTo(targetOffset)
-                    return True
-                except ParseError:
-                    self.log.debug("ParseError, seems to be certain players but still functional, continuing")
-                    return True
-                except BadRequest as br:
-                    self.logErrorMessage(br, "BadRequest exception seekPlayerTo")
-                    return self.seekPlayerTo(self.recoverPlayer(player), media, targetOffset)
-            else:
-                self.log.debug("Unable to connect to player %s" % (title))
-                return False
+            try:
+                player.seekTo(targetOffset)
+                return True
+            except ParseError:
+                self.log.debug("ParseError, seems to be certain players but still functional, continuing")
+                return True
+            except BadRequest as br:
+                self.logErrorMessage(br, "BadRequest exception seekPlayerTo")
+                return self.seekPlayerTo(self.recoverPlayer(player), media, targetOffset)
         except:
             raise
-
-    def checkPlayerForMedia(self, player: PlexClient, media: Media) -> PlexClient:
-        if not player:
-            return None
-
-        try:
-            if not player.timeline or (player.isPlayingMedia(False) and player.timeline.key == media.key):
-                return player
-        except BadRequest as br:
-            self.logErrorMessage(br, "BadRequest exception checkPlayerForMedia")
-            return self.checkPlayerForMedia(self.recoverPlayer(player), media)
-        return None
 
     def recoverPlayer(self, player: PlexClient, protocol: str = "http://") -> PlexClient:
         if player.product in self.PROXY_ONLY:
@@ -175,19 +153,7 @@ class IntroSkipper():
         self.log.debug("Modifying client for direct connection using baseURL %s for player %s (%s)" % (baseurl, player.title, player._baseurl))
         player._baseurl = baseurl
         player.proxyThroughServer(False)
-
         return player
-
-    def stillPlaying(self, mediaWrapper: MediaWrapper) -> bool:
-        for player in mediaWrapper.media.players:
-            try:
-                if self.checkPlayerForMedia(player, mediaWrapper.media):
-                    return True
-            except KeyboardInterrupt:
-                raise
-            except:
-                self.log.exception("Error while checking player")
-        return False
 
     def processAlert(self, data: dict) -> None:
         if data['type'] == 'playing':
@@ -211,9 +177,9 @@ class IntroSkipper():
                                 self.addSession(sessionKey, wrapper)
                             else:
                                 self.log.debug("Ignoring a new %s session %s %s" % (media.type, wrapper, media.usernames))
-                                self.ignoreSession(sessionKey)
+                                self.ignoreSession(sessionKey, wrapper)
                     elif self.media_sessions[sessionKey].updateOffset(media.viewOffset, seeking=False):
-                        self.log.debug("Updating an existing %s media session %s with viewOffset %d (previous %d)" % (media.type, self.media_sessions[sessionKey], media.viewOffset, self.media_sessions[sessionKey].viewOffset))
+                        self.log.debug("Updating an existing %s media session %s with viewOffset %d" % (media.type, self.media_sessions[sessionKey], media.viewOffset))
                     else:
                         self.log.debug("Skipping update as session %s appears to be actively seeking" % (self.media_sessions[sessionKey]))
                 else:
@@ -224,9 +190,6 @@ class IntroSkipper():
                 self.log.exception("Unexpected error getting data from session alert")
 
     def shouldAdd(self, media: Media) -> bool:
-        if not self.customEntries:
-            return True
-
         if any(b for b in self.customEntries.blockedUsers if b in media.usernames):
             self.log.debug("Blocking session based on blocked user %s" % (media.usernames))
             return False
@@ -244,49 +207,73 @@ class IntroSkipper():
             return False
 
         if hasattr(media, "episodeNumber"):
-            if not self.settings.skipE01 and media.episodeNumber == 1:
-                self.log.debug("Blocking media %s as it is the first episode in a season and skip-first-episode-season is %s" % (media.ratingKey, self.settings.skipE01))
-                return False
-            if not self.settings.skipS01E01 and hasattr(media, "seasonNumber") and media.seasonNumber == 1 and media.episodeNumber == 1:
-                self.log.debug("Blocking media %s as it is the first season/episode in a series and skip-first-episode-series is %s" % (media.ratingKey, self.settings.skipS01E01))
-                return False
+            if media.episodeNumber == 1:
+                if self.settings.skipE01 == Settings.SKIP_TYPES.NEVER:
+                    self.log.debug("Blocking media %s as it is the first episode in a season and skip-first-episode-season is %s" % (media.ratingKey, self.settings.skipE01))
+                    return False
+                elif self.settings.skipE01 == Settings.SKIP_TYPES.WATCHED and not media.isWatched:
+                    self.log.debug("Blocking media %s as it is the first episode in a season and skip-first-episode-season is %s and episode is not watched" % (media.ratingKey, self.settings.skipE01))
+                    return False
+            if hasattr(media, "seasonNumber") and media.seasonNumber == 1 and media.episodeNumber == 1:
+                if not self.settings.skipS01E01 == Settings.SKIP_TYPES.NEVER:
+                    self.log.debug("Blocking media %s as it is the first season/episode in a series and skip-first-episode-series is %s" % (media.ratingKey, self.settings.skipS01E01))
+                    return False
+                elif self.settings.skipS01E01 == Settings.SKIP_TYPES.WATCHED and not media.isWatched:
+                    self.log.debug("Blocking media %s as it is the first season/episode in a series and skip-first-episode-series is %s and episode is not watched" % (media.ratingKey, self.settings.skipS01E01))
+                    return False
+
+        allowed = False
 
         if media.ratingKey in self.customEntries.allowedKeys:
             self.log.debug("Allowing media based on key %s" % (media.ratingKey))
-            return True
+            allowed = True
         if media.ratingKey in self.customEntries.blockedKeys:
             self.log.debug("Blocking media based on key %s" % (media.ratingKey))
             return False
         if hasattr(media, "parentRatingKey"):
             if media.parentRatingKey in self.customEntries.allowedKeys:
                 self.log.debug("Allowing media based on parent key %s" % (media.parentRatingKey))
-                return True
+                allowed = True
             if media.parentRatingKey in self.customEntries.blockedKeys:
                 self.log.debug("Blocking media based on parent key %s" % (media.parentRatingKey))
                 return False
         if hasattr(media, "grandparentRatingKey"):
             if media.grandparentRatingKey in self.customEntries.allowedKeys:
                 self.log.debug("Allowing media based on grandparent key %s" % (media.grandparentRatingKey))
-                return True
+                allowed = True
             if media.grandparentRatingKey in self.customEntries.blockedKeys:
                 self.log.debug("Blocking media based on grandparent key %s" % (media.grandparentRatingKey))
                 return False
-        if self.customEntries.allowedKeys:
+        if self.customEntries.allowedKeys and not allowed:
             self.log.debug("Blocking media because it was not on the allowed list")
             return False
 
+        if not self.settings.skipunwatched and not media.isWatched:
+            self.log.debug("Blocking media because it is unwatched and skip-unwatched is %s" % (self.settings.skipunwatched))
+            return False
         return True
 
     def addSession(self, sessionKey: str, mediaWrapper: MediaWrapper) -> None:
         if mediaWrapper.media.players:
+            self.purgeOldSessions(mediaWrapper)
             self.media_sessions[sessionKey] = mediaWrapper
         else:
             self.log.info("Session %s has no accessible players, it will be ignored" % (sessionKey))
-            self.ignored.append(sessionKey)
+            self.ignoreSession(sessionKey, mediaWrapper)
 
-    def ignoreSession(self, sessionKey: str) -> None:
+    def ignoreSession(self, sessionKey: str, mediaWrapper: MediaWrapper) -> None:
+        self.purgeOldSessions(mediaWrapper)
         self.ignored.append(sessionKey)
         self.ignored = self.ignored[-self.IGNORED_CAP:]
+
+    def purgeOldSessions(self, mediaWrapper) -> None:
+        mids = [x.machineIdentifier for x in mediaWrapper.media.players]
+        for session in list(self.media_sessions.values()):
+            for player in session.media.players:
+                if player.machineIdentifier in mids:
+                    self.log.info("Session %s shares a player %s with the newly created session %s, deleting old session %s" % (session, player.machineIdentifier, mediaWrapper, session.media.sessionKey))
+                    del self.media_sessions[session.media.sessionKey]
+                    break
 
     def error(self, data: dict) -> None:
         self.log.error(data)

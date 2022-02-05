@@ -5,6 +5,7 @@ import logging
 import sys
 import json
 from resources.customEntries import CustomEntries
+from enum import Enum
 
 
 class FancyConfigParser(configparser.ConfigParser, object):
@@ -62,8 +63,9 @@ class Settings:
         "Skip": {
             "tags": "intro, commercial, advertisement",
             "last-chapter": 0.0,
-            "first-episode-series": True,
-            "first-episode-season": True,
+            "unwatched": True,
+            "first-episode-series": "Watched",
+            "first-episode-season": "Always",
         },
         "Offsets": {
             "start": 3000,
@@ -84,6 +86,23 @@ class Settings:
             'keys': []
         },
         "clients": {}
+    }
+
+    class SKIP_TYPES(Enum):
+        NEVER = 0
+        WATCHED = 1
+        ALWAYS = 2
+
+    SKIP_MATCHER = {
+        "never": SKIP_TYPES.NEVER,
+        "watched": SKIP_TYPES.WATCHED,
+        "played": SKIP_TYPES.WATCHED,
+        "always": SKIP_TYPES.ALWAYS,
+        "all": SKIP_TYPES.ALWAYS,
+        "true": SKIP_TYPES.ALWAYS,
+        "false": SKIP_TYPES.NEVER,
+        True: SKIP_TYPES.ALWAYS,
+        False: SKIP_TYPES.NEVER
     }
 
     log: logging.Logger = None
@@ -207,9 +226,16 @@ class Settings:
         self.ignore_certs = config.getboolean("Security", "ignore-certs")
 
         self.tags = config.getlist("Skip", "tags")
+        self.skipunwatched = config.getboolean("Skip", "unwatched")
         self.skiplastchapter = config.getfloat("Skip", "last-chapter")
-        self.skipS01E01 = config.getboolean("Skip", "first-episode-series")
-        self.skipE01 = config.getboolean("Skip", "first-episode-season")
+        try:
+            self.skipS01E01 = self.SKIP_MATCHER.get(config.getboolean("Skip", "first-episode-series")) # Legacy bool support
+        except ValueError:
+            self.skipS01E01 = self.SKIP_MATCHER.get(config.get("Skip", "first-episode-series").lower(), self.SKIP_TYPES.ALWAYS)
+        try:
+            self.skipE01 = self.SKIP_MATCHER.get(config.getboolean("Skip", "first-episode-season")) # Legacy bool support
+        except ValueError:
+            self.skipE01 = self.SKIP_MATCHER.get(config.get("Skip", "first-episode-season").lower(), self.SKIP_TYPES.ALWAYS)
 
         self.leftoffset = config.getint("Offsets", "start")
         self.rightoffset = config.getint("Offsets", "end")

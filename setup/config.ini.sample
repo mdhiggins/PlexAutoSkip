@@ -15,8 +15,9 @@ ignore-certs = False
 [Skip]
 tags = intro, commercial, advertisement
 last-chapter = 0.0
-first-episode-series = True
-first-episode-season = True
+unwatched = True
+first-episode-series = Watched
+first-episode-season = Always
 
 [Offsets]
 start = 3000
