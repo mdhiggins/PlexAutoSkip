@@ -215,7 +215,7 @@ class IntroSkipper():
                     self.log.debug("Blocking media %s as it is the first episode in a season and skip-first-episode-season is %s and episode is not watched" % (media.ratingKey, self.settings.skipE01))
                     return False
             if hasattr(media, "seasonNumber") and media.seasonNumber == 1 and media.episodeNumber == 1:
-                if not self.settings.skipS01E01 == Settings.SKIP_TYPES.NEVER:
+                if self.settings.skipS01E01 == Settings.SKIP_TYPES.NEVER:
                     self.log.debug("Blocking media %s as it is the first season/episode in a series and skip-first-episode-series is %s" % (media.ratingKey, self.settings.skipS01E01))
                     return False
                 elif self.settings.skipS01E01 == Settings.SKIP_TYPES.WATCHED and not media.isWatched:
