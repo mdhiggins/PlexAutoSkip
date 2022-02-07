@@ -22,7 +22,7 @@ class SSLAlertListener(AlertListener):
         try:
             super(SSLAlertListener, self).__init__(server, callback, callbackError)
         except TypeError:
-            self.log.error("AlertListener error detected, you may need to update your version of PlexAPI, attempting backwards compatibility")
+            self.log.error("AlertListener error detected, you may need to update your version of PlexAPI python package, attempting backwards compatibility")
             super(SSLAlertListener, self).__init__(server, callback)
         self._sslopt = sslopt
 
