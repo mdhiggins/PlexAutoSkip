@@ -75,6 +75,7 @@ class Settings:
 
     CUSTOM_DEFAULTS = {
         "markers": {},
+        "offsets": {},
         "allowed": {
             'users': [],
             'clients': [],
@@ -114,8 +115,8 @@ class Settings:
     ssl: bool = False
     port: int = 32400
     ignore_certs: bool = False
-    leftoffset: int = 0
-    rightoffset: int = 0
+    leftOffset: int = 0
+    rightOffset: int = 0
 
     def __init__(self, configFile: str = None, logger: logging.Logger = None) -> None:
         self.log = logger or logging.getLogger(__name__)
@@ -237,5 +238,5 @@ class Settings:
         except ValueError:
             self.skipE01 = self.SKIP_MATCHER.get(config.get("Skip", "first-episode-season").lower(), self.SKIP_TYPES.ALWAYS)
 
-        self.leftoffset = config.getint("Offsets", "start")
-        self.rightoffset = config.getint("Offsets", "end")
+        self.leftOffset = config.getint("Offsets", "start")
+        self.rightOffset = config.getint("Offsets", "end")

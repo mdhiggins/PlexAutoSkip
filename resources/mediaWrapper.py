@@ -9,11 +9,14 @@ from typing import TypeVar, List
 
 Media = TypeVar("Media", Episode, Movie)
 
+STARTKEY = "start"
+ENDKEY = "end"
+
 
 class CustomMarker():
     def __init__(self, data) -> None:
-        self.start = data['start']  # * 1000
-        self.end = data['end']  # * 1000
+        self.start = data[STARTKEY]  # * 1000
+        self.end = data[ENDKEY]  # * 1000
 
     def __repr__(self) -> str:
         return "%d-%d" % (self.start, self.end)
@@ -38,6 +41,9 @@ class MediaWrapper():
 
     customOnly: bool = False
     customMarkers: List[CustomMarker] = []
+
+    leftOffset: int = 0
+    rightOffset: int = 0
 
     def __init__(self, media: Media, server: PlexServer, tags: List[str] = [], custom: CustomEntries = None, logger: logging.Logger = None) -> None:
         self._viewOffset = media.viewOffset
@@ -67,26 +73,42 @@ class MediaWrapper():
             self.playerName = self.media.players[0].title
 
         if custom:
+            if hasattr(self.media, "grandparentRatingKey"):
+                if str(self.media.grandparentRatingKey) in custom.markers:
+                    for markerdata in custom.markers[str(self.media.grandparentRatingKey)]:
+                        cm = CustomMarker(markerdata)
+                        if cm not in self.customMarkers:
+                            self.log.debug("Found custom marker range %s entry for %s (grandparentRatingKey match)" % (cm, self))
+                            self.customMarkers.append(cm)
+                if str(self.media.grandparentRatingKey) in custom.offsets:
+                    self.leftOffset = custom.offsets[str(self.media.grandparentRatingKey)].get(STARTKEY, self.leftOffset)
+                    self.rightOffset = custom.offsets[str(self.media.grandparentRatingKey)].get(ENDKEY, self.rightOffset)
+
+            if hasattr(self.media, "parentRatingKey"):
+                if str(self.media.parentRatingKey) in custom.markers:
+                    for markerdata in custom.markers[str(self.media.parentRatingKey)]:
+                        cm = CustomMarker(markerdata)
+                        if cm not in self.customMarkers:
+                            self.log.debug("Found custom marker range %s entry for %s (parentRatingKey match)" % (cm, self))
+                            self.customMarkers.append(cm)
+                if str(self.media.parentRatingKey) in custom.offsets:
+                    self.leftOffset = custom.offsets[str(self.media.parentRatingKey)].get(STARTKEY, self.leftOffset)
+                    self.rightOffset = custom.offsets[str(self.media.parentRatingKey)].get(ENDKEY, self.rightOffset)
+
             if str(self.media.ratingKey) in custom.markers:
                 for markerdata in custom.markers[str(self.media.ratingKey)]:
                     cm = CustomMarker(markerdata)
                     if cm not in self.customMarkers:
                         self.log.debug("Found custom marker range %s entry for %s" % (cm, self))
                         self.customMarkers.append(cm)
+            if str(self.media.ratingKey) in custom.offsets:
+                self.leftOffset = custom.offsets[str(self.media.ratingKey)].get(STARTKEY, self.leftOffset)
+                self.rightOffset = custom.offsets[str(self.media.ratingKey)].get(ENDKEY, self.rightOffset)
 
-            if hasattr(self.media, "parentRatingKey") and str(self.media.parentRatingKey) in custom.markers:
-                for markerdata in custom.markers[str(self.media.parentRatingKey)]:
-                    cm = CustomMarker(markerdata)
-                    if cm not in self.customMarkers:
-                        self.log.debug("Found custom marker range %s entry for %s (parentRatingKey match)" % (cm, self))
-                        self.customMarkers.append(cm)
-
-            if hasattr(self.media, "grandparentRatingKey") and str(self.media.grandparentRatingKey) in custom.markers:
-                for markerdata in custom.markers[str(self.media.grandparentRatingKey)]:
-                    cm = CustomMarker(markerdata)
-                    if cm not in self.customMarkers:
-                        self.log.debug("Found custom marker range %s entry for %s (grandparentRatingKey match)" % (cm, self))
-                        self.customMarkers.append(cm)
+            if self.leftOffset:
+                self.log.debug("Custom start offset value of %d found for %s" % (self.leftOffset, self))
+            if self.rightOffset:
+                self.log.debug("Custom end offset value of %d found for %s" % (self.rightOffset, self))
 
     def __repr__(self) -> str:
         base = "%d [%d]" % (self.media.sessionKey, self.media.ratingKey)

@@ -8,6 +8,10 @@ class CustomEntries():
         return self.data.get("markers", {})
 
     @property
+    def offsets(self) -> Dict[str, dict]:
+        return self.data.get("offsets", {})
+
+    @property
     def allowed(self) -> Dict[str, List[str]]:
         return self.data.get("allowed", {})
 

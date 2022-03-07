@@ -55,7 +55,7 @@ class IntroSkipper():
         self.server = server
         self.settings = settings
         self.log = logger or logging.getLogger(__name__)
-        self.log.debug("IntroSeeker init with leftOffset %d rightOffset %d" % (self.settings.leftoffset, self.settings.rightoffset))
+        self.log.debug("IntroSeeker init with leftOffset %d rightOffset %d" % (self.settings.leftOffset, self.settings.rightOffset))
         self.log.debug("Skip tags %s" % (self.settings.tags))
         self.log.debug("Skip S01E01 %s" % (self.settings.skipS01E01))
         self.log.debug("Skip S**E01 %s" % (self.settings.skipE01))
@@ -94,21 +94,24 @@ class IntroSkipper():
                 self.seekTo(mediaWrapper, marker.end)
                 return
 
+        leftOffset = mediaWrapper.leftOffset or self.settings.leftOffset
+        rightOffset = mediaWrapper.rightOffset or self.settings.rightOffset
+
         if self.settings.skiplastchapter and mediaWrapper.lastchapter and (mediaWrapper.lastchapter.start / mediaWrapper.media.duration) > self.settings.skiplastchapter:
-            if mediaWrapper.lastchapter and (mediaWrapper.lastchapter.start + self.settings.leftoffset) <= mediaWrapper.viewOffset <= mediaWrapper.lastchapter.end:
-                self.log.info("Found a valid last chapter for media %s with range %d-%d and viewOffset %d with skip-last-chapter enabled" % (mediaWrapper, mediaWrapper.lastchapter.start + self.settings.leftoffset, mediaWrapper.lastchapter.end, mediaWrapper.viewOffset))
+            if mediaWrapper.lastchapter and (mediaWrapper.lastchapter.start + leftOffset) <= mediaWrapper.viewOffset <= mediaWrapper.lastchapter.end:
+                self.log.info("Found a valid last chapter for media %s with range %d-%d and viewOffset %d with skip-last-chapter enabled" % (mediaWrapper, mediaWrapper.lastchapter.start + leftOffset, mediaWrapper.lastchapter.end, mediaWrapper.viewOffset))
                 self.seekTo(mediaWrapper, mediaWrapper.lastchapter.end)
 
         for chapter in mediaWrapper.chapters:
-            if (chapter.start + self.settings.leftoffset) <= mediaWrapper.viewOffset <= chapter.end:
-                self.log.info("Found an advertisement chapter for media %s with range %d-%d and viewOffset %d" % (mediaWrapper, chapter.start + self.settings.leftoffset, chapter.end, mediaWrapper.viewOffset))
-                self.seekTo(mediaWrapper, chapter.end + self.settings.rightoffset)
+            if (chapter.start + leftOffset) <= mediaWrapper.viewOffset <= chapter.end:
+                self.log.info("Found an advertisement chapter for media %s with range %d-%d and viewOffset %d" % (mediaWrapper, chapter.start + leftOffset, chapter.end, mediaWrapper.viewOffset))
+                self.seekTo(mediaWrapper, chapter.end + rightOffset)
                 return
 
         for marker in mediaWrapper.markers:
-            if (marker.start + self.settings.leftoffset) <= mediaWrapper.viewOffset <= marker.end:
-                self.log.info("Found an intro marker for media %s with range %d-%d and viewOffset %d" % (mediaWrapper, marker.start + self.settings.leftoffset, marker.end, mediaWrapper.viewOffset))
-                self.seekTo(mediaWrapper, marker.end + self.settings.rightoffset)
+            if (marker.start + leftOffset) <= mediaWrapper.viewOffset <= marker.end:
+                self.log.info("Found an intro marker for media %s with range %d-%d and viewOffset %d" % (mediaWrapper, marker.start + leftOffset, marker.end, mediaWrapper.viewOffset))
+                self.seekTo(mediaWrapper, marker.end + rightOffset)
                 return
 
         if mediaWrapper.sinceLastUpdate > self.TIMEOUT:
