@@ -86,6 +86,9 @@ class MediaWrapper():
 
             if hasattr(self.media, "parentRatingKey"):
                 if str(self.media.parentRatingKey) in custom.markers:
+                    if not custom.cascade and self.customMarkers:
+                        self.log.debug("Cascading is disabled, better parentRatingKey markers found, clearing %d previous marker(s)" % (len(self.customMarkers)))
+                        self.customMarkers = []
                     for markerdata in custom.markers[str(self.media.parentRatingKey)]:
                         cm = CustomMarker(markerdata)
                         if cm not in self.customMarkers:
@@ -96,6 +99,9 @@ class MediaWrapper():
                     self.rightOffset = custom.offsets[str(self.media.parentRatingKey)].get(ENDKEY, self.rightOffset)
 
             if str(self.media.ratingKey) in custom.markers:
+                if not custom.cascade and self.customMarkers:
+                    self.log.debug("Cascading is disabled, better ratingKey markers found, clearing %d previous marker(s)" % (len(self.customMarkers)))
+                    self.customMarkers = []
                 for markerdata in custom.markers[str(self.media.ratingKey)]:
                     cm = CustomMarker(markerdata)
                     if cm not in self.customMarkers:
