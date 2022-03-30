@@ -14,42 +14,41 @@ ENDKEY = "end"
 
 
 class CustomMarker():
-    def __init__(self, data) -> None:
-        self.start = data[STARTKEY]  # * 1000
-        self.end = data[ENDKEY]  # * 1000
+    def __init__(self, data, key) -> None:
+        self.start = data[STARTKEY]
+        self.end = data[ENDKEY]
+        self.key = key
 
     def __repr__(self) -> str:
         return "%d-%d" % (self.start, self.end)
 
 
 class MediaWrapper():
-    media: Media = None
-
-    lastUpdate: datetime = datetime.now()
-    lastSeek: datetime = datetime(1970, 1, 1)
-
-    _viewOffset: int = 0
-
-    seeking: bool = False
-    seekBuffer: int = 5000
-
-    playerName: str = "Player"
-
-    markers: List[Marker] = []
-    chapters: List[Chapter] = []
-    lastchapter: Chapter = None
-
-    customOnly: bool = False
-    customMarkers: List[CustomMarker] = []
-
-    leftOffset: int = 0
-    rightOffset: int = 0
-
     def __init__(self, media: Media, server: PlexServer, tags: List[str] = [], custom: CustomEntries = None, logger: logging.Logger = None) -> None:
-        self._viewOffset = media.viewOffset
-        self.media = media
-        self.lastUpdate = datetime.now()
+        self._viewOffset: int = media.viewOffset
+        self.media: Media = media
+
+        self.lastUpdate: datetime = datetime.now()
+        self.lastSeek: datetime = datetime(1970, 1, 1)
+
+        self.seeking: bool = False
+        self.seekBuffer: int = 5000
+
+        self.markers: List[Marker] = []
+        self.chapters: List[Chapter] = []
+        self.lastchapter: Chapter = None
+
+        self.customOnly: bool = False
+        self.customMarkers: List[CustomMarker] = []
+
+        self.leftOffset: int = 0
+        self.rightOffset: int = 0
+
         self.log = logger or logging.getLogger(__name__)
+        self.log.debug("Custom count %d" % len(self.customMarkers))
+        self.customMarkers = []
+        self.markers = []
+        self.chapters = []
 
         for p in self.media.players:
             if custom and p.title in custom.clients:
@@ -70,13 +69,15 @@ class MediaWrapper():
             self.lastchapter = self.media.chapters[-1]
 
         if len(self.media.players) > 0:
-            self.playerName = self.media.players[0].title
+            self.playerName: str = self.media.players[0].title
+        else:
+            self.playerName: str = "Player"
 
         if custom:
             if hasattr(self.media, "grandparentRatingKey"):
                 if str(self.media.grandparentRatingKey) in custom.markers:
                     for markerdata in custom.markers[str(self.media.grandparentRatingKey)]:
-                        cm = CustomMarker(markerdata)
+                        cm = CustomMarker(markerdata, self.media.grandparentRatingKey)
                         if cm not in self.customMarkers:
                             self.log.debug("Found custom marker range %s entry for %s (grandparentRatingKey match)" % (cm, self))
                             self.customMarkers.append(cm)
@@ -90,7 +91,7 @@ class MediaWrapper():
                         self.log.debug("Cascading is disabled, better parentRatingKey markers found, clearing %d previous marker(s)" % (len(self.customMarkers)))
                         self.customMarkers = []
                     for markerdata in custom.markers[str(self.media.parentRatingKey)]:
-                        cm = CustomMarker(markerdata)
+                        cm = CustomMarker(markerdata, self.media.parentRatingKey)
                         if cm not in self.customMarkers:
                             self.log.debug("Found custom marker range %s entry for %s (parentRatingKey match)" % (cm, self))
                             self.customMarkers.append(cm)
@@ -103,7 +104,7 @@ class MediaWrapper():
                     self.log.debug("Cascading is disabled, better ratingKey markers found, clearing %d previous marker(s)" % (len(self.customMarkers)))
                     self.customMarkers = []
                 for markerdata in custom.markers[str(self.media.ratingKey)]:
-                    cm = CustomMarker(markerdata)
+                    cm = CustomMarker(markerdata, self.media.ratingKey)
                     if cm not in self.customMarkers:
                         self.log.debug("Found custom marker range %s entry for %s" % (cm, self))
                         self.customMarkers.append(cm)

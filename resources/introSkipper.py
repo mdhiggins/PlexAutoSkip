@@ -17,12 +17,6 @@ from typing import Dict, List
 
 
 class IntroSkipper():
-    media_sessions: Dict[str, MediaWrapper] = {}
-    delete: List[str] = []
-    ignored: List[str] = []
-    reconnect: bool = True
-    tags: List[str] = []
-
     TROUBLESHOOT_URL = "https://github.com/mdhiggins/PlexAutoSkip/wiki/Troubleshooting"
     ERRORS = {
         "FrameworkException: Unable to find player with identifier": "BadRequest Error, see %s#badrequest-error" % TROUBLESHOOT_URL,
@@ -55,6 +49,13 @@ class IntroSkipper():
         self.server = server
         self.settings = settings
         self.log = logger or logging.getLogger(__name__)
+
+        self.media_sessions: Dict[str, MediaWrapper] = {}
+        self.delete: List[str] = []
+        self.ignored: List[str] = []
+        self.reconnect: bool = True
+        self.tags: List[str] = []
+
         self.log.debug("IntroSeeker init with leftOffset %d rightOffset %d" % (self.settings.leftOffset, self.settings.rightOffset))
         self.log.debug("Skip tags %s" % (self.settings.tags))
         self.log.debug("Skip S01E01 %s" % (self.settings.skipS01E01))
@@ -94,7 +95,7 @@ class IntroSkipper():
     def checkMedia(self, mediaWrapper: MediaWrapper) -> None:
         for marker in mediaWrapper.customMarkers:
             if (marker.start) <= mediaWrapper.viewOffset <= marker.end:
-                self.log.info("Found a custom marker for media %s with range %d-%d and viewOffset %d" % (mediaWrapper, marker.start, marker.end, mediaWrapper.viewOffset))
+                self.log.info("Found a custom marker for media %s with range %d-%d and viewOffset %d (%d)" % (mediaWrapper, marker.start, marker.end, mediaWrapper.viewOffset, marker.key))
                 self.seekTo(mediaWrapper, marker.end)
                 return
 

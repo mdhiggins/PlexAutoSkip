@@ -39,7 +39,7 @@ class Settings:
     RESOURCE_DIRECTORY = "./resources"
     RELATIVE_TO_ROOT = "../"
     ENV_CONFIG_VAR = "PAS_CONFIG"
-    customEntries: CustomEntries = None
+
 
     @property
     def CONFIG_RELATIVEPATH(self) -> str:
@@ -107,24 +107,24 @@ class Settings:
         False: SKIP_TYPES.NEVER
     }
 
-    log: logging.Logger = None
-    username: str = None
-    password: str = None
-    servername: str = None
-    token: str = None
-    address: str = None
-    ssl: bool = False
-    port: int = 32400
-    ignore_certs: bool = False
-    cascade: bool = True
-    leftOffset: int = 0
-    rightOffset: int = 0
-
-    _configFile: str = None
-    _customFile: str = None
-
     def __init__(self, configFile: str = None, logger: logging.Logger = None) -> None:
-        self.log = logger or logging.getLogger(__name__)
+        self.log: logging.logger = logger or logging.getLogger(__name__)
+
+        self.username: str = None
+        self.password: str = None
+        self.servername: str = None
+        self.token: str = None
+        self.address: str = None
+        self.ssl: bool = False
+        self.port: int = 32400
+        self.ignore_certs: bool = False
+        self.cascade: bool = True
+        self.leftOffset: int = 0
+        self.rightOffset: int = 0
+        self.customEntries: CustomEntries = None
+
+        self._configFile: str = None
+        self._customFile: str = None
 
         self.log.info(sys.executable)
         if sys.version_info.major == 2:
