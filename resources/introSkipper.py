@@ -61,6 +61,10 @@ class IntroSkipper():
         self.log.debug("Skip S**E01 %s" % (self.settings.skipE01))
         self.log.debug("Skip last chapter %s" % (self.settings.skiplastchapter))
 
+        if settings.customEntries.needsGuidResolution:
+            self.log.debug("Custom entries contain GUIDs that need ratingKey resolution")
+            settings.customEntries.convertToRatingKeys(server)
+
     def getDataFromSessions(self, sessionKey: str) -> Media:
         try:
             return next(iter([session for session in self.server.sessions() if session.sessionKey == sessionKey]), None)

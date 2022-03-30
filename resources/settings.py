@@ -120,6 +120,9 @@ class Settings:
     leftOffset: int = 0
     rightOffset: int = 0
 
+    _configFile: str = None
+    _customFile: str = None
+
     def __init__(self, configFile: str = None, logger: logging.Logger = None) -> None:
         self.log = logger or logging.getLogger(__name__)
 
@@ -148,6 +151,7 @@ class Settings:
         config: FancyConfigParser = FancyConfigParser()
         if os.path.isfile(configFile):
             config.read(configFile)
+            self._configFile = configFile
 
         write = False
         # Make sure all sections and all keys for each section are present
@@ -188,6 +192,7 @@ class Settings:
             if write:
                 self.writeCustom(data, customFile)
         self.log.info("Loading custom JSON file %s" % customFile)
+        self._customFile = customFile
         self.customEntries = CustomEntries(data, self.cascade, logger)
 
     def writeConfig(self, config, cfgfile) -> None:
@@ -243,3 +248,11 @@ class Settings:
 
         self.leftOffset = config.getint("Offsets", "start")
         self.rightOffset = config.getint("Offsets", "end")
+
+    def replaceWithGUIDs(self, server) -> None:
+        self.customEntries.convertToGuids(server)
+        self.writeCustom(self.customEntries.data, self._customFile)
+
+    def replaceWithRatingKeys(self, server) -> None:
+        self.customEntries.convertToRatingKeys(server)
+        self.writeCustom(self.customEntries.data, self._customFile)
