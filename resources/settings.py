@@ -124,7 +124,6 @@ class Settings:
         self.customEntries: CustomEntries = None
 
         self._configFile: str = None
-        self._customFile: str = None
 
         self.log.info(sys.executable)
         if sys.version_info.major == 2:
@@ -151,7 +150,6 @@ class Settings:
         config: FancyConfigParser = FancyConfigParser()
         if os.path.isfile(configFile):
             config.read(configFile)
-            self._configFile = configFile
 
         write = False
         # Make sure all sections and all keys for each section are present
@@ -165,10 +163,24 @@ class Settings:
                     write = True
         if write:
             self.writeConfig(config, configFile)
+        self._configFile = configFile
 
         self.readConfig(config)
 
-        customFile = os.path.join(os.path.dirname(configFile), self.CUSTOM_DEFAULT)
+        data = {}
+        prefix, ext = os.path.splitext(self.CUSTOM_DEFAULT)
+        for file in os.listdir(os.path.dirname(configFile)):
+            fullpath = os.path.join(os.path.dirname(configFile), file)
+            if os.path.isfile(fullpath) and file.startswith(prefix) and file.endswith(ext):
+                self.merge(data, self.loadCustom(fullpath))
+            else:
+                continue
+        if not data:
+            self.merge(data, self.loadCustom(os.path.join(os.path.dirname(configFile), self.CUSTOM_DEFAULT)))
+
+        self.customEntries = CustomEntries(data, self.cascade, logger)
+
+    def loadCustom(self, customFile) -> dict:
         data = dict(self.CUSTOM_DEFAULTS)
         if not os.path.exists(customFile):
             self.writeCustom(self.CUSTOM_DEFAULTS, customFile)
@@ -192,8 +204,16 @@ class Settings:
             if write:
                 self.writeCustom(data, customFile)
         self.log.info("Loading custom JSON file %s" % customFile)
-        self._customFile = customFile
-        self.customEntries = CustomEntries(data, self.cascade, logger)
+        return data
+
+    def merge(self, d1, d2):
+        for k in d2:
+            if k in d1 and isinstance(d1[k], dict) and isinstance(d2[k], dict):
+                self.merge(d1[k], d2[k])
+            elif k in d1 and isinstance(d1[k], list) and isinstance(d2[k], list):
+                d1[k].extend(d2[k])
+            else:
+                d1[k] = d2[k] 
 
     def writeConfig(self, config, cfgfile) -> None:
         if not os.path.isdir(os.path.dirname(cfgfile)):
@@ -250,9 +270,25 @@ class Settings:
         self.rightOffset = config.getint("Offsets", "end")
 
     def replaceWithGUIDs(self, server) -> None:
-        self.customEntries.convertToGuids(server)
-        self.writeCustom(self.customEntries.data, self._customFile)
+        ratingKeyLookup = self.customEntries.loadRatingKeys(server)
+        prefix, ext = os.path.splitext(self.CUSTOM_DEFAULT)
+        for file in os.listdir(os.path.dirname(self._configFile)):
+            fullpath = os.path.join(os.path.dirname(self._configFile), file)
+            if os.path.isfile(fullpath) and file.startswith(prefix) and file.endswith(ext):
+                c = CustomEntries(self.loadCustom(fullpath), self.cascade, self.log)
+                c.convertToGuids(server, ratingKeyLookup)
+                self.writeCustom(c.data, fullpath)
+            else:
+                continue
 
     def replaceWithRatingKeys(self, server) -> None:
-        self.customEntries.convertToRatingKeys(server)
-        self.writeCustom(self.customEntries.data, self._customFile)
+        guidLookup = self.customEntries.loadGuids(server)
+        prefix, ext = os.path.splitext(self.CUSTOM_DEFAULT)
+        for file in os.listdir(os.path.dirname(self._configFile)):
+            fullpath = os.path.join(os.path.dirname(self._configFile), file)
+            if os.path.isfile(fullpath) and file.startswith(prefix) and file.endswith(ext):
+                c = CustomEntries(self.loadCustom(fullpath), self.cascade, self.log)
+                c.convertToRatingKeys(server, guidLookup)
+                self.writeCustom(c.data, fullpath)
+            else:
+                continue
