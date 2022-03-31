@@ -45,7 +45,6 @@ class MediaWrapper():
         self.rightOffset: int = 0
 
         self.log = logger or logging.getLogger(__name__)
-        self.log.debug("Custom count %d" % len(self.customMarkers))
         self.customMarkers = []
         self.markers = []
         self.chapters = []
