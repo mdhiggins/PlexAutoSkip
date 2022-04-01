@@ -40,7 +40,6 @@ class Settings:
     RELATIVE_TO_ROOT = "../"
     ENV_CONFIG_VAR = "PAS_CONFIG"
 
-
     @property
     def CONFIG_RELATIVEPATH(self) -> str:
         return os.path.join(self.CONFIG_DIRECTORY, self.CONFIG_DEFAULT)
@@ -213,7 +212,7 @@ class Settings:
             elif k in d1 and isinstance(d1[k], list) and isinstance(d2[k], list):
                 d1[k].extend(d2[k])
             else:
-                d1[k] = d2[k] 
+                d1[k] = d2[k]
 
     def writeConfig(self, config, cfgfile) -> None:
         if not os.path.isdir(os.path.dirname(cfgfile)):
