@@ -22,6 +22,10 @@ class CustomMarker():
     def __repr__(self) -> str:
         return "%d-%d" % (self.start, self.end)
 
+    @property
+    def duration(self) -> int:
+        return self.end - self.start
+
 
 class MediaWrapper():
     def __init__(self, media: Media, server: PlexServer, tags: List[str] = [], custom: CustomEntries = None, logger: logging.Logger = None) -> None:
