@@ -169,9 +169,9 @@ class Settings:
 
         data = {}
         prefix, ext = os.path.splitext(self.CUSTOM_DEFAULT)
-        for file in os.listdir(os.path.dirname(configFile)):
-            fullpath = os.path.join(os.path.dirname(configFile), file)
-            if os.path.isfile(fullpath) and file.startswith(prefix) and file.endswith(ext):
+        for f in os.listdir(os.path.dirname(configFile)):
+            fullpath = os.path.join(os.path.dirname(configFile), f)
+            if os.path.isfile(fullpath) and f.startswith(prefix) and f.endswith(ext):
                 self.merge(data, self.loadCustom(fullpath))
             else:
                 continue
@@ -272,9 +272,9 @@ class Settings:
     def replaceWithGUIDs(self, server) -> None:
         ratingKeyLookup = self.customEntries.loadRatingKeys(server)
         prefix, ext = os.path.splitext(self.CUSTOM_DEFAULT)
-        for file in os.listdir(os.path.dirname(self._configFile)):
-            fullpath = os.path.join(os.path.dirname(self._configFile), file)
-            if os.path.isfile(fullpath) and file.startswith(prefix) and file.endswith(ext):
+        for f in os.listdir(os.path.dirname(self._configFile)):
+            fullpath = os.path.join(os.path.dirname(self._configFile), f)
+            if os.path.isfile(fullpath) and f.startswith(prefix) and f.endswith(ext):
                 c = CustomEntries(self.loadCustom(fullpath), self.cascade, self.log)
                 c.convertToGuids(server, ratingKeyLookup)
                 self.writeCustom(c.data, fullpath)
@@ -284,9 +284,9 @@ class Settings:
     def replaceWithRatingKeys(self, server) -> None:
         guidLookup = self.customEntries.loadGuids(server)
         prefix, ext = os.path.splitext(self.CUSTOM_DEFAULT)
-        for file in os.listdir(os.path.dirname(self._configFile)):
-            fullpath = os.path.join(os.path.dirname(self._configFile), file)
-            if os.path.isfile(fullpath) and file.startswith(prefix) and file.endswith(ext):
+        for f in os.listdir(os.path.dirname(self._configFile)):
+            fullpath = os.path.join(os.path.dirname(self._configFile), f)
+            if os.path.isfile(fullpath) and f.startswith(prefix) and f.endswith(ext):
                 c = CustomEntries(self.loadCustom(fullpath), self.cascade, self.log)
                 c.convertToRatingKeys(server, guidLookup)
                 self.writeCustom(c.data, fullpath)
