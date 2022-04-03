@@ -13,7 +13,7 @@
     "allowed": {
         "users": [
         ],
-        clients: [
+        "clients": [
         ],
         "keys": [
         ]
