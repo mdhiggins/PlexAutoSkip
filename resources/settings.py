@@ -6,6 +6,7 @@ import sys
 import json
 from resources.customEntries import CustomEntries
 from enum import Enum
+from plexapi.server import PlexServer
 
 
 class FancyConfigParser(configparser.ConfigParser, object):
@@ -107,7 +108,7 @@ class Settings:
     }
 
     def __init__(self, configFile: str = None, logger: logging.Logger = None) -> None:
-        self.log: logging.logger = logger or logging.getLogger(__name__)
+        self.log: logging.Logger = logger or logging.getLogger(__name__)
 
         self.username: str = None
         self.password: str = None
@@ -161,7 +162,7 @@ class Settings:
                     config.set(s, k, str(self.DEFAULTS[s][k]))
                     write = True
         if write:
-            self.writeConfig(config, configFile)
+            Settings.writeConfig(config, configFile)
         self._configFile = configFile
 
         self.readConfig(config)
@@ -179,10 +180,10 @@ class Settings:
 
         self.customEntries = CustomEntries(data, self.cascade, logger)
 
-    def loadCustom(self, customFile) -> dict:
+    def loadCustom(self, customFile: str) -> dict:
         data = dict(self.CUSTOM_DEFAULTS)
         if not os.path.exists(customFile):
-            self.writeCustom(self.CUSTOM_DEFAULTS, customFile)
+            Settings.writeCustom(self.CUSTOM_DEFAULTS, customFile)
         elif os.path.exists(customFile):
             try:
                 with open(customFile, encoding='utf-8') as f:
@@ -201,11 +202,11 @@ class Settings:
                         data[k][sk] = []
                         write = True
             if write:
-                self.writeCustom(data, customFile)
+                Settings.writeCustom(data, customFile)
         self.log.info("Loading custom JSON file %s" % customFile)
         return data
 
-    def merge(self, d1, d2):
+    def merge(self, d1: dict, d2: dict) -> None:
         for k in d2:
             if k in d1 and isinstance(d1[k], dict) and isinstance(d2[k], dict):
                 self.merge(d1[k], d2[k])
@@ -214,7 +215,9 @@ class Settings:
             else:
                 d1[k] = d2[k]
 
-    def writeConfig(self, config, cfgfile) -> None:
+    @staticmethod
+    def writeConfig(config: configparser.ConfigParser, cfgfile: str, logger: logging.Logger = None) -> None:
+        log = logger or logging.getLogger(__name__)
         if not os.path.isdir(os.path.dirname(cfgfile)):
             os.makedirs(os.path.dirname(cfgfile))
         try:
@@ -222,18 +225,20 @@ class Settings:
             config.write(fp)
             fp.close()
         except PermissionError:
-            self.log.exception("Error writing to %s due to permissions" % (cfgfile))
+            log.exception("Error writing to %s due to permissions" % (cfgfile))
         except IOError:
-            self.log.exception("Error writing to %s" % (cfgfile))
+            log.exception("Error writing to %s" % (cfgfile))
 
-    def writeCustom(self, data, cfgfile) -> None:
+    @staticmethod
+    def writeCustom(data: dict, cfgfile: str, logger: logging.Logger = None) -> None:
+        log = logger or logging.getLogger(__name__)
         try:
             with open(cfgfile, 'w', encoding='utf-8') as cf:
                 json.dump(data, cf, indent=4)
         except PermissionError:
-            self.log.exception("Error writing to %s due to permissions" % (cfgfile))
+            log.exception("Error writing to %s due to permissions" % (cfgfile))
         except IOError:
-            self.log.exception("Error writing to %s" % (cfgfile))
+            log.exception("Error writing to %s" % (cfgfile))
 
     def readConfig(self, config: FancyConfigParser) -> None:
         self.username = config.get("Plex.tv", "username")
@@ -268,7 +273,7 @@ class Settings:
         self.leftOffset = config.getint("Offsets", "start")
         self.rightOffset = config.getint("Offsets", "end")
 
-    def replaceWithGUIDs(self, server) -> None:
+    def replaceWithGUIDs(self, server: PlexServer) -> None:
         ratingKeyLookup = self.customEntries.loadRatingKeys(server)
         prefix, ext = os.path.splitext(self.CUSTOM_DEFAULT)
         for f in os.listdir(os.path.dirname(self._configFile)):
@@ -276,11 +281,11 @@ class Settings:
             if os.path.isfile(fullpath) and f.startswith(prefix) and f.endswith(ext):
                 c = CustomEntries(self.loadCustom(fullpath), self.cascade, self.log)
                 c.convertToGuids(server, ratingKeyLookup)
-                self.writeCustom(c.data, fullpath)
+                Settings.writeCustom(c.data, fullpath)
             else:
                 continue
 
-    def replaceWithRatingKeys(self, server) -> None:
+    def replaceWithRatingKeys(self, server: PlexServer) -> None:
         guidLookup = self.customEntries.loadGuids(server)
         prefix, ext = os.path.splitext(self.CUSTOM_DEFAULT)
         for f in os.listdir(os.path.dirname(self._configFile)):
@@ -288,6 +293,6 @@ class Settings:
             if os.path.isfile(fullpath) and f.startswith(prefix) and f.endswith(ext):
                 c = CustomEntries(self.loadCustom(fullpath), self.cascade, self.log)
                 c.convertToRatingKeys(server, guidLookup)
-                self.writeCustom(c.data, fullpath)
+                Settings.writeCustom(c.data, fullpath, self.log)
             else:
                 continue
