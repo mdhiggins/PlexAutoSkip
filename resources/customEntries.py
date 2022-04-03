@@ -1,6 +1,7 @@
 import logging
 from typing import Dict, List
 from plexapi.server import PlexServer
+from resources.log import getLogger
 
 
 class CustomEntries():
@@ -54,14 +55,16 @@ class CustomEntries():
     def needsGuidResolution(self) -> bool:
         return any(str(key).startswith(p) for key in (list(self.markers.keys()) + list(self.offsets.keys()) + self.allowedKeys + self.blockedKeys) for p in self.PREFIXES)
 
-    def loadGuids(self, plex: PlexServer) -> dict:
-        self.log.debug("Generating GUID to ratingKey match table")
+    @staticmethod
+    def loadGuids(plex: PlexServer, logger: logging.Logger = None) -> dict:
+        log = logger or getLogger(__name__)
+        log.debug("Generating GUID to ratingKey match table")
         guidLookup = {guid.id: item for item in plex.library.all() if hasattr(item, "guids") for guid in item.guids}
-        self.log.debug("Finished generated match table with %d entries" % (len(guidLookup)))
+        log.debug("Finished generated match table with %d entries" % (len(guidLookup)))
         return guidLookup
 
     def convertToRatingKeys(self, server: PlexServer, guidLookup: dict = None) -> None:
-        guidLookup = guidLookup or self.loadGuids(server)
+        guidLookup = guidLookup or CustomEntries.loadGuids(server, self.log)
         for k in [x for x in list(self.markers.keys()) if self.keyIsGuid(x)]:
             ratingKey = self.resolveGuidToKey(k, guidLookup)
             if str(ratingKey) != str(k):
@@ -93,8 +96,10 @@ class CustomEntries():
             else:
                 self.log.error("Unable to resolve GUID %s to ratingKey in custom blockedKeys" % (k))
 
-    def loadRatingKeys(self, server: PlexServer) -> dict:
-        self.log.debug("Generating ratingKey to GUID match table")
+    @staticmethod
+    def loadRatingKeys(server: PlexServer, logger: logging.Logger = None) -> dict:
+        log = logger or getLogger(__name__)
+        log.debug("Generating ratingKey to GUID match table")
         ratingKeyLookup = {item.ratingKey: item for item in server.library.all() if hasattr(item, "ratingKey")}
         for v in list(ratingKeyLookup.values()):
             if v.type == "show":
@@ -102,11 +107,11 @@ class CustomEntries():
                     ratingKeyLookup[e.ratingKey] = e
                 for s in v.seasons():
                     ratingKeyLookup[s.ratingKey] = s
-        self.log.debug("Finished generated match table with %d entries" % (len(ratingKeyLookup)))
+        log.debug("Finished generated match table with %d entries" % (len(ratingKeyLookup)))
         return ratingKeyLookup
 
     def convertToGuids(self, server: PlexServer, ratingKeyLookup: dict = None) -> None:
-        ratingKeyLookup = ratingKeyLookup or self.loadRatingKeys(server)
+        ratingKeyLookup = ratingKeyLookup or CustomEntries.loadRatingKeys(server, self.log)
         for k in [x for x in list(self.markers.keys()) if not self.keyIsGuid(x)]:
             guid = self.resolveKeyToGuid(k, ratingKeyLookup)
             if str(guid) != str(k):
@@ -167,10 +172,9 @@ class CustomEntries():
                 return tmdb.id
         return key
 
-    def __init__(self, data: dict, cascade: bool, logger: logging.Logger = None) -> None:
+    def __init__(self, data: dict, logger: logging.Logger = None) -> None:
         self.data = data
         for m in self.markers:
             if isinstance(self.markers[m], dict):
                 self.markers[m] = [self.markers[m]]
-        self.cascade = cascade
         self.log = logger or logging.getLogger(__name__)

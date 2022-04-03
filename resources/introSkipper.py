@@ -171,6 +171,7 @@ class IntroSkipper():
     def processAlert(self, data: dict) -> None:
         if data['type'] == 'playing':
             sessionKey = int(data['PlaySessionStateNotification'][0]['sessionKey'])
+            state = data['PlaySessionStateNotification'][0]['state']
 
             if sessionKey in self.ignored:
                 return
@@ -179,7 +180,7 @@ class IntroSkipper():
                 media = self.getDataFromSessions(sessionKey)
                 if media and media.session and len(media.session) > 0 and media.session[0].location == 'lan':
                     if sessionKey not in self.media_sessions:
-                        wrapper = MediaWrapper(media, self.server, tags=self.settings.tags, custom=self.customEntries, logger=self.log)
+                        wrapper = MediaWrapper(media, state, self.server, tags=self.settings.tags, custom=self.customEntries, cascade=self.settings.cascade, logger=self.log)
                         if self.shouldAdd(wrapper):
                             self.addSession(sessionKey, wrapper)
                         else:
@@ -189,7 +190,7 @@ class IntroSkipper():
                             else:
                                 self.ignoreSession(sessionKey, wrapper)
                     else:
-                        self.media_sessions[sessionKey].updateOffset(media.viewOffset, seeking=False)
+                        self.media_sessions[sessionKey].updateOffset(media.viewOffset, seeking=False, state=state)
                 else:
                     pass
             except KeyboardInterrupt:

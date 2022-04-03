@@ -4,6 +4,7 @@ from plexapi.video import Episode, Movie
 from plexapi.server import PlexServer
 from plexapi.media import Marker, Chapter
 from resources.customEntries import CustomEntries
+from resources.log import getLogger
 from typing import TypeVar, List
 
 
@@ -28,9 +29,10 @@ class CustomMarker():
 
 
 class MediaWrapper():
-    def __init__(self, media: Media, server: PlexServer, tags: List[str] = [], custom: CustomEntries = None, logger: logging.Logger = None) -> None:
+    def __init__(self, media: Media, state: str, server: PlexServer, tags: List[str] = [], custom: CustomEntries = None, cascade: bool = True, logger: logging.Logger = None) -> None:
         self._viewOffset: int = media.viewOffset
         self.media: Media = media
+        self.state: str = state
 
         self.lastUpdate: datetime = datetime.now()
         self.lastSeek: datetime = datetime(1970, 1, 1)
@@ -42,13 +44,14 @@ class MediaWrapper():
         self.chapters: List[Chapter] = []
         self.lastchapter: Chapter = None
 
+        self.cascade: bool = cascade
         self.customOnly: bool = False
         self.customMarkers: List[CustomMarker] = []
 
         self.leftOffset: int = 0
         self.rightOffset: int = 0
 
-        self.log = logger or logging.getLogger(__name__)
+        self.log = logger or getLogger(__name__)
         self.customMarkers = []
         self.markers = []
         self.chapters = []
@@ -90,7 +93,7 @@ class MediaWrapper():
 
             if hasattr(self.media, "parentRatingKey"):
                 if str(self.media.parentRatingKey) in custom.markers:
-                    if not custom.cascade and self.customMarkers:
+                    if not self.cascade and self.customMarkers:
                         self.log.debug("Cascading is disabled, better parentRatingKey markers found, clearing %d previous marker(s)" % (len(self.customMarkers)))
                         self.customMarkers = []
                     for markerdata in custom.markers[str(self.media.parentRatingKey)]:
@@ -103,7 +106,7 @@ class MediaWrapper():
                     self.rightOffset = custom.offsets[str(self.media.parentRatingKey)].get(ENDKEY, self.rightOffset)
 
             if str(self.media.ratingKey) in custom.markers:
-                if not custom.cascade and self.customMarkers:
+                if not self.cascade and self.customMarkers:
                     self.log.debug("Cascading is disabled, better ratingKey markers found, clearing %d previous marker(s)" % (len(self.customMarkers)))
                     self.customMarkers = []
                 for markerdata in custom.markers[str(self.media.ratingKey)]:
@@ -134,9 +137,11 @@ class MediaWrapper():
 
     @property
     def viewOffset(self) -> int:
+        if self.state == "paused":
+            return self._viewOffset
         return self._viewOffset + round((datetime.now() - self.lastUpdate).total_seconds() * 1000)
 
-    def updateOffset(self, offset: int, seeking: bool) -> bool:
+    def updateOffset(self, offset: int, seeking: bool, state: str = None) -> bool:
         if self.seeking and not seeking and (self.viewOffset - self.seekBuffer) > offset:
             self.log.debug("Skipping update session %s is actively seeking" % (self))
             return False
@@ -149,4 +154,6 @@ class MediaWrapper():
         self.media.viewOffset = offset
         self.lastUpdate = datetime.now()
         self.seeking = seeking
+        if state:
+            self.state = state
         return True

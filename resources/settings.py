@@ -5,6 +5,7 @@ import logging
 import sys
 import json
 from resources.customEntries import CustomEntries
+from resources.log import getLogger
 from enum import Enum
 from plexapi.server import PlexServer
 
@@ -107,7 +108,7 @@ class Settings:
         False: SKIP_TYPES.NEVER
     }
 
-    def __init__(self, configFile: str = None, logger: logging.Logger = None) -> None:
+    def __init__(self, configFile: str = None, loadCustom: bool = True, logger: logging.Logger = None) -> None:
         self.log: logging.Logger = logger or logging.getLogger(__name__)
 
         self.username: str = None
@@ -167,43 +168,47 @@ class Settings:
 
         self.readConfig(config)
 
-        data = {}
-        prefix, ext = os.path.splitext(self.CUSTOM_DEFAULT)
-        for f in os.listdir(os.path.dirname(configFile)):
-            fullpath = os.path.join(os.path.dirname(configFile), f)
-            if os.path.isfile(fullpath) and f.startswith(prefix) and f.endswith(ext):
-                self.merge(data, self.loadCustom(fullpath))
-            else:
-                continue
-        if not data:
-            self.merge(data, self.loadCustom(os.path.join(os.path.dirname(configFile), self.CUSTOM_DEFAULT)))
+        if loadCustom:
+            data = {}
+            _, ext = os.path.splitext(self.CUSTOM_DEFAULT)
+            for root, _, files in os.walk(os.path.dirname(configFile)):
+                for filename in files:
+                    fullpath = os.path.join(root, filename)
+                    if os.path.isfile(fullpath) and os.path.splitext(filename)[1] == ext:
+                        self.merge(data, Settings.loadCustom(fullpath, self.log))
+                    else:
+                        continue
+            if not data:
+                self.merge(data, Settings.loadCustom(os.path.join(os.path.dirname(configFile), self.CUSTOM_DEFAULT), self.log))
 
-        self.customEntries = CustomEntries(data, self.cascade, logger)
+            self.customEntries = CustomEntries(data, self.log)
 
-    def loadCustom(self, customFile: str) -> dict:
-        data = dict(self.CUSTOM_DEFAULTS)
+    @staticmethod
+    def loadCustom(customFile: str, logger: logging.Logger = None) -> dict:
+        log = logger or getLogger(__name__)
+        data = dict(Settings.CUSTOM_DEFAULTS)
         if not os.path.exists(customFile):
-            Settings.writeCustom(self.CUSTOM_DEFAULTS, customFile)
+            Settings.writeCustom(Settings.CUSTOM_DEFAULTS, customFile)
         elif os.path.exists(customFile):
             try:
                 with open(customFile, encoding='utf-8') as f:
                     data = json.load(f)
             except:
-                self.log.exception("Found custom file %s but failed to load, using defaults" % (customFile))
+                log.exception("Found custom file %s but failed to load, using defaults" % (customFile))
 
             write = False
             # Make sure default entries are present to prevent exceptions
-            for k in self.CUSTOM_DEFAULTS:
+            for k in Settings.CUSTOM_DEFAULTS:
                 if k not in data:
                     data[k] = {}
                     write = True
-                for sk in self.CUSTOM_DEFAULTS[k]:
+                for sk in Settings.CUSTOM_DEFAULTS[k]:
                     if sk not in data[k]:
                         data[k][sk] = []
                         write = True
             if write:
                 Settings.writeCustom(data, customFile)
-        self.log.info("Loading custom JSON file %s" % customFile)
+        log.info("Loading custom JSON file %s" % customFile)
         return data
 
     def merge(self, d1: dict, d2: dict) -> None:
@@ -217,7 +222,7 @@ class Settings:
 
     @staticmethod
     def writeConfig(config: configparser.ConfigParser, cfgfile: str, logger: logging.Logger = None) -> None:
-        log = logger or logging.getLogger(__name__)
+        log = logger or getLogger(__name__)
         if not os.path.isdir(os.path.dirname(cfgfile)):
             os.makedirs(os.path.dirname(cfgfile))
         try:
@@ -231,7 +236,7 @@ class Settings:
 
     @staticmethod
     def writeCustom(data: dict, cfgfile: str, logger: logging.Logger = None) -> None:
-        log = logger or logging.getLogger(__name__)
+        log = logger or getLogger(__name__)
         try:
             with open(cfgfile, 'w', encoding='utf-8') as cf:
                 json.dump(data, cf, indent=4)
@@ -273,26 +278,14 @@ class Settings:
         self.leftOffset = config.getint("Offsets", "start")
         self.rightOffset = config.getint("Offsets", "end")
 
-    def replaceWithGUIDs(self, server: PlexServer) -> None:
-        ratingKeyLookup = self.customEntries.loadRatingKeys(server)
-        prefix, ext = os.path.splitext(self.CUSTOM_DEFAULT)
-        for f in os.listdir(os.path.dirname(self._configFile)):
-            fullpath = os.path.join(os.path.dirname(self._configFile), f)
-            if os.path.isfile(fullpath) and f.startswith(prefix) and f.endswith(ext):
-                c = CustomEntries(self.loadCustom(fullpath), self.cascade, self.log)
-                c.convertToGuids(server, ratingKeyLookup)
-                Settings.writeCustom(c.data, fullpath)
-            else:
-                continue
+    @staticmethod
+    def replaceWithGUIDs(data, server: PlexServer, ratingKeyLookup: dict, logger: logging.Logger = None) -> None:
+        log = logger or getLogger(__name__)
+        c = CustomEntries(data, logger=log)
+        c.convertToGuids(server, ratingKeyLookup)
 
-    def replaceWithRatingKeys(self, server: PlexServer) -> None:
-        guidLookup = self.customEntries.loadGuids(server)
-        prefix, ext = os.path.splitext(self.CUSTOM_DEFAULT)
-        for f in os.listdir(os.path.dirname(self._configFile)):
-            fullpath = os.path.join(os.path.dirname(self._configFile), f)
-            if os.path.isfile(fullpath) and f.startswith(prefix) and f.endswith(ext):
-                c = CustomEntries(self.loadCustom(fullpath), self.cascade, self.log)
-                c.convertToRatingKeys(server, guidLookup)
-                Settings.writeCustom(c.data, fullpath, self.log)
-            else:
-                continue
+    @staticmethod
+    def replaceWithRatingKeys(data, server: PlexServer, guidLookup: dict, logger: logging.Logger = None) -> None:
+        log = logger or getLogger(__name__)
+        c = CustomEntries(data, logger=log)
+        c.convertToRatingKeys(server, guidLookup)

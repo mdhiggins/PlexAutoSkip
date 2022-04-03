@@ -9,7 +9,7 @@ import logging
 
 
 def getPlexServer(settings: Settings, logger: logging.Logger = None) -> Tuple[PlexServer, dict]:
-    log = logger or logging.getLogger(__name__)
+    log = logger or getLogger(__name__)
 
     if not settings.username and not settings.address:
         log.error("No plex server settings specified, please update your configuration file")
