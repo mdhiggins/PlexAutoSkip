@@ -12,6 +12,7 @@ Media = TypeVar("Media", Episode, Movie)
 
 STARTKEY = "start"
 ENDKEY = "end"
+PAUSEDKEY = "paused"
 
 
 class CustomMarker():
@@ -137,7 +138,7 @@ class MediaWrapper():
 
     @property
     def viewOffset(self) -> int:
-        if self.state == "paused":
+        if self.state == PAUSEDKEY:
             return self._viewOffset
         return self._viewOffset + round((datetime.now() - self.lastUpdate).total_seconds() * 1000)
 
@@ -154,6 +155,5 @@ class MediaWrapper():
         self.media.viewOffset = offset
         self.lastUpdate = datetime.now()
         self.seeking = seeking
-        if state:
-            self.state = state
+        self.state = state or self.state
         return True
