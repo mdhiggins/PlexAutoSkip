@@ -13,6 +13,7 @@ from socket import timeout
 from plexapi.exceptions import BadRequest
 from plexapi.client import PlexClient
 from plexapi.server import PlexServer
+from threading import Thread
 from typing import Dict, List
 
 
@@ -124,23 +125,28 @@ class IntroSkipper():
             self.removeSession(mediaWrapper)
 
     def seekTo(self, mediaWrapper: MediaWrapper, targetOffset: int) -> None:
+        t = Thread(target=self._seekTo, args=(mediaWrapper, targetOffset,))
+        t.start()
+
+    def _seekTo(self, mediaWrapper: MediaWrapper, targetOffset: int) -> None:
         for player in mediaWrapper.media.players:
             try:
-                if self.seekPlayerTo(player, mediaWrapper.media, targetOffset):
+                if self.seekPlayerTo(player, mediaWrapper, targetOffset):
                     self.log.info("Seeking %s player playing %s from %d to %d" % (player.product, mediaWrapper, mediaWrapper.viewOffset, targetOffset))
-                    mediaWrapper.updateOffset(targetOffset, seeking=True)
             except (ReadTimeout, ReadTimeoutError, timeout):
                 self.log.debug("TimeoutError, removing from cache to prevent false triggers, will be restored with next sync")
                 self.removeSession(mediaWrapper)
                 break
             except:
-                self.log.exception("Error seeking")
+                self.log.exception("Exception, removing from cache to prevent false triggers, will be restored with next sync")
+                self.removeSession(mediaWrapper)
 
-    def seekPlayerTo(self, player: PlexClient, media: Media, targetOffset: int) -> bool:
+    def seekPlayerTo(self, player: PlexClient, mediaWrapper: MediaWrapper, targetOffset: int) -> bool:
         if not player:
             return False
         try:
             try:
+                mediaWrapper.updateOffset(targetOffset, seeking=True)
                 player.seekTo(targetOffset)
                 return True
             except ParseError:
@@ -148,7 +154,7 @@ class IntroSkipper():
                 return True
             except BadRequest as br:
                 self.logErrorMessage(br, "BadRequest exception seekPlayerTo")
-                return self.seekPlayerTo(self.recoverPlayer(player), media, targetOffset)
+                return self.seekPlayerTo(self.recoverPlayer(player), mediaWrapper, targetOffset)
         except:
             raise
 
@@ -273,6 +279,7 @@ class IntroSkipper():
     def addSession(self, sessionKey: str, mediaWrapper: MediaWrapper) -> None:
         if mediaWrapper.media.players:
             self.purgeOldSessions(mediaWrapper)
+            self.checkMedia(mediaWrapper)
             self.media_sessions[sessionKey] = mediaWrapper
             if mediaWrapper.customOnly:
                 self.log.info("Found blocked session %s viewOffset %d %s, using custom markers only, sessions: %d" % (mediaWrapper, mediaWrapper.media.viewOffset, mediaWrapper.media.usernames, len(self.media_sessions)))
@@ -299,8 +306,9 @@ class IntroSkipper():
                         break
 
     def removeSession(self, mediaWrapper):
-        del self.media_sessions[mediaWrapper.media.sessionKey]
-        self.log.debug("Deleting session %s, sessions: %d" % (mediaWrapper, len(self.media_sessions)))
+        if mediaWrapper.media.sessionKey in self.media_sessions:
+            del self.media_sessions[mediaWrapper.media.sessionKey]
+            self.log.debug("Deleting session %s, sessions: %d" % (mediaWrapper, len(self.media_sessions)))
 
     def error(self, data: dict) -> None:
         self.log.error(data)
