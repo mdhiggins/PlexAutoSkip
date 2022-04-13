@@ -1,4 +1,5 @@
 import logging
+from distutils.util import strtobool
 from datetime import datetime
 from plexapi.video import Episode, Movie
 from plexapi.server import PlexServer
@@ -13,12 +14,21 @@ Media = TypeVar("Media", Episode, Movie)
 STARTKEY = "start"
 ENDKEY = "end"
 PAUSEDKEY = "paused"
+CASCADEKEY = "cascade"
 
 
 class CustomMarker():
+    class CustomMarkerException(Exception):
+        pass
+
     def __init__(self, data, key) -> None:
+        if STARTKEY not in data or ENDKEY not in data:
+            raise self.CustomMarkerException
         self.start = data[STARTKEY]
         self.end = data[ENDKEY]
+        self.cascade = data.get(CASCADEKEY, False)
+        if isinstance(self.cascade, str):
+            self.cascade = bool(strtobool(self.cascade))
         self.key = key
 
     def __repr__(self) -> str:
@@ -30,7 +40,7 @@ class CustomMarker():
 
 
 class MediaWrapper():
-    def __init__(self, media: Media, state: str, server: PlexServer, tags: List[str] = [], custom: CustomEntries = None, cascade: bool = True, logger: logging.Logger = None) -> None:
+    def __init__(self, media: Media, state: str, server: PlexServer, tags: List[str] = [], custom: CustomEntries = None, logger: logging.Logger = None) -> None:
         self._viewOffset: int = media.viewOffset
         self.media: Media = media
         self.state: str = state
@@ -45,7 +55,6 @@ class MediaWrapper():
         self.chapters: List[Chapter] = []
         self.lastchapter: Chapter = None
 
-        self.cascade: bool = cascade
         self.customOnly: bool = False
         self.customMarkers: List[CustomMarker] = []
 
@@ -84,37 +93,48 @@ class MediaWrapper():
             if hasattr(self.media, "grandparentRatingKey"):
                 if str(self.media.grandparentRatingKey) in custom.markers:
                     for markerdata in custom.markers[str(self.media.grandparentRatingKey)]:
-                        cm = CustomMarker(markerdata, self.media.grandparentRatingKey)
-                        if cm not in self.customMarkers:
-                            self.log.debug("Found custom marker range %s entry for %s (grandparentRatingKey match)" % (cm, self))
-                            self.customMarkers.append(cm)
+                        try:
+                            cm = CustomMarker(markerdata, self.media.grandparentRatingKey)
+                            if cm not in self.customMarkers:
+                                self.log.debug("Found custom marker range %s entry for %s (grandparentRatingKey match)" % (cm, self))
+                                self.customMarkers.append(cm)
+                        except CustomMarker.CustomMarkerException:
+                            self.log.error("Invalid CustomMarker data for grandparentRatingKey %s" % (self.media.grandparentRatingKey))
                 if str(self.media.grandparentRatingKey) in custom.offsets:
                     self.leftOffset = custom.offsets[str(self.media.grandparentRatingKey)].get(STARTKEY, self.leftOffset)
                     self.rightOffset = custom.offsets[str(self.media.grandparentRatingKey)].get(ENDKEY, self.rightOffset)
 
             if hasattr(self.media, "parentRatingKey"):
                 if str(self.media.parentRatingKey) in custom.markers:
-                    if not self.cascade and self.customMarkers:
-                        self.log.debug("Cascading is disabled, better parentRatingKey markers found, clearing %d previous marker(s)" % (len(self.customMarkers)))
-                        self.customMarkers = []
+                    filtered = [x for x in self.customMarkers if x.cascade]
+                    if self.customMarkers != filtered:
+                        self.log.debug("Better parentRatingKey markers found, clearing %d previous marker(s)" % (len(self.customMarkers) - len(filtered)))
+                        self.customMarkers = filtered
                     for markerdata in custom.markers[str(self.media.parentRatingKey)]:
-                        cm = CustomMarker(markerdata, self.media.parentRatingKey)
-                        if cm not in self.customMarkers:
-                            self.log.debug("Found custom marker range %s entry for %s (parentRatingKey match)" % (cm, self))
-                            self.customMarkers.append(cm)
+                        try:
+                            cm = CustomMarker(markerdata, self.media.parentRatingKey)
+                            if cm not in self.customMarkers:
+                                self.log.debug("Found custom marker range %s entry for %s (parentRatingKey match)" % (cm, self))
+                                self.customMarkers.append(cm)
+                        except CustomMarker.CustomMarkerException:
+                            self.log.error("Invalid CustomMarker data for parentRatingKey %s" % (self.media.parentRatingKey))
                 if str(self.media.parentRatingKey) in custom.offsets:
                     self.leftOffset = custom.offsets[str(self.media.parentRatingKey)].get(STARTKEY, self.leftOffset)
                     self.rightOffset = custom.offsets[str(self.media.parentRatingKey)].get(ENDKEY, self.rightOffset)
 
             if str(self.media.ratingKey) in custom.markers:
-                if not self.cascade and self.customMarkers:
-                    self.log.debug("Cascading is disabled, better ratingKey markers found, clearing %d previous marker(s)" % (len(self.customMarkers)))
-                    self.customMarkers = []
+                filtered = [x for x in self.customMarkers if x.cascade]
+                if self.customMarkers != filtered:
+                    self.log.debug("Better ratingKey markers found, clearing %d previous marker(s)" % (len(self.customMarkers) - len(filtered)))
+                    self.customMarkers = filtered
                 for markerdata in custom.markers[str(self.media.ratingKey)]:
-                    cm = CustomMarker(markerdata, self.media.ratingKey)
-                    if cm not in self.customMarkers:
-                        self.log.debug("Found custom marker range %s entry for %s" % (cm, self))
-                        self.customMarkers.append(cm)
+                    try:
+                        cm = CustomMarker(markerdata, self.media.ratingKey)
+                        if cm not in self.customMarkers:
+                            self.log.debug("Found custom marker range %s entry for %s" % (cm, self))
+                            self.customMarkers.append(cm)
+                    except CustomMarker.CustomMarkerException:
+                        self.log.error("Invalid CustomMarker data for ratingKey %s" % (self.media.ratingKey))
             if str(self.media.ratingKey) in custom.offsets:
                 self.leftOffset = custom.offsets[str(self.media.ratingKey)].get(STARTKEY, self.leftOffset)
                 self.rightOffset = custom.offsets[str(self.media.ratingKey)].get(ENDKEY, self.rightOffset)

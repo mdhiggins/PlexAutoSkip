@@ -67,7 +67,6 @@ class Settings:
             "unwatched": True,
             "first-episode-series": "Watched",
             "first-episode-season": "Always",
-            "custom-cascade": False,
         },
         "Offsets": {
             "start": 3000,
@@ -119,7 +118,6 @@ class Settings:
         self.ssl: bool = False
         self.port: int = 32400
         self.ignore_certs: bool = False
-        self.cascade: bool = True
         self.leftOffset: int = 0
         self.rightOffset: int = 0
         self.customEntries: CustomEntries = None
@@ -273,7 +271,6 @@ class Settings:
             self.skipE01 = self.SKIP_MATCHER.get(config.getboolean("Skip", "first-episode-season"))  # Legacy bool support
         except ValueError:
             self.skipE01 = self.SKIP_MATCHER.get(config.get("Skip", "first-episode-season").lower(), self.SKIP_TYPES.ALWAYS)
-        self.cascade = config.getboolean("Skip", "custom-cascade")
 
         self.leftOffset = config.getint("Offsets", "start")
         self.rightOffset = config.getint("Offsets", "end")

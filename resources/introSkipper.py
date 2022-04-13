@@ -186,7 +186,7 @@ class IntroSkipper():
                 media = self.getDataFromSessions(sessionKey)
                 if media and media.session and len(media.session) > 0 and media.session[0].location == 'lan':
                     if sessionKey not in self.media_sessions:
-                        wrapper = MediaWrapper(media, state, self.server, tags=self.settings.tags, custom=self.customEntries, cascade=self.settings.cascade, logger=self.log)
+                        wrapper = MediaWrapper(media, state, self.server, tags=self.settings.tags, custom=self.customEntries, logger=self.log)
                         if self.shouldAdd(wrapper):
                             self.addSession(sessionKey, wrapper)
                         else:

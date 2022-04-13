@@ -18,7 +18,6 @@ last-chapter = 0.0
 unwatched = True
 first-episode-series = Watched
 first-episode-season = Always
-custom-cascade = False
 
 [Offsets]
 start = 3000
