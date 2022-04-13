@@ -67,7 +67,7 @@ class Settings:
             "unwatched": True,
             "first-episode-series": "Watched",
             "first-episode-season": "Always",
-            "custom-cascade": True,
+            "custom-cascade": False,
         },
         "Offsets": {
             "start": 3000,
