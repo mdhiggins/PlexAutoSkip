@@ -6,12 +6,24 @@ A background python script that monitors local playback on your server and will 
 
 Only works on LAN sessions (not remote) as Plex does not allow seeking adjustments via the API for remote sessions
 
-Currently Plex uses markers and chapters to tag potentially skippable content as follows:
-- Markers
-  - Intros
-  - Commercials
-- Chapters
-  - Advertisements
+Features
+--------------
+- Skip any Plex identified markers with adjustable offsets
+  - Markers
+    - Intros (Plex Pass)
+    - Commercials (Plex Pass)
+  - Chapters
+    - Advertisements
+- Only skip for watched content
+- Ignore series and season premieres
+- Skip last chapter (credits)
+- Custom Definitions
+  - Define your own markers when auto detection fails
+  - Filter clients/users
+  - Export and audit Plex markers to make corrections / fill in gaps
+  - Bulk edit marker timing
+- Docker
+
 
 Requirements
 --------------
@@ -47,6 +59,15 @@ Optional custom parameters for which movie, show, season, or episode should be i
 Docker
 --------------
 - https://github.com/mdhiggins/plexautoskip-docker
+
+custom_audit.py
+--------------
+Additional support script that contains features to check and modify your custom definition files in mass. Can offset entire collections of markers, export data from Plex, convert between GUID and ratingKey formats and more
+
+```
+# Get started
+python custom_audit.py --help
+```
 
 Special Thanks
 --------------
