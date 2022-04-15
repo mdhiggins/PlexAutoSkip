@@ -1,7 +1,11 @@
 import logging
-from typing import Dict, List
+from typing import Dict, List, TypeVar
 from plexapi.server import PlexServer
+from plexapi.video import Show, Season, Episode, Movie
 from resources.log import getLogger
+
+
+GuidMedia = TypeVar("GuidMedia", Show, Season, Episode, Movie)
 
 
 class CustomEntries():
@@ -58,37 +62,37 @@ class CustomEntries():
     @staticmethod
     def loadGuids(plex: PlexServer, logger: logging.Logger = None) -> dict:
         log = logger or getLogger(__name__)
-        log.debug("Generating GUID to ratingKey match table")
+        log.debug("Generating GUID match table")
         guidLookup = {guid.id: item for item in plex.library.all() if hasattr(item, "guids") for guid in item.guids}
         log.debug("Finished generated match table with %d entries" % (len(guidLookup)))
         return guidLookup
 
     def convertToRatingKeys(self, server: PlexServer, guidLookup: dict = None) -> None:
         guidLookup = guidLookup or CustomEntries.loadGuids(server, self.log)
-        for k in [x for x in list(self.markers.keys()) if self.keyIsGuid(x)]:
-            ratingKey = self.resolveGuidToKey(k, guidLookup)
+        for k in [x for x in list(self.markers.keys()) if CustomEntries.keyIsGuid(x)]:
+            ratingKey = CustomEntries.resolveGuidToKey(k, guidLookup)
             if str(ratingKey) != str(k):
                 self.log.debug("Resolving custom markers GUID %s to ratingKey %s" % (k, ratingKey))
                 self.markers[str(ratingKey)] = self.markers.pop(k)
             else:
                 self.log.error("Unable to resolve GUID %s to ratingKey in custom markers" % (k))
-        for k in [x for x in list(self.offsets.keys()) if self.keyIsGuid(x)]:
-            ratingKey = self.resolveGuidToKey(k, guidLookup)
+        for k in [x for x in list(self.offsets.keys()) if CustomEntries.keyIsGuid(x)]:
+            ratingKey = CustomEntries.resolveGuidToKey(k, guidLookup)
             if str(ratingKey) != str(k):
                 self.log.debug("Resolving custom offsets GUID %s to ratingKey %s" % (k, ratingKey))
                 self.offsets[str(ratingKey)] = self.offsets.pop(k)
             else:
                 self.log.error("Unable to resolve GUID %s to ratingKey in custom offsets" % (k))
-        for k in [x for x in self.allowedKeys if self.keyIsGuid(x)]:
-            ratingKey = self.resolveGuidToKey(k, guidLookup)
+        for k in [x for x in self.allowedKeys if CustomEntries.keyIsGuid(x)]:
+            ratingKey = CustomEntries.resolveGuidToKey(k, guidLookup)
             if str(ratingKey) != str(k):
                 self.log.debug("Resolving custom allowedKey GUID %s to ratingKey %s" % (k, ratingKey))
                 self.allowedKeys.append(int(ratingKey))
                 self.allowedKeys.remove(k)
             else:
                 self.log.error("Unable to resolve GUID %s to ratingKey in custom allowedKeys" % (k))
-        for k in [x for x in self.blockedKeys if self.keyIsGuid(x)]:
-            ratingKey = self.resolveGuidToKey(k, guidLookup)
+        for k in [x for x in self.blockedKeys if CustomEntries.keyIsGuid(x)]:
+            ratingKey = CustomEntries.resolveGuidToKey(k, guidLookup)
             if str(ratingKey) != str(k):
                 self.log.debug("Resolving custom blockedKeys GUID %s to ratingKey %s" % (k, ratingKey))
                 self.blockedKeys.append(int(ratingKey))
@@ -99,7 +103,7 @@ class CustomEntries():
     @staticmethod
     def loadRatingKeys(server: PlexServer, logger: logging.Logger = None) -> dict:
         log = logger or getLogger(__name__)
-        log.debug("Generating ratingKey to GUID match table")
+        log.debug("Generating ratingKey match table")
         ratingKeyLookup = {item.ratingKey: item for item in server.library.all() if hasattr(item, "ratingKey")}
         for v in list(ratingKeyLookup.values()):
             if v.type == "show":
@@ -112,30 +116,30 @@ class CustomEntries():
 
     def convertToGuids(self, server: PlexServer, ratingKeyLookup: dict = None) -> None:
         ratingKeyLookup = ratingKeyLookup or CustomEntries.loadRatingKeys(server, self.log)
-        for k in [x for x in list(self.markers.keys()) if not self.keyIsGuid(x)]:
-            guid = self.resolveKeyToGuid(k, ratingKeyLookup)
+        for k in [x for x in list(self.markers.keys()) if not CustomEntries.keyIsGuid(x)]:
+            guid = CustomEntries.resolveKeyToGuid(k, ratingKeyLookup)
             if str(guid) != str(k):
                 self.log.debug("Resolving custom marker ratingKey %s to GUID %s" % (k, guid))
                 self.markers[guid] = self.markers.pop(k)
             else:
                 self.log.error("Unable to resolve ratingKey %s to GUID in custom markers" % (k))
-        for k in [x for x in list(self.offsets.keys()) if not self.keyIsGuid(x)]:
-            guid = self.resolveKeyToGuid(k, ratingKeyLookup)
+        for k in [x for x in list(self.offsets.keys()) if not CustomEntries.keyIsGuid(x)]:
+            guid = CustomEntries.resolveKeyToGuid(k, ratingKeyLookup)
             if str(guid) != str(k):
                 self.log.debug("Resolving custom offset ratingKey %s to GUID %s" % (k, guid))
                 self.offsets[guid] = self.offsets.pop(k)
             else:
                 self.log.error("Unable to resolve ratingKey %s to GUID in custom offsets" % (k))
-        for k in [x for x in self.allowedKeys if not self.keyIsGuid(x)]:
-            guid = self.resolveKeyToGuid(str(k), ratingKeyLookup)
+        for k in [x for x in self.allowedKeys if not CustomEntries.keyIsGuid(x)]:
+            guid = CustomEntries.resolveKeyToGuid(str(k), ratingKeyLookup)
             if str(guid) != str(k):
                 self.log.debug("Resolving custom allowedKey ratingKey %s to GUID %s" % (k, guid))
                 self.allowedKeys.append(guid)
                 self.allowedKeys.remove(k)
             else:
                 self.log.error("Unable to resolve ratingKey %s to GUID in custom allowedKeys" % (k))
-        for k in [x for x in self.blockedKeys if not self.keyIsGuid(x)]:
-            guid = self.resolveKeyToGuid(str(k), ratingKeyLookup)
+        for k in [x for x in self.blockedKeys if not CustomEntries.keyIsGuid(x)]:
+            guid = CustomEntries.resolveKeyToGuid(str(k), ratingKeyLookup)
             if str(guid) != str(k):
                 self.log.debug("Resolving custom blockedKey ratingKey %s to GUID %s" % (k, guid))
                 self.blockedKeys.append(guid)
@@ -143,10 +147,12 @@ class CustomEntries():
             else:
                 self.log.error("Unable to resolve ratingKey %s to GUID in custom blockedKeys" % (k))
 
-    def keyIsGuid(self, key: str) -> bool:
-        return any(str(key).startswith(p) for p in self.PREFIXES)
+    @staticmethod
+    def keyIsGuid(key: str) -> bool:
+        return any(str(key).startswith(p) for p in CustomEntries.PREFIXES)
 
-    def resolveGuidToKey(self, key: str, guidLookup: dict) -> str:
+    @staticmethod
+    def resolveGuidToKey(key: str, guidLookup: dict) -> str:
         k = key.split(".")
         base = guidLookup.get(k[0])
         if base:
@@ -158,8 +164,13 @@ class CustomEntries():
                 return base.ratingKey
         return key
 
-    def resolveKeyToGuid(self, key: str, ratingKeyLookup: dict, prefix="tmdb://") -> str:
+    @staticmethod
+    def resolveKeyToGuid(key: str, ratingKeyLookup: dict, prefix: str = "tmdb://") -> str:
         base = ratingKeyLookup.get(int(key))
+        return CustomEntries.keyToGuid(base, prefix)
+
+    @staticmethod
+    def keyToGuid(base: GuidMedia, prefix: str = "tmdb://") -> str:
         if base and hasattr(base, "guids"):
             if base.type == "episode":
                 tmdb = next(g for g in base.show().guids if g.id.startswith(prefix))
@@ -170,7 +181,7 @@ class CustomEntries():
             else:
                 tmdb = next(g for g in base.guids if g.id.startswith(prefix))
                 return tmdb.id
-        return key
+        return base.ratingKey
 
     def __init__(self, data: dict, logger: logging.Logger = None) -> None:
         self.data = data

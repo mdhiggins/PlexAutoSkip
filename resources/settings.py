@@ -173,11 +173,11 @@ class Settings:
                 for filename in files:
                     fullpath = os.path.join(root, filename)
                     if os.path.isfile(fullpath) and os.path.splitext(filename)[1] == ext:
-                        self.merge(data, Settings.loadCustom(fullpath, self.log))
+                        Settings.merge(data, Settings.loadCustom(fullpath, self.log))
                     else:
                         continue
             if not data:
-                self.merge(data, Settings.loadCustom(os.path.join(os.path.dirname(configFile), self.CUSTOM_DEFAULT), self.log))
+                Settings.merge(data, Settings.loadCustom(os.path.join(os.path.dirname(configFile), self.CUSTOM_DEFAULT), self.log))
 
             self.customEntries = CustomEntries(data, self.log)
 
@@ -209,10 +209,11 @@ class Settings:
         log.info("Loading custom JSON file %s" % customFile)
         return data
 
-    def merge(self, d1: dict, d2: dict) -> None:
+    @staticmethod
+    def merge(d1: dict, d2: dict) -> None:
         for k in d2:
             if k in d1 and isinstance(d1[k], dict) and isinstance(d2[k], dict):
-                self.merge(d1[k], d2[k])
+                Settings.merge(d1[k], d2[k])
             elif k in d1 and isinstance(d1[k], list) and isinstance(d2[k], list):
                 d1[k].extend(d2[k])
             else:
