@@ -161,7 +161,7 @@ class Settings:
                     config.set(s, k, str(self.DEFAULTS[s][k]))
                     write = True
         if write:
-            Settings.writeConfig(config, configFile)
+            Settings.writeConfig(config, configFile, self.log)
         self._configFile = configFile
 
         self.readConfig(config)
@@ -186,7 +186,7 @@ class Settings:
         log = logger or getLogger(__name__)
         data = dict(Settings.CUSTOM_DEFAULTS)
         if not os.path.exists(customFile):
-            Settings.writeCustom(Settings.CUSTOM_DEFAULTS, customFile)
+            Settings.writeCustom(Settings.CUSTOM_DEFAULTS, customFile, log)
         elif os.path.exists(customFile):
             try:
                 with open(customFile, encoding='utf-8') as f:
@@ -205,7 +205,7 @@ class Settings:
                         data[k][sk] = []
                         write = True
             if write:
-                Settings.writeCustom(data, customFile)
+                Settings.writeCustom(data, customFile, log)
         log.info("Loading custom JSON file %s" % customFile)
         return data
 
