@@ -42,6 +42,7 @@ custom.json
 --------------
 Optional custom parameters for which movie, show, season, or episode should be included or blocked. You can also define custom skip segments for media if you do not have Plex Pass or would like to skip additional areas of content
 - See https://github.com/mdhiggins/PlexAutoSkip/wiki/Configuration#configuration-options-for-customjson
+- For a small but hopefully growing repository of community made custom markers, please see https://github.com/mdhiggins/PlexAutoSkipCustomMarkers
 
 Docker
 --------------
