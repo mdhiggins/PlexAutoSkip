@@ -167,8 +167,11 @@ class MediaWrapper():
 
     def updateOffset(self, offset: int, seeking: bool, state: str = None) -> bool:
         if self.seeking and not seeking and offset < self.seekTarget:
-            self.log.debug("Skipping update session %s is actively seeking" % (self))
-            return False
+            if offset <= self._viewOffset:
+                self.log.debug("Seeking but new offset is earlier than the old one for session %s, resetting" % (self))
+            else:
+                self.log.debug("Skipping update session %s is actively seeking" % (self))
+                return False
         if not seeking:
             self.log.debug("Updating session %s viewOffset %d, old %d, diff %d (%ds since last update)" % (self, offset, self.viewOffset, (offset - self.viewOffset), (datetime.now() - self.lastUpdate).total_seconds()))
         if self.seeking and not seeking and offset >= self.seekTarget:
