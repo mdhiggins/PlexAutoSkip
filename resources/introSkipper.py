@@ -94,6 +94,10 @@ class IntroSkipper():
             self.start(sslopt)
 
     def checkMedia(self, mediaWrapper: MediaWrapper) -> None:
+        if mediaWrapper.seeking:
+            self.log.debug("Skipping checkMedia for %s as it is actively seeking" % (mediaWrapper))
+            return
+
         for marker in mediaWrapper.customMarkers:
             if (marker.start) <= mediaWrapper.viewOffset <= marker.end:
                 self.log.info("Found a custom marker for media %s with range %d-%d and viewOffset %d (%d)" % (mediaWrapper, marker.start, marker.end, mediaWrapper.viewOffset, marker.key))
@@ -131,8 +135,7 @@ class IntroSkipper():
     def _seekTo(self, mediaWrapper: MediaWrapper, targetOffset: int) -> None:
         for player in mediaWrapper.media.players:
             try:
-                if self.seekPlayerTo(player, mediaWrapper, targetOffset):
-                    self.log.info("Seeking %s player playing %s from %d to %d" % (player.product, mediaWrapper, mediaWrapper.viewOffset, targetOffset))
+                self.seekPlayerTo(player, mediaWrapper, targetOffset)
             except (ReadTimeout, ReadTimeoutError, timeout):
                 self.log.debug("TimeoutError, removing from cache to prevent false triggers, will be restored with next sync")
                 self.removeSession(mediaWrapper)
@@ -146,6 +149,7 @@ class IntroSkipper():
             return False
         try:
             try:
+                self.log.info("Seeking %s player playing %s from %d to %d" % (player.product, mediaWrapper, mediaWrapper.viewOffset, targetOffset))
                 mediaWrapper.updateOffset(targetOffset, seeking=True)
                 player.seekTo(targetOffset)
                 return True

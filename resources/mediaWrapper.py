@@ -49,7 +49,7 @@ class MediaWrapper():
         self.lastSeek: datetime = datetime(1970, 1, 1)
 
         self.seeking: bool = False
-        self.seekBuffer: int = 5000
+        self.seekTarget: int = 0
 
         self.markers: List[Marker] = []
         self.chapters: List[Chapter] = []
@@ -163,17 +163,18 @@ class MediaWrapper():
         return self._viewOffset + round((datetime.now() - self.lastUpdate).total_seconds() * 1000)
 
     def updateOffset(self, offset: int, seeking: bool, state: str = None) -> bool:
-        if self.seeking and not seeking and (self.viewOffset - self.seekBuffer) > offset:
+        if self.seeking and not seeking and offset < self.seekTarget:
             self.log.debug("Skipping update session %s is actively seeking" % (self))
             return False
         if not seeking:
             self.log.debug("Updating session %s viewOffset %d, old %d, diff %d (%ds since last update)" % (self, offset, self.viewOffset, (offset - self.viewOffset), (datetime.now() - self.lastUpdate).total_seconds()))
-        if self.seeking and not seeking and (self.viewOffset - self.seekBuffer) < offset:
-            self.log.debug("Recent seek successful, server offset update %d greater than threshold %d, setting seeking to %s" % (offset, (self.viewOffset - self.seekBuffer), seeking))
+        if self.seeking and not seeking and offset >= self.seekTarget:
+            self.log.debug("Recent seek successful, server offset update %d meets/exceeds target %d, setting seeking to %s" % (offset, self.seekTarget, seeking))
 
         self._viewOffset = offset
         self.media.viewOffset = offset
         self.lastUpdate = datetime.now()
+        self.seekTarget = offset if seeking else 0
         self.seeking = seeking
         self.state = state or self.state
         return True
