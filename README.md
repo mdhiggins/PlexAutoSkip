@@ -2,7 +2,7 @@ PlexAutoSkip
 ==============
  **Automatically skip tagged content in Plex**
 
-A background python script that monitors local playback on your server and will automatically 'press' the Skip Intro button or skip other similarly tagged content automatically
+A background python script that monitors local playback on your server and will automatically 'press' the Skip Intro button or skip other similarly tagged content automatically. Maintains real-time playback states for your server (not dependent on API updates) for accurate skip timing. Threaded to handle multiple players simultaneously. Several layers of state validation to prevent unnecessary stuttering/buffering. Custom definitions allow you to expand on features and functionality beyond what is automatically detected by Plex
 
 Only works on LAN sessions (not remote) as Plex does not allow seeking adjustments via the API for remote sessions
 
