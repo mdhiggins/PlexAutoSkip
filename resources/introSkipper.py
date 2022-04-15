@@ -95,7 +95,6 @@ class IntroSkipper():
 
     def checkMedia(self, mediaWrapper: MediaWrapper) -> None:
         if mediaWrapper.seeking:
-            self.log.debug("Skipping checkMedia for %s as it is actively seeking" % (mediaWrapper))
             return
 
         for marker in mediaWrapper.customMarkers:
