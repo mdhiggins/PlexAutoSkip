@@ -6,6 +6,7 @@ from resources.settings import Settings
 from resources.customEntries import CustomEntries
 from resources.sslAlertListener import SSLAlertListener
 from resources.mediaWrapper import Media, MediaWrapper
+from resources.log import getLogger
 from xml.etree.ElementTree import ParseError
 from urllib3.exceptions import ReadTimeoutError
 from requests.exceptions import ReadTimeout
@@ -49,13 +50,12 @@ class IntroSkipper():
     def __init__(self, server: PlexServer, settings: Settings, logger: logging.Logger = None) -> None:
         self.server = server
         self.settings = settings
-        self.log = logger or logging.getLogger(__name__)
+        self.log = logger or getLogger(__name__)
 
         self.media_sessions: Dict[str, MediaWrapper] = {}
         self.delete: List[str] = []
         self.ignored: List[str] = []
         self.reconnect: bool = True
-        self.tags: List[str] = []
 
         self.log.debug("IntroSeeker init with leftOffset %d rightOffset %d" % (self.settings.leftOffset, self.settings.rightOffset))
         self.log.debug("Skip tags %s" % (self.settings.tags))
