@@ -48,7 +48,6 @@ class MediaWrapper():
         self.lastUpdate: datetime = datetime.now()
         self.lastSeek: datetime = datetime(1970, 1, 1)
 
-        self.seeking: bool = False
         self.seekTarget: int = 0
 
         self.markers: List[Marker] = []
@@ -153,6 +152,10 @@ class MediaWrapper():
         return "%s %s" % (base, self.playerName)
 
     @property
+    def seeking(self) -> bool:
+        return self.seekTarget > 0
+
+    @property
     def sinceLastUpdate(self) -> int:
         return (datetime.now() - self.lastUpdate).total_seconds()
 
@@ -175,6 +178,5 @@ class MediaWrapper():
         self.media.viewOffset = offset
         self.lastUpdate = datetime.now()
         self.seekTarget = offset if seeking else 0
-        self.seeking = seeking
         self.state = state or self.state
         return True
