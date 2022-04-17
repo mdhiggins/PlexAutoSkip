@@ -17,6 +17,7 @@ Features
 - Only skip for watched content
 - Ignore series and season premieres
 - Skip last chapter (credits)
+- Bypass the "Up Next" screen
 - Custom Definitions
   - Define your own markers when auto detection fails
   - Filter clients/users
