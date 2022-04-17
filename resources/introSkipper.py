@@ -106,6 +106,10 @@ class IntroSkipper():
         leftOffset = mediaWrapper.leftOffset or self.settings.leftOffset
         rightOffset = mediaWrapper.rightOffset or self.settings.rightOffset
 
+        if self.settings.skipnext and (mediaWrapper.viewOffset >= mediaWrapper.media.duration):
+            self.log.info("Found %s media that has reached the end of its playback with viewOffset %d and duration %d with skip-next enabled, will skip to next" % (mediaWrapper, mediaWrapper.viewOffset, mediaWrapper.media.duration))
+            self.seekTo(mediaWrapper, mediaWrapper.media.duration)
+
         if self.settings.skiplastchapter and mediaWrapper.lastchapter and (mediaWrapper.lastchapter.start / mediaWrapper.media.duration) > self.settings.skiplastchapter:
             if mediaWrapper.lastchapter and (mediaWrapper.lastchapter.start + leftOffset) <= mediaWrapper.viewOffset <= mediaWrapper.lastchapter.end:
                 self.log.info("Found a valid last chapter for media %s with range %d-%d and viewOffset %d with skip-last-chapter enabled" % (mediaWrapper, mediaWrapper.lastchapter.start + leftOffset, mediaWrapper.lastchapter.end, mediaWrapper.viewOffset))
@@ -148,9 +152,14 @@ class IntroSkipper():
             return False
         try:
             try:
-                self.log.info("Seeking %s player playing %s from %d to %d" % (player.product, mediaWrapper, mediaWrapper.viewOffset, targetOffset))
                 mediaWrapper.updateOffset(targetOffset, seeking=True)
-                player.seekTo(targetOffset)
+                if self.settings.skipnext and targetOffset == mediaWrapper.media.duration:
+                    self.log.info("Seek target is the end of %s for %s player , going to next" % (mediaWrapper, player.product))
+                    mediaWrapper.media.markWatched()
+                    player.skipNext()
+                else:
+                    self.log.info("Seeking %s player playing %s from %d to %d" % (player.product, mediaWrapper, mediaWrapper.viewOffset, targetOffset))
+                    player.seekTo(targetOffset)
                 return True
             except ParseError:
                 self.log.debug("ParseError, seems to be certain players but still functional, continuing")

@@ -180,7 +180,8 @@ class MediaWrapper():
     def viewOffset(self) -> int:
         if self.state == PAUSEDKEY:
             return self._viewOffset
-        return self._viewOffset + round((datetime.now() - self.lastUpdate).total_seconds() * 1000)
+        vo = self._viewOffset + round((datetime.now() - self.lastUpdate).total_seconds() * 1000)
+        return vo if vo <= self.media.duration else self.media.duration
 
     def updateOffset(self, offset: int, seeking: bool, state: str = None) -> bool:
         if self.seeking and not seeking and offset < self.seekTarget:

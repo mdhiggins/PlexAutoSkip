@@ -1,5 +1,4 @@
 import configparser
-from http import server
 import os
 import logging
 import sys
@@ -67,6 +66,7 @@ class Settings:
             "unwatched": True,
             "first-episode-series": "Watched",
             "first-episode-season": "Always",
+            "next": False
         },
         "Offsets": {
             "start": 3000,
@@ -118,6 +118,12 @@ class Settings:
         self.ssl: bool = False
         self.port: int = 32400
         self.ignore_certs: bool = False
+        self.tags: list = []
+        self.skiplastchapter: float = 0.0
+        self.skipunwatched: bool = False
+        self.skipE01: Settings.SKIP_TYPES = Settings.SKIP_TYPES.ALWAYS
+        self.skipS01E01: Settings.SKIP_TYPES = Settings.SKIP_TYPES.ALWAYS
+        self.skipnext: bool = False
         self.leftOffset: int = 0
         self.rightOffset: int = 0
         self.customEntries: CustomEntries = None
@@ -272,6 +278,7 @@ class Settings:
             self.skipE01 = self.SKIP_MATCHER.get(config.getboolean("Skip", "first-episode-season"))  # Legacy bool support
         except ValueError:
             self.skipE01 = self.SKIP_MATCHER.get(config.get("Skip", "first-episode-season").lower(), self.SKIP_TYPES.ALWAYS)
+        self.skipnext = config.getboolean("Skip", "next")
 
         self.leftOffset = config.getint("Offsets", "start")
         self.rightOffset = config.getint("Offsets", "end")
