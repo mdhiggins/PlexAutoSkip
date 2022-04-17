@@ -21,21 +21,37 @@ class CustomMarker():
     class CustomMarkerException(Exception):
         pass
 
-    def __init__(self, data, key) -> None:
+    def __init__(self, data: dict, key: str, duration: int) -> None:
         if STARTKEY not in data or ENDKEY not in data:
             raise self.CustomMarkerException
-        self.start = data[STARTKEY]
-        self.end = data[ENDKEY]
+        self._start = data[STARTKEY]
+        self._end = data[ENDKEY]
+        self.duration = duration
         self.cascade = data.get(CASCADEKEY, False)
         if isinstance(self.cascade, str):
             self.cascade = bool(strtobool(self.cascade))
         self.key = key
 
+    def safeRange(self, target) -> int:
+        if target < 0:
+            return 0
+        if target > self.duration:
+            return self.duration
+        return target
+
+    @property
+    def start(self) -> int:
+        return self.safeRange(self.duration + self._start if self._start < 0 else self._start)
+
+    @property
+    def end(self) -> int:
+        return self.safeRange(self._end if self._end > 0 else self.duration + self._end)
+
     def __repr__(self) -> str:
         return "%d-%d" % (self.start, self.end)
 
     @property
-    def duration(self) -> int:
+    def length(self) -> int:
         return self.end - self.start
 
 
@@ -94,7 +110,7 @@ class MediaWrapper():
                 if str(self.media.grandparentRatingKey) in custom.markers:
                     for markerdata in custom.markers[str(self.media.grandparentRatingKey)]:
                         try:
-                            cm = CustomMarker(markerdata, self.media.grandparentRatingKey)
+                            cm = CustomMarker(markerdata, self.media.grandparentRatingKey, media.duration)
                             if cm not in self.customMarkers:
                                 self.log.debug("Found custom marker range %s entry for %s (grandparentRatingKey match)" % (cm, self))
                                 self.customMarkers.append(cm)
@@ -112,7 +128,7 @@ class MediaWrapper():
                         self.customMarkers = filtered
                     for markerdata in custom.markers[str(self.media.parentRatingKey)]:
                         try:
-                            cm = CustomMarker(markerdata, self.media.parentRatingKey)
+                            cm = CustomMarker(markerdata, self.media.parentRatingKey, media.duration)
                             if cm not in self.customMarkers:
                                 self.log.debug("Found custom marker range %s entry for %s (parentRatingKey match)" % (cm, self))
                                 self.customMarkers.append(cm)
@@ -129,7 +145,7 @@ class MediaWrapper():
                     self.customMarkers = filtered
                 for markerdata in custom.markers[str(self.media.ratingKey)]:
                     try:
-                        cm = CustomMarker(markerdata, self.media.ratingKey)
+                        cm = CustomMarker(markerdata, self.media.ratingKey, media.duration)
                         if cm not in self.customMarkers:
                             self.log.debug("Found custom marker range %s entry for %s" % (cm, self))
                             self.customMarkers.append(cm)
