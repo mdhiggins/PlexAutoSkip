@@ -199,14 +199,15 @@ class IntroSkipper():
                 if media and media.session and len(media.session) > 0 and media.session[0].location == 'lan':
                     if sessionKey not in self.media_sessions:
                         wrapper = MediaWrapper(media, state, self.server, tags=self.settings.tags, custom=self.customEntries, logger=self.log)
-                        if self.shouldAdd(wrapper):
-                            self.addSession(sessionKey, wrapper)
-                        else:
-                            if len(wrapper.customMarkers) > 0:
-                                wrapper.customOnly = True
+                        if not self.blockedClientUser(wrapper):
+                            if self.shouldAdd(wrapper):
                                 self.addSession(sessionKey, wrapper)
                             else:
-                                self.ignoreSession(sessionKey, wrapper)
+                                if len(wrapper.customMarkers) > 0:
+                                    wrapper.customOnly = True
+                                    self.addSession(sessionKey, wrapper)
+                                else:
+                                    self.ignoreSession(sessionKey, wrapper)
                     else:
                         self.media_sessions[sessionKey].updateOffset(media.viewOffset, seeking=False, state=state)
                 else:
@@ -216,28 +217,32 @@ class IntroSkipper():
             except:
                 self.log.exception("Unexpected error getting data from session alert")
 
-    def shouldAdd(self, mediaWrapper: MediaWrapper) -> bool:
+    def blockedClientUser(self, mediaWrapper: MediaWrapper) -> bool:
         media = mediaWrapper.media
 
         # Users
         if any(b for b in self.customEntries.blockedUsers if b in media.usernames):
             self.log.debug("Blocking %s based on blocked user in %s" % (mediaWrapper, media.usernames))
-            return False
+            return True
         if self.customEntries.allowedUsers and not any(u for u in media.usernames if u in self.customEntries.allowedUsers):
             self.log.debug("Blocking %s based on no allowed user in %s" % (mediaWrapper, media.usernames))
-            return False
+            return True
         elif self.customEntries.allowedUsers:
             self.log.debug("Allowing %s based on allowed user in %s" % (mediaWrapper, media.usernames))
 
         # Clients/players
         if self.customEntries.allowedClients and not any(player for player in media.players if player.title in self.customEntries.allowedClients):
             self.log.debug("Blocking %s based on no allowed player in %s" % (mediaWrapper, [p.title for p in media.players]))
-            return False
+            return True
         elif self.customEntries.allowedClients:
             self.log.debug("Allowing %s based on allowed player in %s" % (mediaWrapper, [p.title for p in media.players]))
         if self.customEntries.blockedClients and any(player for player in media.players if player.title in self.customEntries.blockedClients):
             self.log.debug("Blocking %s based on blocked player in %s" % (mediaWrapper, [p.title for p in media.players]))
-            return False
+            return True
+        return False
+
+    def shouldAdd(self, mediaWrapper: MediaWrapper) -> bool:
+        media = mediaWrapper.media
 
         # First episodes
         if hasattr(media, "episodeNumber"):
