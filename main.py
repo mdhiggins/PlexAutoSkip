@@ -23,7 +23,7 @@ if __name__ == '__main__':
     plex, sslopt = getPlexServer(settings, log)
 
     if plex:
-        intro_skipper = Skipper(plex, settings, log)
-        intro_skipper.start(sslopt=sslopt)
+        skipper = Skipper(plex, settings, log)
+        skipper.start(sslopt=sslopt)
     else:
         log.error("Unable to establish Plex Server object via PlexAPI")
