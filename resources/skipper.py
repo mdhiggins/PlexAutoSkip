@@ -42,7 +42,6 @@ class Skipper():
 
     TIMEOUT = 30
     IGNORED_CAP = 200
-    ENDBUFFER = 5000
 
     @property
     def customEntries(self) -> CustomEntries:
@@ -107,7 +106,7 @@ class Skipper():
         leftOffset = mediaWrapper.leftOffset or self.settings.leftOffset
         rightOffset = mediaWrapper.rightOffset or self.settings.rightOffset
 
-        if self.settings.skipnext and (mediaWrapper.viewOffset >= (mediaWrapper.media.duration - self.ENDBUFFER)):
+        if self.settings.skipnext and (mediaWrapper.viewOffset >= (mediaWrapper.media.duration - self.settings.durationOffset)):
             self.log.info("Found %s media that has reached the end of its playback with viewOffset %d and duration %d with skip-next enabled, will skip to next" % (mediaWrapper, mediaWrapper.viewOffset, mediaWrapper.media.duration))
             self.seekTo(mediaWrapper, mediaWrapper.media.duration)
 
@@ -155,7 +154,7 @@ class Skipper():
             try:
                 mediaWrapper.updateOffset(targetOffset, seeking=True)
                 if self.settings.skipnext and targetOffset == mediaWrapper.media.duration:
-                    self.log.info("Seek target is the end of %s for %s player , going to next" % (mediaWrapper, player.product))
+                    self.log.info("Seek target is the end of %s for %s player, going to next" % (mediaWrapper, player.product))
                     player.skipNext()
                     mediaWrapper.media.markWatched()
                 else:

@@ -70,7 +70,8 @@ class Settings:
         },
         "Offsets": {
             "start": 3000,
-            "end": 1000
+            "end": 1000,
+            "duration": 0,
         }
     }
 
@@ -282,6 +283,7 @@ class Settings:
 
         self.leftOffset = config.getint("Offsets", "start")
         self.rightOffset = config.getint("Offsets", "end")
+        self.durationOffset = config.getint("Offsets", "duration")
 
     @staticmethod
     def replaceWithGUIDs(data, server: PlexServer, ratingKeyLookup: dict, logger: logging.Logger = None) -> None:
