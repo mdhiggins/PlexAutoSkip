@@ -42,7 +42,7 @@ class Skipper():
 
     TIMEOUT = 30
     IGNORED_CAP = 200
-    ENDBUFFER = 5
+    ENDBUFFER = 5000
 
     @property
     def customEntries(self) -> CustomEntries:
