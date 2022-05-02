@@ -155,7 +155,7 @@ class Skipper():
                 self.log.info("Seeking %s player playing %s from %d to %d" % (player.product, mediaWrapper, mediaWrapper.viewOffset, targetOffset))
                 mediaWrapper.updateOffset(targetOffset, seeking=True)
                 if self.settings.skipnext and targetOffset == mediaWrapper.media.duration:
-                    self.log.info("Seek target is the end of %s for %s player, going to next" % (mediaWrapper, player.product))
+                    self.log.info("Seek target is the end, going to next")
                     player.skipNext()
                     mediaWrapper.media.markWatched()
                 else:
