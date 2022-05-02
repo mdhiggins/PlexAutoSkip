@@ -18,7 +18,7 @@ from threading import Thread
 from typing import Dict, List
 
 
-class IntroSkipper():
+class Skipper():
     TROUBLESHOOT_URL = "https://github.com/mdhiggins/PlexAutoSkip/wiki/Troubleshooting"
     ERRORS = {
         "FrameworkException: Unable to find player with identifier": "BadRequest Error, see %s#badrequest-error" % TROUBLESHOOT_URL,

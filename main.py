@@ -3,7 +3,7 @@ import os
 from argparse import ArgumentParser
 from resources.log import getLogger
 from resources.settings import Settings
-from resources.introSkipper import IntroSkipper
+from resources.skipper import Skipper
 from resources.server import getPlexServer
 
 if __name__ == '__main__':
@@ -23,7 +23,7 @@ if __name__ == '__main__':
     plex, sslopt = getPlexServer(settings, log)
 
     if plex:
-        intro_skipper = IntroSkipper(plex, settings, log)
+        intro_skipper = Skipper(plex, settings, log)
         intro_skipper.start(sslopt=sslopt)
     else:
         log.error("Unable to establish Plex Server object via PlexAPI")
