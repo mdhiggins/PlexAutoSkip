@@ -113,7 +113,7 @@ class Skipper():
         if self.settings.skiplastchapter and mediaWrapper.lastchapter and (mediaWrapper.lastchapter.start / mediaWrapper.media.duration) > self.settings.skiplastchapter:
             if mediaWrapper.lastchapter and (mediaWrapper.lastchapter.start + leftOffset) <= mediaWrapper.viewOffset <= mediaWrapper.lastchapter.end:
                 self.log.info("Found a valid last chapter for media %s with range %d-%d and viewOffset %d with skip-last-chapter enabled" % (mediaWrapper, mediaWrapper.lastchapter.start + leftOffset, mediaWrapper.lastchapter.end, mediaWrapper.viewOffset))
-                self.seekTo(mediaWrapper, mediaWrapper.lastchapter.end)
+                self.seekTo(mediaWrapper, mediaWrapper.media.duration)
 
         for chapter in mediaWrapper.chapters:
             if (chapter.start + leftOffset) <= mediaWrapper.viewOffset <= chapter.end:
