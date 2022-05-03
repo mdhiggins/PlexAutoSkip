@@ -295,13 +295,13 @@ class Skipper():
 
     def addSession(self, sessionKey: str, mediaWrapper: MediaWrapper) -> None:
         if mediaWrapper.media.players:
-            self.purgeOldSessions(mediaWrapper)
-            self.checkMedia(mediaWrapper)
-            self.media_sessions[sessionKey] = mediaWrapper
             if mediaWrapper.customOnly:
                 self.log.info("Found blocked session %s viewOffset %d %s, using custom markers only, sessions: %d" % (mediaWrapper, mediaWrapper.media.viewOffset, mediaWrapper.media.usernames, len(self.media_sessions)))
             else:
                 self.log.info("Found new session %s viewOffset %d %s, sessions: %d" % (mediaWrapper, mediaWrapper.media.viewOffset, mediaWrapper.media.usernames, len(self.media_sessions)))
+            self.purgeOldSessions(mediaWrapper)
+            self.checkMedia(mediaWrapper)
+            self.media_sessions[sessionKey] = mediaWrapper
         else:
             self.log.info("Session %s has no accessible players, it will be ignored" % (sessionKey))
             self.ignoreSession(sessionKey, mediaWrapper)
