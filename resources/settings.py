@@ -78,6 +78,7 @@ class Settings:
     CUSTOM_DEFAULTS = {
         "markers": {},
         "offsets": {},
+        "tags": {},
         "allowed": {
             'users': [],
             'clients': [],

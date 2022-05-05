@@ -20,6 +20,10 @@ class CustomEntries():
         return self.data.get("offsets", {})
 
     @property
+    def tags(self) -> Dict[str, list]:
+        return self.data.get("tags", {})
+
+    @property
     def allowed(self) -> Dict[str, List[dict]]:
         return self.data.get("allowed", {})
 
@@ -57,7 +61,7 @@ class CustomEntries():
 
     @property
     def needsGuidResolution(self) -> bool:
-        return any(str(key).startswith(p) for key in (list(self.markers.keys()) + list(self.offsets.keys()) + self.allowedKeys + self.blockedKeys) for p in self.PREFIXES)
+        return any(str(key).startswith(p) for key in (list(self.markers.keys()) + list(self.offsets.keys()) + list(self.tags.keys()) + self.allowedKeys + self.blockedKeys) for p in self.PREFIXES)
 
     @staticmethod
     def loadGuids(plex: PlexServer, logger: logging.Logger = None) -> dict:
@@ -83,6 +87,13 @@ class CustomEntries():
                 self.offsets[str(ratingKey)] = self.offsets.pop(k)
             else:
                 self.log.error("Unable to resolve GUID %s to ratingKey in custom offsets" % (k))
+        for k in [x for x in list(self.tags.keys()) if CustomEntries.keyIsGuid(x)]:
+            ratingKey = CustomEntries.resolveGuidToKey(k, guidLookup)
+            if str(ratingKey) != str(k):
+                self.log.debug("Resolving custom tags GUID %s to ratingKey %s" % (k, ratingKey))
+                self.tags[str(ratingKey)] = self.tags.pop(k)
+            else:
+                self.log.error("Unable to resolve GUID %s to ratingKey in tags offsets" % (k))
         for k in [x for x in self.allowedKeys if CustomEntries.keyIsGuid(x)]:
             ratingKey = CustomEntries.resolveGuidToKey(k, guidLookup)
             if str(ratingKey) != str(k):
@@ -130,6 +141,13 @@ class CustomEntries():
                 self.offsets[guid] = self.offsets.pop(k)
             else:
                 self.log.error("Unable to resolve ratingKey %s to GUID in custom offsets" % (k))
+        for k in [x for x in list(self.tags.keys()) if not CustomEntries.keyIsGuid(x)]:
+            guid = CustomEntries.resolveKeyToGuid(k, ratingKeyLookup)
+            if str(guid) != str(k):
+                self.log.debug("Resolving custom tags ratingKey %s to GUID %s" % (k, guid))
+                self.tags[guid] = self.tags.pop(k)
+            else:
+                self.log.error("Unable to resolve ratingKey %s to GUID in tags offsets" % (k))
         for k in [x for x in self.allowedKeys if not CustomEntries.keyIsGuid(x)]:
             guid = CustomEntries.resolveKeyToGuid(str(k), ratingKeyLookup)
             if str(guid) != str(k):

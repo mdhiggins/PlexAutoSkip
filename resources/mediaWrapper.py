@@ -77,6 +77,8 @@ class MediaWrapper():
         self.leftOffset: int = 0
         self.rightOffset: int = 0
 
+        self.tags: List[str] = tags
+
         self.log = logger or getLogger(__name__)
         self.customMarkers = []
         self.markers = []
@@ -90,15 +92,6 @@ class MediaWrapper():
                 self.log.debug("Overriding player %s with custom baseURL %s, will not proxy through server" % (p.title, p._baseurl))
             else:
                 p.proxyThroughServer(True, server)
-
-        if hasattr(self.media, 'markers') and not self.customOnly:
-            self.markers = [x for x in self.media.markers if x.type and x.type.lower() in tags]
-
-        if hasattr(self.media, 'chapters') and not self.customOnly:
-            self.chapters = [x for x in self.media.chapters if x.title and x.title.lower() in tags]
-
-        if hasattr(self.media, 'chapters') and not self.customOnly and len(self.media.chapters) > 0:
-            self.lastchapter = self.media.chapters[-1]
 
         if len(self.media.players) > 0:
             self.playerName: str = self.media.players[0].title
@@ -119,6 +112,8 @@ class MediaWrapper():
                 if str(self.media.grandparentRatingKey) in custom.offsets:
                     self.leftOffset = custom.offsets[str(self.media.grandparentRatingKey)].get(STARTKEY, self.leftOffset)
                     self.rightOffset = custom.offsets[str(self.media.grandparentRatingKey)].get(ENDKEY, self.rightOffset)
+                if str(self.media.grandparentRatingKey) in custom.tags:
+                    self.tags = custom.tags[str(self.media.grandparentRatingKey)]
 
             if hasattr(self.media, "parentRatingKey"):
                 if str(self.media.parentRatingKey) in custom.markers:
@@ -137,6 +132,8 @@ class MediaWrapper():
                 if str(self.media.parentRatingKey) in custom.offsets:
                     self.leftOffset = custom.offsets[str(self.media.parentRatingKey)].get(STARTKEY, self.leftOffset)
                     self.rightOffset = custom.offsets[str(self.media.parentRatingKey)].get(ENDKEY, self.rightOffset)
+                if str(self.media.parentRatingKey) in custom.tags:
+                    self.tags = custom.tags[str(self.media.parentRatingKey)]
 
             if str(self.media.ratingKey) in custom.markers:
                 filtered = [x for x in self.customMarkers if x.cascade]
@@ -154,11 +151,26 @@ class MediaWrapper():
             if str(self.media.ratingKey) in custom.offsets:
                 self.leftOffset = custom.offsets[str(self.media.ratingKey)].get(STARTKEY, self.leftOffset)
                 self.rightOffset = custom.offsets[str(self.media.ratingKey)].get(ENDKEY, self.rightOffset)
+            if str(self.media.ratingKey) in custom.tags:
+                self.tags = custom.tags[str(self.media.ratingKey)]
+
+            self.tags = [x.lower() for x in self.tags]
 
             if self.leftOffset:
                 self.log.debug("Custom start offset value of %d found for %s" % (self.leftOffset, self))
             if self.rightOffset:
                 self.log.debug("Custom end offset value of %d found for %s" % (self.rightOffset, self))
+            if self.tags != tags:
+                self.log.debug("Custom tags value of %s found for %s" % (self.tags, self))
+
+        if hasattr(self.media, 'markers') and not self.customOnly:
+            self.markers = [x for x in self.media.markers if x.type and x.type.lower() in self.tags]
+
+        if hasattr(self.media, 'chapters') and not self.customOnly:
+            self.chapters = [x for x in self.media.chapters if x.title and x.title.lower() in self.tags]
+
+        if hasattr(self.media, 'chapters') and not self.customOnly and len(self.media.chapters) > 0:
+            self.lastchapter = self.media.chapters[-1]
 
     def __repr__(self) -> str:
         base = "%d [%d]" % (self.media.sessionKey, self.media.ratingKey)

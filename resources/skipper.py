@@ -117,13 +117,13 @@ class Skipper():
 
         for chapter in mediaWrapper.chapters:
             if (chapter.start + leftOffset) <= mediaWrapper.viewOffset <= chapter.end:
-                self.log.info("Found an advertisement chapter for media %s with range %d-%d and viewOffset %d" % (mediaWrapper, chapter.start + leftOffset, chapter.end, mediaWrapper.viewOffset))
+                self.log.info("Found skippable chapter %s for media %s with range %d-%d and viewOffset %d" % (chapter.title, mediaWrapper, chapter.start + leftOffset, chapter.end, mediaWrapper.viewOffset))
                 self.seekTo(mediaWrapper, chapter.end + rightOffset)
                 return
 
         for marker in mediaWrapper.markers:
             if (marker.start + leftOffset) <= mediaWrapper.viewOffset <= marker.end:
-                self.log.info("Found an intro marker for media %s with range %d-%d and viewOffset %d" % (mediaWrapper, marker.start + leftOffset, marker.end, mediaWrapper.viewOffset))
+                self.log.info("Found skippable marker %s for media %s with range %d-%d and viewOffset %d" % (marker.tag, mediaWrapper, marker.start + leftOffset, marker.end, mediaWrapper.viewOffset))
                 self.seekTo(mediaWrapper, marker.end + rightOffset)
                 return
 
