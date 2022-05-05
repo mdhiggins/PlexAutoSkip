@@ -164,7 +164,7 @@ class Skipper():
                             return True
                     self.log.info("Seek target is the end, going to next")
                     player.skipNext()
-                    mediaWrapper.media.markWatched()
+                    # mediaWrapper.media.markWatched()  # Appears this isn't needed and Plex will still mark as watched
                 else:
                     player.seekTo(targetOffset)
                 return True
