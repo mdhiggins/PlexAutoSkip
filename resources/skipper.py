@@ -14,6 +14,7 @@ from socket import timeout
 from plexapi.exceptions import BadRequest
 from plexapi.client import PlexClient
 from plexapi.server import PlexServer
+from plexapi.playqueue import PlayQueue
 from threading import Thread
 from typing import Dict, List
 
@@ -155,6 +156,12 @@ class Skipper():
                 self.log.info("Seeking %s player playing %s from %d to %d" % (player.product, mediaWrapper, mediaWrapper.viewOffset, targetOffset))
                 mediaWrapper.updateOffset(targetOffset, seeking=True)
                 if self.settings.skipnext and targetOffset == mediaWrapper.media.duration:
+                    if player.timeline and player.timeline.playQueueID:
+                        pq = PlayQueue.get(self.server, player.timeline.playQueueID)
+                        if pq.items[-1] == mediaWrapper.media:
+                            self.log.debug("Seek target is the end but no more items in the playQueue, using seekTo to prevent skipNext loop")
+                            player.seekTo(targetOffset)
+                            return True
                     self.log.info("Seek target is the end, going to next")
                     player.skipNext()
                     mediaWrapper.media.markWatched()
