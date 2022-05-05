@@ -312,7 +312,7 @@ class Skipper():
         self.ignored = self.ignored[-self.IGNORED_CAP:]
         self.log.debug("Ignoring session %s %s, ignored: %d" % (mediaWrapper, mediaWrapper.media.usernames, len(self.ignored)))
 
-    def purgeOldSessions(self, mediaWrapper) -> None:
+    def purgeOldSessions(self, mediaWrapper: MediaWrapper) -> None:
         mids = [x.machineIdentifier for x in mediaWrapper.media.players]
         if mids:
             for session in list(self.media_sessions.values()):
