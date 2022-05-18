@@ -2,6 +2,7 @@ import logging
 from typing import Dict, List, TypeVar
 from plexapi.server import PlexServer
 from plexapi.video import Show, Season, Episode, Movie
+from plexapi.exceptions import NotFound
 from resources.log import getLogger
 
 
@@ -174,12 +175,15 @@ class CustomEntries():
         k = key.split(".")
         base = guidLookup.get(k[0])
         if base:
-            if len(k) == 2 and base.type == "show":
-                return base.season(season=int(k[1])).ratingKey
-            elif len(k) == 3 and base.type == "show":
-                return base.episode(season=int(k[1]), episode=int(k[2])).ratingKey
-            else:
-                return base.ratingKey
+            try:
+                if len(k) == 2 and base.type == "show":
+                    return base.season(season=int(k[1])).ratingKey
+                elif len(k) == 3 and base.type == "show":
+                    return base.episode(season=int(k[1]), episode=int(k[2])).ratingKey
+                else:
+                    return base.ratingKey
+            except NotFound:
+                return key
         return key
 
     @staticmethod
