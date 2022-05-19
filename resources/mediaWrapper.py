@@ -13,7 +13,7 @@ Media = TypeVar("Media", Episode, Movie)
 
 STARTKEY = "start"
 ENDKEY = "end"
-PAUSEDKEY = "paused"
+PLAYINGKEY = "playing"
 CASCADEKEY = "cascade"
 
 
@@ -190,7 +190,7 @@ class MediaWrapper():
 
     @property
     def viewOffset(self) -> int:
-        if self.state == PAUSEDKEY:
+        if self.state != PLAYINGKEY:
             return self._viewOffset
         vo = self._viewOffset + round((datetime.now() - self.lastUpdate).total_seconds() * 1000)
         return vo if vo <= self.media.duration else self.media.duration
