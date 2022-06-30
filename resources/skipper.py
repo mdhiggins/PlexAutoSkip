@@ -59,6 +59,7 @@ class Skipper():
         self.reconnect: bool = True
 
         self.log.debug("IntroSeeker init with leftOffset %d rightOffset %d" % (self.settings.leftOffset, self.settings.rightOffset))
+        self.log.debug("Operating in %s mode" % (self.settings.mode))
         self.log.debug("Skip tags %s" % (self.settings.tags))
         self.log.debug("Skip S01E01 %s" % (self.settings.skipS01E01))
         self.log.debug("Skip S**E01 %s" % (self.settings.skipE01))
@@ -97,6 +98,20 @@ class Skipper():
             self.start(sslopt)
 
     def checkMedia(self, mediaWrapper: MediaWrapper) -> None:
+        if mediaWrapper.mode == Settings.MODE_TYPES.SKIP:
+            self.checkMediaSkip(mediaWrapper)
+        elif mediaWrapper.mode == Settings.MODE_TYPES.VOLUME:
+            self.checkMediaVolume(mediaWrapper)
+
+        if self.settings.skipnext and (mediaWrapper.viewOffset >= (mediaWrapper.media.duration - self.settings.durationOffset)):
+            self.log.info("Found %s media that has reached the end of its playback with viewOffset %d and duration %d with skip-next enabled, will skip to next" % (mediaWrapper, mediaWrapper.viewOffset, mediaWrapper.media.duration))
+            self.seekTo(mediaWrapper, mediaWrapper.media.duration)
+
+        if mediaWrapper.sinceLastUpdate > self.TIMEOUT:
+            self.log.debug("Session %s hasn't been updated in %d seconds" % (mediaWrapper, self.TIMEOUT))
+            self.removeSession(mediaWrapper)
+
+    def checkMediaSkip(self, mediaWrapper: MediaWrapper) -> None:
         if mediaWrapper.seeking:
             return
 
@@ -106,33 +121,73 @@ class Skipper():
                 self.seekTo(mediaWrapper, marker.end)
                 return
 
+        if self.settings.skiplastchapter and mediaWrapper.lastchapter and (mediaWrapper.lastchapter.start / mediaWrapper.media.duration) > self.settings.skiplastchapter:
+            if mediaWrapper.lastchapter and mediaWrapper.lastchapter.start <= mediaWrapper.viewOffset <= mediaWrapper.lastchapter.end:
+                self.log.info("Found a valid last chapter for media %s with range %d-%d and viewOffset %d with skip-last-chapter enabled" % (mediaWrapper, mediaWrapper.lastchapter.start, mediaWrapper.lastchapter.end, mediaWrapper.viewOffset))
+                self.seekTo(mediaWrapper, mediaWrapper.media.duration)
+                return
+
+        for chapter in mediaWrapper.chapters:
+            if chapter.start <= mediaWrapper.viewOffset <= chapter.end:
+                self.log.info("Found skippable chapter %s for media %s with range %d-%d and viewOffset %d" % (chapter.title, mediaWrapper, chapter.start, chapter.end, mediaWrapper.viewOffset))
+                self.seekTo(mediaWrapper, chapter.end)
+                return
+
         leftOffset = mediaWrapper.leftOffset or self.settings.leftOffset
         rightOffset = mediaWrapper.rightOffset or self.settings.rightOffset
 
-        if self.settings.skipnext and (mediaWrapper.viewOffset >= (mediaWrapper.media.duration - self.settings.durationOffset)):
-            self.log.info("Found %s media that has reached the end of its playback with viewOffset %d and duration %d with skip-next enabled, will skip to next" % (mediaWrapper, mediaWrapper.viewOffset, mediaWrapper.media.duration))
-            self.seekTo(mediaWrapper, mediaWrapper.media.duration)
-
-        if self.settings.skiplastchapter and mediaWrapper.lastchapter and (mediaWrapper.lastchapter.start / mediaWrapper.media.duration) > self.settings.skiplastchapter:
-            if mediaWrapper.lastchapter and (mediaWrapper.lastchapter.start + leftOffset) <= mediaWrapper.viewOffset <= mediaWrapper.lastchapter.end:
-                self.log.info("Found a valid last chapter for media %s with range %d-%d and viewOffset %d with skip-last-chapter enabled" % (mediaWrapper, mediaWrapper.lastchapter.start + leftOffset, mediaWrapper.lastchapter.end, mediaWrapper.viewOffset))
-                self.seekTo(mediaWrapper, mediaWrapper.media.duration)
-
-        for chapter in mediaWrapper.chapters:
-            if (chapter.start + leftOffset) <= mediaWrapper.viewOffset <= chapter.end:
-                self.log.info("Found skippable chapter %s for media %s with range %d-%d and viewOffset %d" % (chapter.title, mediaWrapper, chapter.start + leftOffset, chapter.end, mediaWrapper.viewOffset))
-                self.seekTo(mediaWrapper, chapter.end + rightOffset)
-                return
-
         for marker in mediaWrapper.markers:
             if (marker.start + leftOffset) <= mediaWrapper.viewOffset <= marker.end:
-                self.log.info("Found skippable marker %s for media %s with range %d-%d and viewOffset %d" % (marker.type, mediaWrapper, marker.start + leftOffset, marker.end, mediaWrapper.viewOffset))
+                self.log.info("Found skippable marker %s for media %s with range %d-%d and viewOffset %d" % (marker.type, mediaWrapper, marker.start + leftOffset, marker.end + rightOffset, mediaWrapper.viewOffset))
                 self.seekTo(mediaWrapper, marker.end + rightOffset)
                 return
 
-        if mediaWrapper.sinceLastUpdate > self.TIMEOUT:
-            self.log.debug("Session %s hasn't been updated in %d seconds" % (mediaWrapper, self.TIMEOUT))
-            self.removeSession(mediaWrapper)
+    def checkMediaVolume(self, mediaWrapper: MediaWrapper) -> None:
+        leftOffset = mediaWrapper.leftOffset or self.settings.leftOffset
+        rightOffset = mediaWrapper.rightOffset or self.settings.rightOffset
+
+        if mediaWrapper.previousVolume:
+            for marker in mediaWrapper.customMarkers:
+                if mediaWrapper.viewOffset > marker.end:
+                    self.log.info("Passed a custom marker for media %s with range %d-%d and viewOffset %d, restoring volume (%d)" % (mediaWrapper, marker.start, marker.end, mediaWrapper.viewOffset, marker.key))
+                    self.setVolume(mediaWrapper, mediaWrapper.previousVolume)
+                    return
+
+            for chapter in mediaWrapper.chapters:
+                if mediaWrapper.viewOffset > chapter.end:
+                    self.log.info("Passed a skippable chapter %s for media %s with range %d-%d and viewOffset %d, restoring volume" % (chapter.title, mediaWrapper, chapter.start, chapter.end, mediaWrapper.viewOffset))
+                    self.setVolume(mediaWrapper, mediaWrapper.previousVolume)
+                    return
+
+            for marker in mediaWrapper.markers:
+                if mediaWrapper.viewOffset > marker.end + rightOffset:
+                    self.log.info("Passed a skippable marker %s for media %s with range %d-%d and viewOffset %d, restoring volume" % (marker.type, mediaWrapper, marker.start + leftOffset, marker.end + rightOffset, mediaWrapper.viewOffset))
+                    self.setVolume(mediaWrapper, mediaWrapper.previousVolume)
+                    return
+        else:
+            for marker in mediaWrapper.customMarkers:
+                if (marker.start) <= mediaWrapper.viewOffset <= marker.end:
+                    self.log.info("Found a custom marker for media %s with range %d-%d and viewOffset %d (%d), lowering volume" % (mediaWrapper, marker.start, marker.end, mediaWrapper.viewOffset, marker.key))
+                    self.setVolume(mediaWrapper, self.settings.volumelow)
+                    return
+
+            if self.settings.skiplastchapter and mediaWrapper.lastchapter and (mediaWrapper.lastchapter.start / mediaWrapper.media.duration) > self.settings.skiplastchapter:
+                if mediaWrapper.lastchapter and mediaWrapper.lastchapter.start <= mediaWrapper.viewOffset <= mediaWrapper.lastchapter.end:
+                    self.log.info("Found a valid last chapter for media %s with range %d-%d and viewOffset %d with skip-last-chapter enabled, lowering volume" % (mediaWrapper, mediaWrapper.lastchapter.start, mediaWrapper.lastchapter.end, mediaWrapper.viewOffset))
+                    self.setVolume(mediaWrapper, self.settings.volumelow)
+                    return
+
+            for chapter in mediaWrapper.chapters:
+                if chapter.start <= mediaWrapper.viewOffset <= chapter.end:
+                    self.log.info("Found mutable chapter %s for media %s with range %d-%d and viewOffset %d, lowering volume" % (chapter.title, mediaWrapper, chapter.start, chapter.end, mediaWrapper.viewOffset))
+                    self.setVolume(mediaWrapper, self.settings.volumelow)
+                    return
+
+            for marker in mediaWrapper.markers:
+                if (marker.start + leftOffset) <= mediaWrapper.viewOffset <= marker.end:
+                    self.log.info("Found mutable marker %s for media %s with range %d-%d and viewOffset %d, lowering volume" % (marker.type, mediaWrapper, marker.start + leftOffset, marker.end, mediaWrapper.viewOffset))
+                    self.setVolume(mediaWrapper, self.settings.volumelow)
+                    return
 
     def seekTo(self, mediaWrapper: MediaWrapper, targetOffset: int) -> None:
         t = Thread(target=self._seekTo, args=(mediaWrapper, targetOffset,))
@@ -179,6 +234,45 @@ class Skipper():
         except:
             raise
 
+    def setVolume(self, mediaWrapper: MediaWrapper, volume: int) -> None:
+        t = Thread(target=self._setVolume, args=(mediaWrapper, volume,))
+        t.start()
+
+    def _setVolume(self, mediaWrapper: MediaWrapper, volume: int) -> None:
+        for player in mediaWrapper.media.players:
+            try:
+                self.setPlayerVolume(player, mediaWrapper, volume)
+            except (ReadTimeout, ReadTimeoutError, timeout):
+                self.log.debug("TimeoutError, removing from cache to prevent false triggers, will be restored with next sync")
+                self.removeSession(mediaWrapper)
+                break
+            except:
+                self.log.exception("Exception, removing from cache to prevent false triggers, will be restored with next sync")
+                self.removeSession(mediaWrapper)
+
+    def setPlayerVolume(self, player: PlexClient, mediaWrapper: MediaWrapper, volume: int) -> bool:
+        if not player:
+            return False
+        try:
+            try:
+                if player.timeline and player.timeline.volume is not None:
+                    previousVolume = player.timeline.volume
+                else:
+                    previousVolume = self.settings.volumehigh if volume == self.settings.volumelow else self.settings.volumelow
+                    self.log.debug("Unable to access timeline data for player %s to cache previous volume value, will restore to %d" % (player.product, previousVolume))
+                self.log.info("Setting %s player volume playing %s from %d to %d" % (player.product, mediaWrapper, previousVolume, volume))
+                mediaWrapper.updateVolume(volume, previousVolume)
+                player.setVolume(volume)
+                return True
+            except ParseError:
+                self.log.debug("ParseError, seems to be certain players but still functional, continuing")
+                return True
+            except BadRequest as br:
+                self.logErrorMessage(br, "BadRequest exception setPlayerVolume")
+                return self.setPlayerVolume(self.recoverPlayer(player), mediaWrapper, volume)
+        except:
+            raise
+
     def recoverPlayer(self, player: PlexClient, protocol: str = "http://") -> PlexClient:
         if player.product in self.PROXY_ONLY:
             self.log.debug("Player %s (%s) does not support direct IP connections, nothing to fall back upon, returning None" % (player.title, player.product))
@@ -207,7 +301,7 @@ class Skipper():
                 media = self.getDataFromSessions(sessionKey)
                 if media and media.session and len(media.session) > 0 and media.session[0].location == 'lan':
                     if sessionKey not in self.media_sessions:
-                        wrapper = MediaWrapper(media, state, self.server, tags=self.settings.tags, custom=self.customEntries, logger=self.log)
+                        wrapper = MediaWrapper(media, state, self.server, tags=self.settings.tags, mode=self.settings.mode, custom=self.customEntries, logger=self.log)
                         if not self.blockedClientUser(wrapper):
                             if self.shouldAdd(wrapper):
                                 self.addSession(sessionKey, wrapper)

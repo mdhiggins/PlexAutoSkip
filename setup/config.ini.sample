@@ -13,6 +13,7 @@ port = 32400
 ignore-certs = False
 
 [Skip]
+mode = skip
 tags = intro, commercial, advertisement
 last-chapter = 0.0
 unwatched = True
@@ -24,3 +25,7 @@ next = False
 start = 3000
 end = 1000
 duration = 0
+
+[Volume]
+low = 0
+high = 100

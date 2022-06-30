@@ -61,6 +61,7 @@ class Settings:
             "ignore-certs": False
         },
         "Skip": {
+            "mode": "skip",
             "tags": "intro, commercial, advertisement",
             "last-chapter": 0.0,
             "unwatched": True,
@@ -72,6 +73,10 @@ class Settings:
             "start": 3000,
             "end": 1000,
             "duration": 0,
+        },
+        "Volume": {
+            "low": 0,
+            "high": 100
         }
     }
 
@@ -89,7 +94,18 @@ class Settings:
             'clients': [],
             'keys': []
         },
-        "clients": {}
+        "clients": {},
+        "mode": {}
+    }
+
+    class MODE_TYPES(Enum):
+        SKIP = 0
+        VOLUME = 1
+
+    MODE_MATCHER = {
+        "skip": MODE_TYPES.SKIP,
+        "volume": MODE_TYPES.VOLUME,
+        "mute": MODE_TYPES.VOLUME
     }
 
     class SKIP_TYPES(Enum):
@@ -269,6 +285,7 @@ class Settings:
 
         self.ignore_certs = config.getboolean("Security", "ignore-certs")
 
+        self.mode = self.MODE_MATCHER.get(config.get("Skip", "mode").lower(), self.MODE_TYPES.SKIP)
         self.tags = config.getlist("Skip", "tags")
         self.skipunwatched = config.getboolean("Skip", "unwatched")
         self.skiplastchapter = config.getfloat("Skip", "last-chapter")
@@ -285,6 +302,15 @@ class Settings:
         self.leftOffset = config.getint("Offsets", "start")
         self.rightOffset = config.getint("Offsets", "end")
         self.durationOffset = config.getint("Offsets", "duration")
+
+        self.volumelow = config.getint("Volume", "low")
+        self.volumehigh = config.getint("Volume", "high")
+
+        for v in [self.volumelow, self.volumehigh]:
+            if v < 0:
+                v = 0
+            if v > 100:
+                v = 100
 
     @staticmethod
     def replaceWithGUIDs(data, server: PlexServer, ratingKeyLookup: dict, logger: logging.Logger = None) -> None:

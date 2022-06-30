@@ -61,8 +61,12 @@ class CustomEntries():
         return self.data.get("clients", {})
 
     @property
+    def mode(self) -> Dict[str, str]:
+        return self.data.get("mode", {})
+
+    @property
     def needsGuidResolution(self) -> bool:
-        return any(str(key).startswith(p) for key in (list(self.markers.keys()) + list(self.offsets.keys()) + list(self.tags.keys()) + self.allowedKeys + self.blockedKeys) for p in self.PREFIXES)
+        return any(str(key).startswith(p) for key in (list(self.markers.keys()) + list(self.offsets.keys()) + list(self.tags.keys()) + list(self.mode.keys()) + self.allowedKeys + self.blockedKeys) for p in self.PREFIXES)
 
     @staticmethod
     def loadGuids(plex: PlexServer, logger: logging.Logger = None) -> dict:
@@ -111,6 +115,13 @@ class CustomEntries():
                 self.blockedKeys.remove(k)
             else:
                 self.log.error("Unable to resolve GUID %s to ratingKey in custom blockedKeys" % (k))
+        for k in [x for x in list(self.mode.keys()) if CustomEntries.keyIsGuid(x)]:
+            ratingKey = CustomEntries.resolveGuidToKey(k, guidLookup)
+            if str(ratingKey) != str(k):
+                self.log.debug("Resolving custom offsets GUID %s to ratingKey %s" % (k, ratingKey))
+                self.mode[str(ratingKey)] = self.mode.pop(k)
+            else:
+                self.log.error("Unable to resolve GUID %s to ratingKey in custom mode" % (k))
 
     @staticmethod
     def loadRatingKeys(server: PlexServer, logger: logging.Logger = None) -> dict:
@@ -165,6 +176,13 @@ class CustomEntries():
                 self.blockedKeys.remove(k)
             else:
                 self.log.error("Unable to resolve ratingKey %s to GUID in custom blockedKeys" % (k))
+        for k in [x for x in list(self.mode.keys()) if not CustomEntries.keyIsGuid(x)]:
+            guid = CustomEntries.resolveKeyToGuid(k, ratingKeyLookup)
+            if str(guid) != str(k):
+                self.log.debug("Resolving custom offset ratingKey %s to GUID %s" % (k, guid))
+                self.mode[guid] = self.mode.pop(k)
+            else:
+                self.log.error("Unable to resolve ratingKey %s to GUID in custom mode" % (k))
 
     @staticmethod
     def keyIsGuid(key: str) -> bool:

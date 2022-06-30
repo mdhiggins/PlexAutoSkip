@@ -5,6 +5,7 @@ from plexapi.video import Episode, Movie
 from plexapi.server import PlexServer
 from plexapi.media import Marker, Chapter
 from resources.customEntries import CustomEntries
+from resources.settings import Settings
 from resources.log import getLogger
 from typing import TypeVar, List
 
@@ -56,7 +57,7 @@ class CustomMarker():
 
 
 class MediaWrapper():
-    def __init__(self, media: Media, state: str, server: PlexServer, tags: List[str] = [], custom: CustomEntries = None, logger: logging.Logger = None) -> None:
+    def __init__(self, media: Media, state: str, server: PlexServer, tags: List[str] = [], mode: Settings.MODE_TYPES = Settings.MODE_TYPES.SKIP, custom: CustomEntries = None, logger: logging.Logger = None) -> None:
         self._viewOffset: int = media.viewOffset
         self.media: Media = media
         self.state: str = state
@@ -83,6 +84,10 @@ class MediaWrapper():
         self.customMarkers = []
         self.markers = []
         self.chapters = []
+
+        self.mode = mode
+
+        self.previousVolume = 0
 
         for p in self.media.players:
             if custom and p.title in custom.clients:
@@ -114,6 +119,8 @@ class MediaWrapper():
                     self.rightOffset = custom.offsets[str(self.media.grandparentRatingKey)].get(ENDKEY, self.rightOffset)
                 if str(self.media.grandparentRatingKey) in custom.tags:
                     self.tags = custom.tags[str(self.media.grandparentRatingKey)]
+                if str(self.media.grandparentRatingKey) in custom.mode:
+                    self.mode = Settings.MODE_MATCHER.get(custom.mode[str(self.media.grandparentRatingKey)], self.mode)
 
             if hasattr(self.media, "parentRatingKey"):
                 if str(self.media.parentRatingKey) in custom.markers:
@@ -134,6 +141,8 @@ class MediaWrapper():
                     self.rightOffset = custom.offsets[str(self.media.parentRatingKey)].get(ENDKEY, self.rightOffset)
                 if str(self.media.parentRatingKey) in custom.tags:
                     self.tags = custom.tags[str(self.media.parentRatingKey)]
+                if str(self.media.parentRatingKey) in custom.mode:
+                    self.mode = Settings.MODE_MATCHER.get(custom.mode[str(self.media.parentRatingKey)], self.mode)
 
             if str(self.media.ratingKey) in custom.markers:
                 filtered = [x for x in self.customMarkers if x.cascade]
@@ -153,6 +162,8 @@ class MediaWrapper():
                 self.rightOffset = custom.offsets[str(self.media.ratingKey)].get(ENDKEY, self.rightOffset)
             if str(self.media.ratingKey) in custom.tags:
                 self.tags = custom.tags[str(self.media.ratingKey)]
+            if str(self.media.ratingKey) in custom.mode:
+                self.mode = Settings.MODE_MATCHER.get(custom.mode[str(self.media.ratingKey)], self.mode)
 
             self.tags = [x.lower() for x in self.tags]
 
@@ -162,6 +173,8 @@ class MediaWrapper():
                 self.log.debug("Custom end offset value of %d found for %s" % (self.rightOffset, self))
             if self.tags != tags:
                 self.log.debug("Custom tags value of %s found for %s" % (self.tags, self))
+            if self.mode != mode:
+                self.log.debug("Custom mode value of %s found for %s" % (self.mode, self))
 
         if hasattr(self.media, 'markers') and not self.customOnly:
             self.markers = [x for x in self.media.markers if x.type and x.type.lower() in self.tags]
@@ -214,3 +227,7 @@ class MediaWrapper():
         self.lastUpdate = datetime.now()
         self.state = state or self.state
         return True
+
+    def updateVolume(self, volume: int, previousVolume) -> bool:
+        self.previousVolume = previousVolume
+        return volume != previousVolume
