@@ -165,6 +165,10 @@ class MediaWrapper():
             if str(self.media.ratingKey) in custom.mode:
                 self.mode = Settings.MODE_MATCHER.get(custom.mode[str(self.media.ratingKey)], self.mode)
 
+            for player in self.media.players:
+                if player.title and player.title in custom.mode:
+                    self.mode = Settings.MODE_MATCHER.get(custom.mode[player.title], self.mode)
+
             self.tags = [x.lower() for x in self.tags]
 
             if self.leftOffset:
