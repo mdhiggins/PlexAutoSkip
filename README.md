@@ -15,7 +15,7 @@ Features
   - Chapters
     - Advertisements
 - Only skip for watched content
-- Ignore series and season premieres
+- Ignore skipping series and season premieres
 - Skip last chapter (credits)
 - Bypass the "Up Next" screen
 - Custom Definitions
@@ -23,6 +23,9 @@ Features
   - Filter clients/users
   - Export and audit Plex markers to make corrections / fill in gaps
   - Bulk edit marker timing
+  - Negative value offsets to skip relative to content end
+- Mute or lower volume instead of skipping
+  - Client must support Plex setVolume API call
 - Docker
 
 
