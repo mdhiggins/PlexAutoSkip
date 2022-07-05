@@ -98,10 +98,14 @@ class Skipper():
             self.start(sslopt)
 
     def checkMedia(self, mediaWrapper: MediaWrapper) -> None:
-        if mediaWrapper.mode == Settings.MODE_TYPES.SKIP:
-            self.checkMediaSkip(mediaWrapper)
-        elif mediaWrapper.mode == Settings.MODE_TYPES.VOLUME:
-            self.checkMediaVolume(mediaWrapper)
+        if mediaWrapper.seeking:
+            return
+
+        leftOffset = mediaWrapper.leftOffset or self.settings.leftOffset
+        rightOffset = mediaWrapper.rightOffset or self.settings.rightOffset
+
+        self.checkMediaSkip(mediaWrapper, leftOffset, rightOffset)
+        self.checkMediaVolume(mediaWrapper, leftOffset, rightOffset)
 
         if self.settings.skipnext and (mediaWrapper.viewOffset >= (mediaWrapper.media.duration - self.settings.durationOffset)):
             self.log.info("Found %s media that has reached the end of its playback with viewOffset %d and duration %d with skip-next enabled, will skip to next" % (mediaWrapper, mediaWrapper.viewOffset, mediaWrapper.media.duration))
@@ -111,15 +115,16 @@ class Skipper():
             self.log.debug("Session %s hasn't been updated in %d seconds" % (mediaWrapper, self.TIMEOUT))
             self.removeSession(mediaWrapper)
 
-    def checkMediaSkip(self, mediaWrapper: MediaWrapper) -> None:
-        if mediaWrapper.seeking:
-            return
-
-        for marker in mediaWrapper.customMarkers:
-            if (marker.start) <= mediaWrapper.viewOffset <= marker.end:
+    def checkMediaSkip(self, mediaWrapper: MediaWrapper, leftOffset: int, rightOffset: int) -> None:
+        skipMarkers = [m for m in mediaWrapper.customMarkers if m.mode == Settings.MODE_TYPES.SKIP]
+        for marker in skipMarkers:
+            if marker.start <= mediaWrapper.viewOffset <= marker.end:
                 self.log.info("Found a custom marker for media %s with range %d-%d and viewOffset %d (%d)" % (mediaWrapper, marker.start, marker.end, mediaWrapper.viewOffset, marker.key))
                 self.seekTo(mediaWrapper, marker.end)
                 return
+
+        if mediaWrapper.mode != Settings.MODE_TYPES.SKIP:
+            return
 
         if self.settings.skiplastchapter and mediaWrapper.lastchapter and (mediaWrapper.lastchapter.start / mediaWrapper.media.duration) > self.settings.skiplastchapter:
             if mediaWrapper.lastchapter and mediaWrapper.lastchapter.start <= mediaWrapper.viewOffset <= mediaWrapper.lastchapter.end:
@@ -133,61 +138,48 @@ class Skipper():
                 self.seekTo(mediaWrapper, chapter.end)
                 return
 
-        leftOffset = mediaWrapper.leftOffset or self.settings.leftOffset
-        rightOffset = mediaWrapper.rightOffset or self.settings.rightOffset
-
         for marker in mediaWrapper.markers:
             if (marker.start + leftOffset) <= mediaWrapper.viewOffset <= marker.end:
                 self.log.info("Found skippable marker %s for media %s with range %d-%d and viewOffset %d" % (marker.type, mediaWrapper, marker.start + leftOffset, marker.end + rightOffset, mediaWrapper.viewOffset))
                 self.seekTo(mediaWrapper, marker.end + rightOffset)
                 return
 
-    def checkMediaVolume(self, mediaWrapper: MediaWrapper) -> None:
-        leftOffset = mediaWrapper.leftOffset or self.settings.leftOffset
-        rightOffset = mediaWrapper.rightOffset or self.settings.rightOffset
+    def checkMediaVolume(self, mediaWrapper: MediaWrapper, leftOffset: int, rightOffset: int) -> None:
+        shouldLower = self.shouldLowerMediaVolume(mediaWrapper, leftOffset, rightOffset)
+        if not mediaWrapper.loweringVolume and shouldLower:
+            self.log.info("Moving from normal volume to low volume viewOffset %d which is a low volume area for media %s, lowering volume to %d" % (mediaWrapper.viewOffset, mediaWrapper, self.settings.volumelow))
+            self.setVolume(mediaWrapper, self.settings.volumelow, shouldLower)
+            return
+        elif mediaWrapper.loweringVolume and not shouldLower:
+            self.log.info("Moving from lower volume to normal volume viewOffset %d for media %s, raising volume to %d" % (mediaWrapper.viewOffset, mediaWrapper, mediaWrapper.cachedVolume))
+            self.setVolume(mediaWrapper, mediaWrapper.cachedVolume, shouldLower)
+            return
 
-        if mediaWrapper.previousVolume:
-            for marker in mediaWrapper.customMarkers:
-                if mediaWrapper.viewOffset > marker.end:
-                    self.log.info("Passed a custom marker for media %s with range %d-%d and viewOffset %d, restoring volume (%d)" % (mediaWrapper, marker.start, marker.end, mediaWrapper.viewOffset, marker.key))
-                    self.setVolume(mediaWrapper, mediaWrapper.previousVolume)
-                    return
+    def shouldLowerMediaVolume(self, mediaWrapper: MediaWrapper, leftOffset: int, rightOffset: int) -> bool:
+        customVolumeMarkers = [m for m in mediaWrapper.customMarkers if m.mode == Settings.MODE_TYPES.VOLUME]
+        for marker in customVolumeMarkers:
+            if marker.start <= mediaWrapper.viewOffset <= marker.end:
+                self.log.debug("Inside a custom marker for media %s with range %d-%d and viewOffset %d (%d), volume should be low" % (mediaWrapper, marker.start, marker.end, mediaWrapper.viewOffset, marker.key))
+                return True
 
-            for chapter in mediaWrapper.chapters:
-                if mediaWrapper.viewOffset > chapter.end:
-                    self.log.info("Passed a skippable chapter %s for media %s with range %d-%d and viewOffset %d, restoring volume" % (chapter.title, mediaWrapper, chapter.start, chapter.end, mediaWrapper.viewOffset))
-                    self.setVolume(mediaWrapper, mediaWrapper.previousVolume)
-                    return
+        if mediaWrapper.mode != Settings.MODE_TYPES.VOLUME:
+            return False
 
-            for marker in mediaWrapper.markers:
-                if mediaWrapper.viewOffset > marker.end + rightOffset:
-                    self.log.info("Passed a skippable marker %s for media %s with range %d-%d and viewOffset %d, restoring volume" % (marker.type, mediaWrapper, marker.start + leftOffset, marker.end + rightOffset, mediaWrapper.viewOffset))
-                    self.setVolume(mediaWrapper, mediaWrapper.previousVolume)
-                    return
-        else:
-            for marker in mediaWrapper.customMarkers:
-                if (marker.start) <= mediaWrapper.viewOffset <= marker.end:
-                    self.log.info("Found a custom marker for media %s with range %d-%d and viewOffset %d (%d), lowering volume" % (mediaWrapper, marker.start, marker.end, mediaWrapper.viewOffset, marker.key))
-                    self.setVolume(mediaWrapper, self.settings.volumelow)
-                    return
+        if self.settings.skiplastchapter and mediaWrapper.lastchapter and (mediaWrapper.lastchapter.start / mediaWrapper.media.duration) > self.settings.skiplastchapter:
+            if mediaWrapper.lastchapter and mediaWrapper.lastchapter.start <= mediaWrapper.viewOffset <= mediaWrapper.lastchapter.end:
+                self.log.debug("Inside a valid last chapter for media %s with range %d-%d and viewOffset %d with skip-last-chapter enabled, volume should be low" % (mediaWrapper, mediaWrapper.lastchapter.start, mediaWrapper.lastchapter.end, mediaWrapper.viewOffset))
+                return True
 
-            if self.settings.skiplastchapter and mediaWrapper.lastchapter and (mediaWrapper.lastchapter.start / mediaWrapper.media.duration) > self.settings.skiplastchapter:
-                if mediaWrapper.lastchapter and mediaWrapper.lastchapter.start <= mediaWrapper.viewOffset <= mediaWrapper.lastchapter.end:
-                    self.log.info("Found a valid last chapter for media %s with range %d-%d and viewOffset %d with skip-last-chapter enabled, lowering volume" % (mediaWrapper, mediaWrapper.lastchapter.start, mediaWrapper.lastchapter.end, mediaWrapper.viewOffset))
-                    self.setVolume(mediaWrapper, self.settings.volumelow)
-                    return
+        for chapter in mediaWrapper.chapters:
+            if chapter.start <= mediaWrapper.viewOffset <= chapter.end:
+                self.log.debug("Inside chapter %s for media %s with range %d-%d and viewOffset %d, volume should be low" % (chapter.title, mediaWrapper, chapter.start, chapter.end, mediaWrapper.viewOffset))
+                return True
 
-            for chapter in mediaWrapper.chapters:
-                if chapter.start <= mediaWrapper.viewOffset <= chapter.end:
-                    self.log.info("Found mutable chapter %s for media %s with range %d-%d and viewOffset %d, lowering volume" % (chapter.title, mediaWrapper, chapter.start, chapter.end, mediaWrapper.viewOffset))
-                    self.setVolume(mediaWrapper, self.settings.volumelow)
-                    return
-
-            for marker in mediaWrapper.markers:
-                if (marker.start + leftOffset) <= mediaWrapper.viewOffset <= marker.end:
-                    self.log.info("Found mutable marker %s for media %s with range %d-%d and viewOffset %d, lowering volume" % (marker.type, mediaWrapper, marker.start + leftOffset, marker.end, mediaWrapper.viewOffset))
-                    self.setVolume(mediaWrapper, self.settings.volumelow)
-                    return
+        for marker in mediaWrapper.markers:
+            if (marker.start + leftOffset) <= mediaWrapper.viewOffset <= (marker.end + rightOffset):
+                self.log.debug("Inside marker %s for media %s with range %d-%d and viewOffset %d, volume should be low" % (marker.type, mediaWrapper, marker.start + leftOffset, marker.end, mediaWrapper.viewOffset))
+                return True
+        return False
 
     def seekTo(self, mediaWrapper: MediaWrapper, targetOffset: int) -> None:
         t = Thread(target=self._seekTo, args=(mediaWrapper, targetOffset,))
@@ -234,14 +226,14 @@ class Skipper():
         except:
             raise
 
-    def setVolume(self, mediaWrapper: MediaWrapper, volume: int) -> None:
-        t = Thread(target=self._setVolume, args=(mediaWrapper, volume,))
+    def setVolume(self, mediaWrapper: MediaWrapper, volume: int, lowering: bool) -> None:
+        t = Thread(target=self._setVolume, args=(mediaWrapper, volume, lowering))
         t.start()
 
-    def _setVolume(self, mediaWrapper: MediaWrapper, volume: int) -> None:
+    def _setVolume(self, mediaWrapper: MediaWrapper, volume: int, lowering: bool) -> None:
         for player in mediaWrapper.media.players:
             try:
-                self.setPlayerVolume(player, mediaWrapper, volume)
+                self.setPlayerVolume(player, mediaWrapper, volume, lowering)
             except (ReadTimeout, ReadTimeoutError, timeout):
                 self.log.debug("TimeoutError, removing from cache to prevent false triggers, will be restored with next sync")
                 self.removeSession(mediaWrapper)
@@ -250,18 +242,18 @@ class Skipper():
                 self.log.exception("Exception, removing from cache to prevent false triggers, will be restored with next sync")
                 self.removeSession(mediaWrapper)
 
-    def setPlayerVolume(self, player: PlexClient, mediaWrapper: MediaWrapper, volume: int) -> bool:
+    def setPlayerVolume(self, player: PlexClient, mediaWrapper: MediaWrapper, volume: int, lowering: bool) -> bool:
         if not player:
             return False
         try:
             try:
+                previousVolume = self.settings.volumehigh if lowering else self.settings.volumelow
                 if player.timeline and player.timeline.volume is not None:
                     previousVolume = player.timeline.volume
                 else:
-                    previousVolume = self.settings.volumehigh if volume == self.settings.volumelow else self.settings.volumelow
                     self.log.debug("Unable to access timeline data for player %s to cache previous volume value, will restore to %d" % (player.product, previousVolume))
                 self.log.info("Setting %s player volume playing %s from %d to %d" % (player.product, mediaWrapper, previousVolume, volume))
-                mediaWrapper.updateVolume(volume, previousVolume)
+                mediaWrapper.updateVolume(volume, previousVolume, lowering)
                 player.setVolume(volume)
                 return True
             except ParseError:

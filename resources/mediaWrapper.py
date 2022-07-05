@@ -1,5 +1,4 @@
 import logging
-from distutils.util import strtobool
 from datetime import datetime
 from plexapi.video import Episode, Movie
 from plexapi.server import PlexServer
@@ -16,21 +15,36 @@ STARTKEY = "start"
 ENDKEY = "end"
 PLAYINGKEY = "playing"
 CASCADEKEY = "cascade"
+MODEKEY = "mode"
+
+
+def strtobool(val):
+    val = val.lower()
+    if val in ('y', 'yes', 't', 'true', 'on', '1'):
+        return True
+    elif val in ('n', 'no', 'f', 'false', 'off', '0'):
+        return False
+    else:
+        raise ValueError("Invalid truth value %r" % (val,))
 
 
 class CustomMarker():
     class CustomMarkerException(Exception):
         pass
 
-    def __init__(self, data: dict, key: str, duration: int) -> None:
+    def __init__(self, data: dict, key: str, duration: int, parentMode: Settings.MODE_TYPES = Settings.MODE_TYPES.SKIP) -> None:
         if STARTKEY not in data or ENDKEY not in data:
             raise self.CustomMarkerException
-        self._start = data[STARTKEY]
-        self._end = data[ENDKEY]
+        try:
+            self._start = int(data[STARTKEY])
+            self._end = int(data[ENDKEY])
+            self.cascade = data.get(CASCADEKEY, False)
+            if isinstance(self.cascade, str):
+                self.cascade = bool(strtobool(self.cascade))
+        except ValueError:
+            raise self.CustomMarkerException
+        self.mode = Settings.MODE_MATCHER.get(data.get(MODEKEY, "").lower(), parentMode)
         self.duration = duration
-        self.cascade = data.get(CASCADEKEY, False)
-        if isinstance(self.cascade, str):
-            self.cascade = bool(strtobool(self.cascade))
         self.key = key
 
     def safeRange(self, target) -> int:
@@ -85,9 +99,10 @@ class MediaWrapper():
         self.markers = []
         self.chapters = []
 
-        self.mode = mode
+        self.mode: Settings.MODE_TYPES = mode
 
-        self.previousVolume = 0
+        self.cachedVolume: int = 0
+        self.loweringVolume: bool = False
 
         for p in self.media.players:
             if custom and p.title in custom.clients:
@@ -108,7 +123,7 @@ class MediaWrapper():
                 if str(self.media.grandparentRatingKey) in custom.markers:
                     for markerdata in custom.markers[str(self.media.grandparentRatingKey)]:
                         try:
-                            cm = CustomMarker(markerdata, self.media.grandparentRatingKey, media.duration)
+                            cm = CustomMarker(markerdata, self.media.grandparentRatingKey, media.duration, mode)
                             if cm not in self.customMarkers:
                                 self.log.debug("Found custom marker range %s entry for %s (grandparentRatingKey match)" % (cm, self))
                                 self.customMarkers.append(cm)
@@ -130,7 +145,7 @@ class MediaWrapper():
                         self.customMarkers = filtered
                     for markerdata in custom.markers[str(self.media.parentRatingKey)]:
                         try:
-                            cm = CustomMarker(markerdata, self.media.parentRatingKey, media.duration)
+                            cm = CustomMarker(markerdata, self.media.parentRatingKey, media.duration, mode)
                             if cm not in self.customMarkers:
                                 self.log.debug("Found custom marker range %s entry for %s (parentRatingKey match)" % (cm, self))
                                 self.customMarkers.append(cm)
@@ -151,7 +166,7 @@ class MediaWrapper():
                     self.customMarkers = filtered
                 for markerdata in custom.markers[str(self.media.ratingKey)]:
                     try:
-                        cm = CustomMarker(markerdata, self.media.ratingKey, media.duration)
+                        cm = CustomMarker(markerdata, self.media.ratingKey, media.duration, mode)
                         if cm not in self.customMarkers:
                             self.log.debug("Found custom marker range %s entry for %s" % (cm, self))
                             self.customMarkers.append(cm)
@@ -232,6 +247,7 @@ class MediaWrapper():
         self.state = state or self.state
         return True
 
-    def updateVolume(self, volume: int, previousVolume) -> bool:
-        self.previousVolume = previousVolume
+    def updateVolume(self, volume: int, previousVolume: int, lowering: bool) -> bool:
+        self.cachedVolume = previousVolume
+        self.loweringVolume = lowering
         return volume != previousVolume
