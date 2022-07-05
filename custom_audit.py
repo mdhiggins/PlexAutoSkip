@@ -35,7 +35,10 @@ NEEDS_SERVER = ['write_guids', 'write_ratingkeys', 'dump_guids', 'dump_ratingkey
 def processData(data, server: PlexServer = None, ratingKeyLookup: dict = None, guidLookup: dict = None) -> dict:
     markers = data.get("markers")
     for k in markers:
-        for m in markers[k]:
+        marker = markers[k]
+        if isinstance(marker, dict):
+            marker = [marker]
+        for m in marker:
             diff = m['end'] - m['start']
             if args["offset"]:
                 log.info("Adjusting start offset by %d for %d" % (args["offset"], m['start']))
@@ -73,7 +76,7 @@ def processFile(path, server: PlexServer = None, ratingKeyLookup: dict = None, g
         data = {}
         with open(path, encoding='utf-8') as f:
             data = json.load(f)
-        log.info("Reading file %s" % (path))
+        log.info("Accessing file %s" % (path))
         data = processData(data, server, ratingKeyLookup, guidLookup)
         Settings.writeCustom(data, path, log)
 
@@ -111,8 +114,8 @@ def dumpMarkers(media: ComplexMedia, settings: Settings, useGuid: bool = False) 
     return data
 
 
-def dumpMarkersFromRatingKey(ratingKey: str, ratingKeyLookup: dict, settings: Settings, useGuid: bool) -> dict:
-    return dumpMarkers(ratingKeyLookup[ratingKey], settings, useGuid)
+def dumpMarkersFromRatingKey(ratingKey: int, ratingKeyLookup: dict, settings: Settings, useGuid: bool) -> dict:
+    return dumpMarkers(ratingKeyLookup[int(ratingKey)], settings, useGuid)
 
 
 def dumpMarkersFromGuid(guid: str, guidLookup: dict, settings: Settings, useGuid: bool) -> dict:
