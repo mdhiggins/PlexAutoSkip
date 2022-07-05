@@ -32,6 +32,9 @@ class CustomMarker():
     class CustomMarkerException(Exception):
         pass
 
+    class CustomMarkerDurationException(Exception):
+        pass
+
     def __init__(self, data: dict, key: str, duration: int, parentMode: Settings.MODE_TYPES = Settings.MODE_TYPES.SKIP) -> None:
         if STARTKEY not in data or ENDKEY not in data:
             raise self.CustomMarkerException
@@ -47,10 +50,13 @@ class CustomMarker():
         self.duration = duration
         self.key = key
 
+        if not duration and (self._start < 0 or self._end < 0):
+            raise self.CustomMarkerDurationException
+
     def safeRange(self, target) -> int:
         if target < 0:
             return 0
-        if target > self.duration:
+        if self.duration and target > self.duration:
             return self.duration
         return target
 
@@ -129,6 +135,8 @@ class MediaWrapper():
                                 self.customMarkers.append(cm)
                         except CustomMarker.CustomMarkerException:
                             self.log.error("Invalid CustomMarker data for grandparentRatingKey %s" % (self.media.grandparentRatingKey))
+                        except CustomMarker.CustomMarkerDurationException:
+                            self.log.error("Invalid CustomMarker data for grandparentRatingKey %s, negative value start/end but API not reporting duration" % (self.media.grandparentRatingKey))
                 if str(self.media.grandparentRatingKey) in custom.offsets:
                     self.leftOffset = custom.offsets[str(self.media.grandparentRatingKey)].get(STARTKEY, self.leftOffset)
                     self.rightOffset = custom.offsets[str(self.media.grandparentRatingKey)].get(ENDKEY, self.rightOffset)
@@ -151,6 +159,8 @@ class MediaWrapper():
                                 self.customMarkers.append(cm)
                         except CustomMarker.CustomMarkerException:
                             self.log.error("Invalid CustomMarker data for parentRatingKey %s" % (self.media.parentRatingKey))
+                        except CustomMarker.CustomMarkerDurationException:
+                            self.log.error("Invalid CustomMarker data for parentRatingKey %s, negative value start/end but API not reporting duration" % (self.media.parentRatingKey))
                 if str(self.media.parentRatingKey) in custom.offsets:
                     self.leftOffset = custom.offsets[str(self.media.parentRatingKey)].get(STARTKEY, self.leftOffset)
                     self.rightOffset = custom.offsets[str(self.media.parentRatingKey)].get(ENDKEY, self.rightOffset)
@@ -172,6 +182,8 @@ class MediaWrapper():
                             self.customMarkers.append(cm)
                     except CustomMarker.CustomMarkerException:
                         self.log.error("Invalid CustomMarker data for ratingKey %s" % (self.media.ratingKey))
+                    except CustomMarker.CustomMarkerDurationException:
+                        self.log.error("Invalid CustomMarker data for ratingKey %s, negative value start/end but API not reporting duration" % (self.media.ratingKey))
             if str(self.media.ratingKey) in custom.offsets:
                 self.leftOffset = custom.offsets[str(self.media.ratingKey)].get(STARTKEY, self.leftOffset)
                 self.rightOffset = custom.offsets[str(self.media.ratingKey)].get(ENDKEY, self.rightOffset)
@@ -225,7 +237,7 @@ class MediaWrapper():
         if self.state != PLAYINGKEY:
             return self._viewOffset
         vo = self._viewOffset + round((datetime.now() - self.lastUpdate).total_seconds() * 1000)
-        return vo if vo <= self.media.duration else self.media.duration
+        return vo if vo <= (self.duration or vo) else self.duration
 
     def updateOffset(self, offset: int, seeking: bool, state: str = None) -> bool:
         if self.seeking and not seeking and offset < self.seekTarget:
