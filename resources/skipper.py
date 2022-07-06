@@ -261,7 +261,7 @@ class Skipper():
                 return True
             except BadRequest as br:
                 self.logErrorMessage(br, "BadRequest exception setPlayerVolume")
-                return self.setPlayerVolume(self.recoverPlayer(player), mediaWrapper, volume)
+                return self.setPlayerVolume(self.recoverPlayer(player), mediaWrapper, volume, lowering)
         except:
             raise
 
@@ -273,8 +273,7 @@ class Skipper():
         if not player._proxyThroughServer:
             self.log.debug("Player %s (%s) is already not proxying through server, no fallback options left" % (player.title, player.product))
             return None
-
-        port = self.CLIENT_PORTS.get(player.product, self.DEFAULT_CLIENT_PORT)
+        port = int(self.server._myPlexClientPorts().get(player.machineIdentifier, self.CLIENT_PORTS.get(player.product, self.DEFAULT_CLIENT_PORT)))
         baseurl = "%s%s:%d" % (protocol, player.address, port)
         self.log.debug("Modifying client for direct connection using baseURL %s for player %s (%s)" % (baseurl, player.title, player._baseurl))
         player._baseurl = baseurl
