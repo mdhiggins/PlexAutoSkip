@@ -338,6 +338,14 @@ class Skipper():
     def shouldAdd(self, mediaWrapper: MediaWrapper) -> bool:
         media = mediaWrapper.media
 
+        if mediaWrapper.media.type not in self.settings.types:
+            self.log.debug("Blocking %s of type %s as its not on the approved type list %s" % (mediaWrapper, media.type, self.settings.types))
+            return False
+
+        if media.librarySectionTitle and media.librarySectionTitle.lower() in self.settings.ignoredlibraries:
+            self.log.debug("Blocking %s in library %s as its library is on the ignored list %s" % (mediaWrapper, media.librarySectionTitle, self.settings.ignoredlibraries))
+            return False
+
         # First episodes
         if hasattr(media, "episodeNumber"):
             if media.episodeNumber == 1:

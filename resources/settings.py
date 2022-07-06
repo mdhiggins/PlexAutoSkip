@@ -63,6 +63,8 @@ class Settings:
         "Skip": {
             "mode": "skip",
             "tags": "intro, commercial, advertisement",
+            "types": "movie, episode",
+            "ignored-libraries": "",
             "last-chapter": 0.0,
             "unwatched": True,
             "first-episode-series": "Watched",
@@ -287,6 +289,8 @@ class Settings:
 
         self.mode = self.MODE_MATCHER.get(config.get("Skip", "mode").lower(), self.MODE_TYPES.SKIP)
         self.tags = config.getlist("Skip", "tags")
+        self.types = config.getlist("Skip", "types")
+        self.ignoredlibraries = config.getlist("Skip", "ignored-libraries", replace=[])
         self.skipunwatched = config.getboolean("Skip", "unwatched")
         self.skiplastchapter = config.getfloat("Skip", "last-chapter")
         try:
