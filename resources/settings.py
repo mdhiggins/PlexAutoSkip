@@ -89,12 +89,14 @@ class Settings:
         "allowed": {
             'users': [],
             'clients': [],
-            'keys': []
+            'keys': [],
+            'skip-next': []
         },
         "blocked": {
             'users': [],
             'clients': [],
-            'keys': []
+            'keys': [],
+            'skip-next': []
         },
         "clients": {},
         "mode": {}

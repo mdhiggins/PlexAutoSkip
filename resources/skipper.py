@@ -107,7 +107,7 @@ class Skipper():
         self.checkMediaSkip(mediaWrapper, leftOffset, rightOffset)
         self.checkMediaVolume(mediaWrapper, leftOffset, rightOffset)
 
-        if self.settings.skipnext and (mediaWrapper.viewOffset >= (mediaWrapper.media.duration - self.settings.durationOffset)):
+        if (mediaWrapper.viewOffset >= (mediaWrapper.media.duration - self.settings.durationOffset)) and self.shouldSkipNext(mediaWrapper):
             self.log.info("Found %s media that has reached the end of its playback with viewOffset %d and duration %d with skip-next enabled, will skip to next" % (mediaWrapper, mediaWrapper.viewOffset, mediaWrapper.media.duration))
             self.seekTo(mediaWrapper, mediaWrapper.media.duration)
 
@@ -334,6 +334,19 @@ class Skipper():
             self.log.debug("Blocking %s based on blocked player in %s" % (mediaWrapper, [p.title for p in media.players]))
             return True
         return False
+
+    def shouldSkipNext(self, mediaWrapper: MediaWrapper) -> bool:
+        media = mediaWrapper.media
+
+        if self.customEntries.allowedSkipNext and not any(player for player in media.players if player.title in self.customEntries.allowedSkipNext):
+            self.log.debug("Blocking skip-next %s based on no allowed player in %s" % (mediaWrapper, [p.title for p in media.players]))
+            return False
+
+        if self.customEntries.blockedSkipNext and any(player for player in media.players if player.title in self.customEntries.blockedSkipNext):
+            self.log.debug("Blocking skip-next %s based on blocked player in %s" % (mediaWrapper, [p.title for p in media.players]))
+            return False
+
+        return self.settings.skipnext
 
     def shouldAdd(self, mediaWrapper: MediaWrapper) -> bool:
         media = mediaWrapper.media

@@ -41,6 +41,10 @@ class CustomEntries():
         return self.allowed.get("keys", [])
 
     @property
+    def allowedSkipNext(self) -> List[int]:
+        return self.allowed.get("skip-next", [])
+
+    @property
     def blocked(self) -> List[dict]:
         return self.data.get("blocked", {})
 
@@ -55,6 +59,10 @@ class CustomEntries():
     @property
     def blockedKeys(self) -> List[int]:
         return self.blocked.get("keys", [])
+
+    @property
+    def blockedSkipNext(self) -> List[int]:
+        return self.blocked.get("skip-next", [])
 
     @property
     def clients(self) -> Dict[str, str]:
