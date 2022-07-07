@@ -247,7 +247,7 @@ class MediaWrapper():
                 self.log.debug("Skipping update session %s is actively seeking" % (self))
                 return False
         if not seeking:
-            self.log.debug("Updating session %s viewOffset %d, old %d, diff %d (%ds since last update)" % (self, offset, self.viewOffset, (offset - self.viewOffset), (datetime.now() - self.lastUpdate).total_seconds()))
+            self.log.debug("Updating session %s viewOffset %d, old %d, diff %dms (%ds since last update)" % (self, offset, self.viewOffset, (offset - self.viewOffset), (datetime.now() - self.lastUpdate).total_seconds()))
         if self.seeking and not seeking and offset >= self.seekTarget:
             self.log.debug("Recent seek successful, server offset update %d meets/exceeds target %d, setting seeking to %s" % (offset, self.seekTarget, seeking))
 
