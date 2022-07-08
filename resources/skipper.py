@@ -17,6 +17,7 @@ from plexapi.server import PlexServer
 from plexapi.playqueue import PlayQueue
 from threading import Thread
 from typing import Dict, List
+from pkg_resources import parse_version
 
 
 class Skipper():
@@ -34,10 +35,20 @@ class Skipper():
         "Plex for Windows": 32700,
         "Plex for Mac": 32700
     }
+
+    # :( </3
+    BROKEN_CLIENTS = {
+        "Plex Web": "4.83.2",
+        "Plex for Windows": "1.46.1",
+        "Plex for Mac": "1.46.1",
+        "Plex for Linux": "1.46.1"
+    }
+
     PROXY_ONLY = [
         "Plex Web",
         "Plex for Windows",
-        "Plex for Mac"
+        "Plex for Mac",
+        "Plex for Linux"
     ]
     DEFAULT_CLIENT_PORT = 32500
 
@@ -265,6 +276,13 @@ class Skipper():
         except:
             raise
 
+    def validPlayer(self, player: PlexClient) -> bool:
+        bad = self.BROKEN_CLIENTS.get(player.product)
+        if bad and player.version and parse_version(player.version) >= parse_version(bad):
+            self.log.error("Bad %s version %s due to Plex team removing 'Advertise as Player/Plex Companion' functionality. Please visit %s#notice to review this issue and voice your support on the Plex forums for this feature to be restored" % (player.product, player.version, self.TROUBLESHOOT_URL))
+            return False
+        return True
+
     def recoverPlayer(self, player: PlexClient, protocol: str = "http://") -> PlexClient:
         if player.product in self.PROXY_ONLY:
             self.log.debug("Player %s (%s) does not support direct IP connections, nothing to fall back upon, returning None" % (player.title, player.product))
@@ -409,7 +427,7 @@ class Skipper():
         return True
 
     def addSession(self, sessionKey: str, mediaWrapper: MediaWrapper) -> None:
-        if mediaWrapper.media.players:
+        if [p for p in mediaWrapper.media.players if self.validPlayer(p)]:
             if mediaWrapper.customOnly:
                 self.log.info("Found blocked session %s viewOffset %d %s, using custom markers only, sessions: %d" % (mediaWrapper, mediaWrapper.media.viewOffset, mediaWrapper.media.usernames, len(self.media_sessions)))
             else:
