@@ -214,7 +214,14 @@ class Skipper():
                 self.log.info("Seeking %s player playing %s from %d to %d" % (player.product, mediaWrapper, mediaWrapper.viewOffset, targetOffset))
                 mediaWrapper.updateOffset(targetOffset, seeking=True)
                 if self.settings.skipnext and targetOffset == mediaWrapper.media.duration:
-                    pq = PlayQueue.get(self.server, mediaWrapper.playQueueID)
+                    try:
+                        pq = PlayQueue.get(self.server, mediaWrapper.playQueueID)
+                    except KeyboardInterrupt:
+                        raise
+                    except Exception as e:
+                        pq = None
+                        self.log.debug("Exception trying to get PlayQueue")
+                        self.log.debug(e)
                     if pq and pq.items[-1] == mediaWrapper.media:
                         self.log.debug("Seek target is the end but no more items in the playQueue, using seekTo to prevent skipNext loop")
                         player.seekTo(targetOffset)
