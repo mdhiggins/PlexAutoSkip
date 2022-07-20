@@ -3,6 +3,7 @@ from datetime import datetime
 from plexapi.video import Episode, Movie
 from plexapi.server import PlexServer
 from plexapi.media import Marker, Chapter
+from plexapi.client import PlexClient
 from resources.customEntries import CustomEntries
 from resources.settings import Settings
 from resources.log import getLogger
@@ -77,10 +78,12 @@ class CustomMarker():
 
 
 class MediaWrapper():
-    def __init__(self, media: Media, state: str, server: PlexServer, tags: List[str] = [], mode: Settings.MODE_TYPES = Settings.MODE_TYPES.SKIP, custom: CustomEntries = None, logger: logging.Logger = None) -> None:
+    def __init__(self, media: Media, clientIdentifier: str, state: str, playQueueID: int, server: PlexServer, tags: List[str] = [], mode: Settings.MODE_TYPES = Settings.MODE_TYPES.SKIP, custom: CustomEntries = None, logger: logging.Logger = None) -> None:
         self._viewOffset: int = media.viewOffset
         self.media: Media = media
+        self.clientIdentifier = clientIdentifier
         self.state: str = state
+        self.playQueueID: dict = playQueueID
 
         self.lastUpdate: datetime = datetime.now()
         self.lastSeek: datetime = datetime(1970, 1, 1)
@@ -110,19 +113,18 @@ class MediaWrapper():
         self.cachedVolume: int = 0
         self.loweringVolume: bool = False
 
-        for p in self.media.players:
-            if custom and p.title in custom.clients:
-                p._baseurl = custom.clients[p.title].strip('/')
-                p._baseurl = p._baseurl if p._baseurl.startswith("http://") else "http://%s" % (p._baseurl)
-                p.proxyThroughServer(False)
-                self.log.debug("Overriding player %s with custom baseURL %s, will not proxy through server" % (p.title, p._baseurl))
-            else:
-                p.proxyThroughServer(True, server)
-
-        if len(self.media.players) > 0:
-            self.playerName: str = self.media.players[0].title
+        if custom and self.player.title in custom.clients:
+            self.player._baseurl = custom.clients[self.player.title].strip('/')
+            self.player._baseurl = self.player._baseurl if self.player._baseurl.startswith("http://") else "http://%s" % (self.player._baseurl)
+            self.player.proxyThroughServer(False)
+            self.log.debug("Overriding player %s with custom baseURL %s, will not proxy through server" % (self.player.title, self.player._baseurl))
+        elif custom and self.clientIdentifier in custom.clients:
+            self.player._baseurl = custom.clients[self.clientIdentifier].strip('/')
+            self.player._baseurl = self.player._baseurl if self.player._baseurl.startswith("http://") else "http://%s" % (self.player._baseurl)
+            self.player.proxyThroughServer(False)
+            self.log.debug("Overriding player %s with custom baseURL %s, will not proxy through server" % (self.clientIdentifier, self.player._baseurl))
         else:
-            self.playerName: str = "Player"
+            self.player.proxyThroughServer(True, server)
 
         if custom:
             if hasattr(self.media, "grandparentRatingKey"):
@@ -192,9 +194,10 @@ class MediaWrapper():
             if str(self.media.ratingKey) in custom.mode:
                 self.mode = Settings.MODE_MATCHER.get(custom.mode[str(self.media.ratingKey)], self.mode)
 
-            for player in self.media.players:
-                if player.title and player.title in custom.mode:
-                    self.mode = Settings.MODE_MATCHER.get(custom.mode[player.title], self.mode)
+            if self.player.title in custom.mode:
+                self.mode = Settings.MODE_MATCHER.get(custom.mode[self.player.title], self.mode)
+            elif self.clientIdentifier in custom.mode:
+                self.mode = Settings.MODE_MATCHER.get(custom.mode[self.clientIdentifier], self.mode)
 
             self.tags = [x.lower() for x in self.tags]
 
@@ -220,9 +223,21 @@ class MediaWrapper():
         base = "%d [%d]" % (self.media.sessionKey, self.media.ratingKey)
         if hasattr(self.media, "title"):
             if hasattr(self.media, "grandparentTitle") and hasattr(self.media, "seasonEpisode"):
-                return "%s (%s %s - %s) %s" % (base, self.media.grandparentTitle, self.media.seasonEpisode, self.media.title, self.playerName)
-            return "%s (%s) %s" % (base, self.media.title, self.playerName)
-        return "%s %s" % (base, self.playerName)
+                return "%s (%s %s - %s) %s.%s" % (base, self.media.grandparentTitle, self.media.seasonEpisode, self.media.title, self.player.title, self.clientIdentifier)
+            return "%s (%s) %s.%s" % (base, self.media.title, self.player.title, self.clientIdentifier)
+        return "%s %s.%s" % (base, self.player.title, self.clientIdentifier)
+
+    @staticmethod
+    def getSessionClientIdentifier(sessionKey, clientIdentifier) -> str:
+        return "%s-%s" % (sessionKey, clientIdentifier)
+
+    @property
+    def pasIdentifier(self) -> str:
+        return MediaWrapper.getSessionClientIdentifier(self.media.sessionKey, self.clientIdentifier)
+
+    @property
+    def player(self) -> PlexClient:
+        return next((p for p in self.media.players if p.machineIdentifier == self.clientIdentifier), None)
 
     @property
     def seeking(self) -> bool:

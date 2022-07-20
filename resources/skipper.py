@@ -197,16 +197,14 @@ class Skipper():
         t.start()
 
     def _seekTo(self, mediaWrapper: MediaWrapper, targetOffset: int) -> None:
-        for player in mediaWrapper.media.players:
-            try:
-                self.seekPlayerTo(player, mediaWrapper, targetOffset)
-            except (ReadTimeout, ReadTimeoutError, timeout):
-                self.log.debug("TimeoutError, removing from cache to prevent false triggers, will be restored with next sync")
-                self.removeSession(mediaWrapper)
-                break
-            except:
-                self.log.exception("Exception, removing from cache to prevent false triggers, will be restored with next sync")
-                self.removeSession(mediaWrapper)
+        try:
+            self.seekPlayerTo(mediaWrapper.player, mediaWrapper, targetOffset)
+        except (ReadTimeout, ReadTimeoutError, timeout):
+            self.log.debug("TimeoutError, removing from cache to prevent false triggers, will be restored with next sync")
+            self.removeSession(mediaWrapper)
+        except:
+            self.log.exception("Exception, removing from cache to prevent false triggers, will be restored with next sync")
+            self.removeSession(mediaWrapper)
 
     def seekPlayerTo(self, player: PlexClient, mediaWrapper: MediaWrapper, targetOffset: int) -> bool:
         if not player:
@@ -216,15 +214,13 @@ class Skipper():
                 self.log.info("Seeking %s player playing %s from %d to %d" % (player.product, mediaWrapper, mediaWrapper.viewOffset, targetOffset))
                 mediaWrapper.updateOffset(targetOffset, seeking=True)
                 if self.settings.skipnext and targetOffset == mediaWrapper.media.duration:
-                    if player.timeline and player.timeline.playQueueID:
-                        pq = PlayQueue.get(self.server, player.timeline.playQueueID)
-                        if pq.items[-1] == mediaWrapper.media:
-                            self.log.debug("Seek target is the end but no more items in the playQueue, using seekTo to prevent skipNext loop")
-                            player.seekTo(targetOffset)
-                            return True
+                    pq = PlayQueue.get(self.server, mediaWrapper.playQueueID)
+                    if pq and pq.items[-1] == mediaWrapper.media:
+                        self.log.debug("Seek target is the end but no more items in the playQueue, using seekTo to prevent skipNext loop")
+                        player.seekTo(targetOffset)
+                        return True
                     self.log.info("Seek target is the end, going to next")
                     player.skipNext()
-                    # mediaWrapper.media.markWatched()  # Appears this isn't needed and Plex will still mark as watched
                 else:
                     player.seekTo(targetOffset)
                 return True
@@ -242,16 +238,14 @@ class Skipper():
         t.start()
 
     def _setVolume(self, mediaWrapper: MediaWrapper, volume: int, lowering: bool) -> None:
-        for player in mediaWrapper.media.players:
-            try:
-                self.setPlayerVolume(player, mediaWrapper, volume, lowering)
-            except (ReadTimeout, ReadTimeoutError, timeout):
-                self.log.debug("TimeoutError, removing from cache to prevent false triggers, will be restored with next sync")
-                self.removeSession(mediaWrapper)
-                break
-            except:
-                self.log.exception("Exception, removing from cache to prevent false triggers, will be restored with next sync")
-                self.removeSession(mediaWrapper)
+        try:
+            self.setPlayerVolume(mediaWrapper.player, mediaWrapper, volume, lowering)
+        except (ReadTimeout, ReadTimeoutError, timeout):
+            self.log.debug("TimeoutError, removing from cache to prevent false triggers, will be restored with next sync")
+            self.removeSession(mediaWrapper)
+        except:
+            self.log.exception("Exception, removing from cache to prevent false triggers, will be restored with next sync")
+            self.removeSession(mediaWrapper)
 
     def setPlayerVolume(self, player: PlexClient, mediaWrapper: MediaWrapper, volume: int, lowering: bool) -> bool:
         if not player:
@@ -302,26 +296,29 @@ class Skipper():
         if data['type'] == 'playing':
             sessionKey = int(data['PlaySessionStateNotification'][0]['sessionKey'])
             state = data['PlaySessionStateNotification'][0]['state']
+            clientIdentifier = data['PlaySessionStateNotification'][0]['clientIdentifier']
+            playQueueID = int(data['PlaySessionStateNotification'][0]['playQueueID'])
+            pasIdentifier = MediaWrapper.getSessionClientIdentifier(sessionKey, clientIdentifier)
 
-            if sessionKey in self.ignored:
+            if pasIdentifier in self.ignored:
                 return
 
             try:
                 media = self.getDataFromSessions(sessionKey)
                 if media and media.session and len(media.session) > 0 and media.session[0].location == 'lan':
-                    if sessionKey not in self.media_sessions:
-                        wrapper = MediaWrapper(media, state, self.server, tags=self.settings.tags, mode=self.settings.mode, custom=self.customEntries, logger=self.log)
+                    if pasIdentifier not in self.media_sessions:
+                        wrapper = MediaWrapper(media, clientIdentifier, state, playQueueID, self.server, tags=self.settings.tags, mode=self.settings.mode, custom=self.customEntries, logger=self.log)
                         if not self.blockedClientUser(wrapper):
                             if self.shouldAdd(wrapper):
-                                self.addSession(sessionKey, wrapper)
+                                self.addSession(wrapper)
                             else:
                                 if len(wrapper.customMarkers) > 0:
                                     wrapper.customOnly = True
-                                    self.addSession(sessionKey, wrapper)
+                                    self.addSession(wrapper)
                                 else:
-                                    self.ignoreSession(sessionKey, wrapper)
+                                    self.ignoreSession(wrapper)
                     else:
-                        self.media_sessions[sessionKey].updateOffset(media.viewOffset, seeking=False, state=state)
+                        self.media_sessions[pasIdentifier].updateOffset(media.viewOffset, seeking=False, state=state)
                 else:
                     pass
             except KeyboardInterrupt:
@@ -343,25 +340,25 @@ class Skipper():
             self.log.debug("Allowing %s based on allowed user in %s" % (mediaWrapper, media.usernames))
 
         # Clients/players
-        if self.customEntries.allowedClients and not any(player for player in media.players if player.title in self.customEntries.allowedClients):
-            self.log.debug("Blocking %s based on no allowed player in %s" % (mediaWrapper, [p.title for p in media.players]))
+        if self.customEntries.allowedClients and (mediaWrapper.player.title not in self.customEntries.allowedClients and mediaWrapper.clientIdentifier not in self.customEntries.allowedClients):
+            self.log.debug("Blocking %s based on no allowed player %s %s" % (mediaWrapper, mediaWrapper.player.title, mediaWrapper.clientIdentifier))
             return True
         elif self.customEntries.allowedClients:
-            self.log.debug("Allowing %s based on allowed player in %s" % (mediaWrapper, [p.title for p in media.players]))
-        if self.customEntries.blockedClients and any(player for player in media.players if player.title in self.customEntries.blockedClients):
-            self.log.debug("Blocking %s based on blocked player in %s" % (mediaWrapper, [p.title for p in media.players]))
+            self.log.debug("Allowing %s based on allowed player %s %s" % (mediaWrapper, mediaWrapper.player.title, mediaWrapper.clientIdentifier))
+        if self.customEntries.blockedClients and (mediaWrapper.player.title in self.customEntries.blockedClients or mediaWrapper.clientIdentifier in self.customEntries.blockedClients):
+            self.log.debug("Blocking %s based on blocked player %s %s" % (mediaWrapper, mediaWrapper.player.title, mediaWrapper.clientIdentifier))
             return True
         return False
 
     def shouldSkipNext(self, mediaWrapper: MediaWrapper) -> bool:
         media = mediaWrapper.media
 
-        if self.customEntries.allowedSkipNext and not any(player for player in media.players if player.title in self.customEntries.allowedSkipNext):
-            self.log.debug("Blocking skip-next %s based on no allowed player in %s" % (mediaWrapper, [p.title for p in media.players]))
+        if self.customEntries.allowedSkipNext and (mediaWrapper.player.title not in self.customEntries.allowedSkipNext and mediaWrapper.clientIdentifier not in self.customEntries.allowedSkipNext):
+            self.log.debug("Blocking skip-next %s based on no allowed player in %s %s" % (mediaWrapper, mediaWrapper.player.title, mediaWrapper.clientIdentifier))
             return False
 
-        if self.customEntries.blockedSkipNext and any(player for player in media.players if player.title in self.customEntries.blockedSkipNext):
-            self.log.debug("Blocking skip-next %s based on blocked player in %s" % (mediaWrapper, [p.title for p in media.players]))
+        if self.customEntries.blockedSkipNext and (mediaWrapper.player.title in self.customEntries.blockedSkipNext or mediaWrapper.clientIdentifier in self.customEntries.blockedSkipNext):
+            self.log.debug("Blocking skip-next %s based on blocked player in %s %s" % (mediaWrapper, mediaWrapper.player.title, mediaWrapper.clientIdentifier))
             return False
 
         return self.settings.skipnext
@@ -426,38 +423,35 @@ class Skipper():
             return False
         return True
 
-    def addSession(self, sessionKey: str, mediaWrapper: MediaWrapper) -> None:
-        if [p for p in mediaWrapper.media.players if self.validPlayer(p)]:
+    def addSession(self, mediaWrapper: MediaWrapper) -> None:
+        if mediaWrapper.player and self.validPlayer(mediaWrapper.player):
             if mediaWrapper.customOnly:
                 self.log.info("Found blocked session %s viewOffset %d %s, using custom markers only, sessions: %d" % (mediaWrapper, mediaWrapper.media.viewOffset, mediaWrapper.media.usernames, len(self.media_sessions)))
             else:
                 self.log.info("Found new session %s viewOffset %d %s, sessions: %d" % (mediaWrapper, mediaWrapper.media.viewOffset, mediaWrapper.media.usernames, len(self.media_sessions)))
             self.purgeOldSessions(mediaWrapper)
             self.checkMedia(mediaWrapper)
-            self.media_sessions[sessionKey] = mediaWrapper
+            self.media_sessions[mediaWrapper.pasIdentifier] = mediaWrapper
         else:
-            self.log.info("Session %s has no accessible players, it will be ignored" % (sessionKey))
-            self.ignoreSession(sessionKey, mediaWrapper)
+            self.log.info("Session %s has no accessible player, it will be ignored" % (mediaWrapper))
+            self.ignoreSession(mediaWrapper)
 
-    def ignoreSession(self, sessionKey: str, mediaWrapper: MediaWrapper) -> None:
+    def ignoreSession(self, mediaWrapper: MediaWrapper) -> None:
         self.purgeOldSessions(mediaWrapper)
-        self.ignored.append(sessionKey)
+        self.ignored.append(mediaWrapper.pasIdentifier)
         self.ignored = self.ignored[-self.IGNORED_CAP:]
         self.log.debug("Ignoring session %s %s, ignored: %d" % (mediaWrapper, mediaWrapper.media.usernames, len(self.ignored)))
 
     def purgeOldSessions(self, mediaWrapper: MediaWrapper) -> None:
-        mids = [x.machineIdentifier for x in mediaWrapper.media.players]
-        if mids:
-            for session in list(self.media_sessions.values()):
-                for player in session.media.players:
-                    if player.machineIdentifier in mids:
-                        self.log.info("Session %s shares player (%s) with new session %s, deleting old session %s" % (session, player.machineIdentifier, mediaWrapper, session.media.sessionKey))
-                        self.removeSession(session)
-                        break
+        for session in list(self.media_sessions.values()):
+            if session.clientIdentifier == mediaWrapper.player.machineIdentifier:
+                self.log.info("Session %s shares player (%s) with new session %s, deleting old session %s" % (session, mediaWrapper.player.machineIdentifier, mediaWrapper, session.media.sessionKey))
+                self.removeSession(session)
+                break
 
-    def removeSession(self, mediaWrapper):
-        if mediaWrapper.media.sessionKey in self.media_sessions:
-            del self.media_sessions[mediaWrapper.media.sessionKey]
+    def removeSession(self, mediaWrapper: MediaWrapper):
+        if mediaWrapper.pasIdentifier in self.media_sessions:
+            del self.media_sessions[mediaWrapper.pasIdentifier]
             self.log.debug("Deleting session %s, sessions: %d" % (mediaWrapper, len(self.media_sessions)))
 
     def error(self, data: dict) -> None:
