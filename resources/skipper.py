@@ -209,23 +209,31 @@ class Skipper():
     def seekPlayerTo(self, player: PlexClient, mediaWrapper: MediaWrapper, targetOffset: int) -> bool:
         if not player:
             return False
+
+        if mediaWrapper.media.duration and targetOffset > mediaWrapper.media.duration:
+            self.log.debug("TargetOffset %d is greater than duration of media %d, adjusting to match" % (targetOffset, mediaWrapper.media.duration))
+            targetOffset = mediaWrapper.media.duration
+
         try:
             try:
                 self.log.info("Seeking %s player playing %s from %d to %d" % (player.product, mediaWrapper, mediaWrapper.viewOffset, targetOffset))
                 mediaWrapper.updateOffset(targetOffset, seeking=True)
                 if self.settings.skipnext and targetOffset == mediaWrapper.media.duration:
-                    try:
-                        pq = PlayQueue.get(self.server, mediaWrapper.playQueueID)
-                    except KeyboardInterrupt:
-                        raise
-                    except Exception as e:
-                        pq = None
-                        self.log.debug("Exception trying to get PlayQueue")
-                        self.log.debug(e)
-                    if pq and pq.items[-1] == mediaWrapper.media:
-                        self.log.debug("Seek target is the end but no more items in the playQueue, using seekTo to prevent skipNext loop")
-                        player.seekTo(targetOffset)
-                        return True
+                    if mediaWrapper.playQueueID:
+                        try:
+                            pq = PlayQueue.get(self.server, mediaWrapper.playQueueID)
+                        except KeyboardInterrupt:
+                            raise
+                        except Exception as e:
+                            pq = None
+                            self.log.debug("Exception trying to get PlayQueue")
+                            self.log.debug(e)
+                        if pq and pq.items[-1] == mediaWrapper.media:
+                            self.log.debug("Seek target is the end but no more items in the playQueue, using seekTo to prevent skipNext loop")
+                            player.seekTo(targetOffset)
+                            return True
+                    else:
+                        self.log.debug("Media %s has no playQueueID, cannot check if its last item" % mediaWrapper)
                     self.log.info("Seek target is the end, going to next")
                     player.skipNext()
                 else:
