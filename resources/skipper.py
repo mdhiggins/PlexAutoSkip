@@ -320,7 +320,7 @@ class Skipper():
 
             try:
                 media = self.getDataFromSessions(sessionKey)
-                if media and media.session and len(media.session) > 0 and media.session[0].location == 'lan':
+                if media and media.session and media.session.location == 'lan':
                     if pasIdentifier not in self.media_sessions:
                         wrapper = MediaWrapper(media, clientIdentifier, state, playQueueID, self.server, tags=self.settings.tags, mode=self.settings.mode, custom=self.customEntries, logger=self.log)
                         if not self.blockedClientUser(wrapper):
