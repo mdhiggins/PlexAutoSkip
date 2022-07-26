@@ -148,6 +148,7 @@ class Settings:
         self.skipnext: bool = False
         self.leftOffset: int = 0
         self.rightOffset: int = 0
+        self.durationOffset: int = 0
         self.customEntries: CustomEntries = None
 
         self._configFile: str = None
