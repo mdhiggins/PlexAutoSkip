@@ -218,7 +218,7 @@ class Skipper():
             try:
                 self.log.info("Seeking %s player playing %s from %d to %d" % (player.product, mediaWrapper, mediaWrapper.viewOffset, targetOffset))
                 mediaWrapper.updateOffset(targetOffset, seeking=True)
-                if self.settings.skipnext and targetOffset >= (mediaWrapper.media.duration - self.settings.durationOffset):
+                if self.settings.skipnext and targetOffset >= (mediaWrapper.media.duration - self.settings.seekDurationOffset):
                     if mediaWrapper.playQueueID:
                         try:
                             pq = PlayQueue.get(self.server, mediaWrapper.playQueueID)

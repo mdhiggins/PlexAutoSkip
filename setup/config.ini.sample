@@ -26,7 +26,8 @@ next = False
 [Offsets]
 start = 3000
 end = 1000
-duration = 0
+duration = 5000
+seek-duration = 5000
 
 [Volume]
 low = 0
