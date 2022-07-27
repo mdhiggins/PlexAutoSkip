@@ -15,6 +15,7 @@ from plexapi.exceptions import BadRequest
 from plexapi.client import PlexClient
 from plexapi.server import PlexServer
 from plexapi.playqueue import PlayQueue
+from plexapi.base import PlexSession
 from threading import Thread
 from typing import Dict, List
 from pkg_resources import parse_version
@@ -82,7 +83,7 @@ class Skipper():
 
         self.log.info("Skipper initiated and ready")
 
-    def getDataFromSessions(self, sessionKey: str) -> Media:
+    def getMediaSession(self, sessionKey: str) -> PlexSession:
         try:
             return next(iter([session for session in self.server.sessions() if session.sessionKey == sessionKey]), None)
         except KeyboardInterrupt:
@@ -319,10 +320,10 @@ class Skipper():
                 return
 
             try:
-                media = self.getDataFromSessions(sessionKey)
-                if media and media.session and ((isinstance(media.session, list) and media.session[0].location == 'lan') or media.session.location == 'lan'):
+                mediaSession = self.getMediaSession(sessionKey)
+                if mediaSession and mediaSession.session and mediaSession.session.location == 'lan':
                     if pasIdentifier not in self.media_sessions:
-                        wrapper = MediaWrapper(media, clientIdentifier, state, playQueueID, self.server, tags=self.settings.tags, mode=self.settings.mode, custom=self.customEntries, logger=self.log)
+                        wrapper = MediaWrapper(mediaSession, clientIdentifier, state, playQueueID, self.server, tags=self.settings.tags, mode=self.settings.mode, custom=self.customEntries, logger=self.log)
                         if not self.blockedClientUser(wrapper):
                             if self.shouldAdd(wrapper):
                                 self.addSession(wrapper)
@@ -333,7 +334,7 @@ class Skipper():
                                 else:
                                     self.ignoreSession(wrapper)
                     else:
-                        self.media_sessions[pasIdentifier].updateOffset(media.viewOffset, seeking=False, state=state)
+                        self.media_sessions[pasIdentifier].updateOffset(mediaSession.viewOffset, seeking=False, state=state)
                 else:
                     pass
             except KeyboardInterrupt:
@@ -343,16 +344,17 @@ class Skipper():
 
     def blockedClientUser(self, mediaWrapper: MediaWrapper) -> bool:
         media = mediaWrapper.media
+        session = mediaWrapper.session
 
         # Users
-        if any(b for b in self.customEntries.blockedUsers if b in media.usernames):
-            self.log.debug("Blocking %s based on blocked user in %s" % (mediaWrapper, media.usernames))
+        if any(b for b in self.customEntries.blockedUsers if b in session.usernames):
+            self.log.debug("Blocking %s based on blocked user in %s" % (mediaWrapper, session.usernames))
             return True
-        if self.customEntries.allowedUsers and not any(u for u in media.usernames if u in self.customEntries.allowedUsers):
-            self.log.debug("Blocking %s based on no allowed user in %s" % (mediaWrapper, media.usernames))
+        if self.customEntries.allowedUsers and not any(u for u in session.usernames if u in self.customEntries.allowedUsers):
+            self.log.debug("Blocking %s based on no allowed user in %s" % (mediaWrapper, session.usernames))
             return True
         elif self.customEntries.allowedUsers:
-            self.log.debug("Allowing %s based on allowed user in %s" % (mediaWrapper, media.usernames))
+            self.log.debug("Allowing %s based on allowed user in %s" % (mediaWrapper, session.usernames))
 
         # Clients/players
         if self.customEntries.allowedClients and (mediaWrapper.player.title not in self.customEntries.allowedClients and mediaWrapper.clientIdentifier not in self.customEntries.allowedClients):
@@ -441,9 +443,9 @@ class Skipper():
     def addSession(self, mediaWrapper: MediaWrapper) -> None:
         if mediaWrapper.player and self.validPlayer(mediaWrapper.player):
             if mediaWrapper.customOnly:
-                self.log.info("Found blocked session %s viewOffset %d %s, using custom markers only, sessions: %d" % (mediaWrapper, mediaWrapper.media.viewOffset, mediaWrapper.media.usernames, len(self.media_sessions)))
+                self.log.info("Found blocked session %s viewOffset %d %s, using custom markers only, sessions: %d" % (mediaWrapper, mediaWrapper.session.viewOffset, mediaWrapper.session.usernames, len(self.media_sessions)))
             else:
-                self.log.info("Found new session %s viewOffset %d %s, sessions: %d" % (mediaWrapper, mediaWrapper.media.viewOffset, mediaWrapper.media.usernames, len(self.media_sessions)))
+                self.log.info("Found new session %s viewOffset %d %s, sessions: %d" % (mediaWrapper, mediaWrapper.session.viewOffset, mediaWrapper.session.usernames, len(self.media_sessions)))
             self.purgeOldSessions(mediaWrapper)
             self.checkMedia(mediaWrapper)
             self.media_sessions[mediaWrapper.pasIdentifier] = mediaWrapper
@@ -455,13 +457,13 @@ class Skipper():
         self.purgeOldSessions(mediaWrapper)
         self.ignored.append(mediaWrapper.pasIdentifier)
         self.ignored = self.ignored[-self.IGNORED_CAP:]
-        self.log.debug("Ignoring session %s %s, ignored: %d" % (mediaWrapper, mediaWrapper.media.usernames, len(self.ignored)))
+        self.log.debug("Ignoring session %s %s, ignored: %d" % (mediaWrapper, mediaWrapper.session.usernames, len(self.ignored)))
 
     def purgeOldSessions(self, mediaWrapper: MediaWrapper) -> None:
-        for session in list(self.media_sessions.values()):
-            if session.clientIdentifier == mediaWrapper.player.machineIdentifier:
-                self.log.info("Session %s shares player (%s) with new session %s, deleting old session %s" % (session, mediaWrapper.player.machineIdentifier, mediaWrapper, session.media.sessionKey))
-                self.removeSession(session)
+        for sessionMediaWrapper in list(self.media_sessions.values()):
+            if sessionMediaWrapper.clientIdentifier == mediaWrapper.player.machineIdentifier:
+                self.log.info("Session %s shares player (%s) with new session %s, deleting old session %s" % (sessionMediaWrapper, mediaWrapper.player.machineIdentifier, mediaWrapper, sessionMediaWrapper.session.sessionKey))
+                self.removeSession(sessionMediaWrapper)
                 break
 
     def removeSession(self, mediaWrapper: MediaWrapper):

@@ -1,11 +1,15 @@
+from plexapi import VERSION as PLEXAPIVERSION
 from plexapi.server import PlexServer
 from plexapi.myplex import MyPlexAccount
 from resources.log import getLogger
 from resources.settings import Settings
 from typing import Tuple
 from ssl import CERT_NONE
+from pkg_resources import parse_version
 import requests
 import logging
+
+MINVERSION = "4.12"
 
 
 def getPlexServer(settings: Settings, logger: logging.Logger = None) -> Tuple[PlexServer, dict]:
@@ -13,7 +17,11 @@ def getPlexServer(settings: Settings, logger: logging.Logger = None) -> Tuple[Pl
 
     if not settings.username and not settings.address:
         log.error("No plex server settings specified, please update your configuration file")
-        return None
+        return None, None
+
+    if parse_version(PLEXAPIVERSION) < parse_version(MINVERSION):
+        log.error("PlexAutoSkip requires version %s please update to %s or greater, current version is %s" % (MINVERSION, MINVERSION, PLEXAPIVERSION))
+        return None, None
 
     plex = None
     sslopt = None

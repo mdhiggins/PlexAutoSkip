@@ -4,6 +4,7 @@ from plexapi.video import Episode, Movie
 from plexapi.server import PlexServer
 from plexapi.media import Marker, Chapter
 from plexapi.client import PlexClient
+from plexapi.base import PlexSession
 from resources.customEntries import CustomEntries
 from resources.settings import Settings
 from resources.log import getLogger
@@ -80,9 +81,11 @@ class CustomMarker():
 
 
 class MediaWrapper():
-    def __init__(self, media: Media, clientIdentifier: str, state: str, playQueueID: int, server: PlexServer, tags: List[str] = [], mode: Settings.MODE_TYPES = Settings.MODE_TYPES.SKIP, custom: CustomEntries = None, logger: logging.Logger = None) -> None:
-        self._viewOffset: int = media.viewOffset
-        self.media: Media = media
+    def __init__(self, session: PlexSession, clientIdentifier: str, state: str, playQueueID: int, server: PlexServer, tags: List[str] = [], mode: Settings.MODE_TYPES = Settings.MODE_TYPES.SKIP, custom: CustomEntries = None, logger: logging.Logger = None) -> None:
+        self._viewOffset: int = session.viewOffset
+        self.session: PlexSession = session
+        self.media: Media = session.source()
+
         self.clientIdentifier = clientIdentifier
         self.state: str = state
         self.playQueueID: dict = playQueueID
@@ -133,7 +136,7 @@ class MediaWrapper():
                 if str(self.media.grandparentRatingKey) in custom.markers:
                     for markerdata in custom.markers[str(self.media.grandparentRatingKey)]:
                         try:
-                            cm = CustomMarker(markerdata, self.media.grandparentRatingKey, media.duration, mode)
+                            cm = CustomMarker(markerdata, self.media.grandparentRatingKey, self.media.duration, mode)
                             if cm not in self.customMarkers:
                                 self.log.debug("Found custom marker range %s entry for %s (grandparentRatingKey match)" % (cm, self))
                                 self.customMarkers.append(cm)
@@ -157,7 +160,7 @@ class MediaWrapper():
                         self.customMarkers = filtered
                     for markerdata in custom.markers[str(self.media.parentRatingKey)]:
                         try:
-                            cm = CustomMarker(markerdata, self.media.parentRatingKey, media.duration, mode)
+                            cm = CustomMarker(markerdata, self.media.parentRatingKey, self.media.duration, mode)
                             if cm not in self.customMarkers:
                                 self.log.debug("Found custom marker range %s entry for %s (parentRatingKey match)" % (cm, self))
                                 self.customMarkers.append(cm)
@@ -180,7 +183,7 @@ class MediaWrapper():
                     self.customMarkers = filtered
                 for markerdata in custom.markers[str(self.media.ratingKey)]:
                     try:
-                        cm = CustomMarker(markerdata, self.media.ratingKey, media.duration, mode)
+                        cm = CustomMarker(markerdata, self.media.ratingKey, self.media.duration, mode)
                         if cm not in self.customMarkers:
                             self.log.debug("Found custom marker range %s entry for %s" % (cm, self))
                             self.customMarkers.append(cm)
@@ -213,16 +216,16 @@ class MediaWrapper():
                 self.log.debug("Custom mode value of %s found for %s" % (self.mode, self))
 
         if hasattr(self.media, 'markers') and not self.customOnly:
-            self.markers = [x for x in self.media.markers if x.type and x.type.lower() in self.tags or "%s:%s" % (MARKERPREFIX, x.title.lower()) in self.tags]
+            self.markers = [x for x in self.media.markers if x.type and (x.type.lower() in self.tags or "%s:%s" % (MARKERPREFIX, x.title.lower()) in self.tags)]
 
         if hasattr(self.media, 'chapters') and not self.customOnly:
-            self.chapters = [x for x in self.media.chapters if x.title and x.title.lower() in self.tags or "%s:%s" % (CHAPTERPREFIX, x.title.lower()) in self.tags]
+            self.chapters = [x for x in self.media.chapters if x.title and (x.title.lower() in self.tags or "%s:%s" % (CHAPTERPREFIX, x.title.lower()) in self.tags)]
 
         if hasattr(self.media, 'chapters') and not self.customOnly and len(self.media.chapters) > 0:
             self.lastchapter = self.media.chapters[-1]
 
     def __repr__(self) -> str:
-        base = "%d [%d]" % (self.media.sessionKey, self.media.ratingKey)
+        base = "%d [%d]" % (self.session.sessionKey, self.media.ratingKey)
         if hasattr(self.media, "title"):
             if hasattr(self.media, "grandparentTitle") and hasattr(self.media, "seasonEpisode"):
                 return "%s (%s %s - %s) %s.%s" % (base, self.media.grandparentTitle, self.media.seasonEpisode, self.media.title, self.player.title, self.clientIdentifier)
@@ -235,11 +238,11 @@ class MediaWrapper():
 
     @property
     def pasIdentifier(self) -> str:
-        return MediaWrapper.getSessionClientIdentifier(self.media.sessionKey, self.clientIdentifier)
+        return MediaWrapper.getSessionClientIdentifier(self.session.sessionKey, self.clientIdentifier)
 
     @property
     def player(self) -> PlexClient:
-        return next((p for p in self.media.players if p.machineIdentifier == self.clientIdentifier), None)
+        return next((p for p in self.session.players if p.machineIdentifier == self.clientIdentifier), None)
 
     @property
     def seeking(self) -> bool:
@@ -271,7 +274,7 @@ class MediaWrapper():
         self.seekOrigin = self._viewOffset if seeking else 0
         self.seekTarget = offset if seeking else 0
         self._viewOffset = offset
-        self.media.viewOffset = offset
+        self.session.viewOffset = offset
         self.lastUpdate = datetime.now()
         self.state = state or self.state
         return True
