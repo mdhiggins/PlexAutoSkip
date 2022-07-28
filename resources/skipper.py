@@ -5,7 +5,7 @@ import time
 from resources.settings import Settings
 from resources.customEntries import CustomEntries
 from resources.sslAlertListener import SSLAlertListener
-from resources.mediaWrapper import Media, MediaWrapper
+from resources.mediaWrapper import Media, MediaWrapper, PLAYINGKEY
 from resources.log import getLogger
 from xml.etree.ElementTree import ParseError
 from urllib3.exceptions import ReadTimeoutError
@@ -116,8 +116,14 @@ class Skipper():
         self.checkMediaSkip(mediaWrapper, leftOffset, rightOffset)
         self.checkMediaVolume(mediaWrapper, leftOffset, rightOffset)
 
+        # Most players stop updating at play next screen and leave state as "playing" with no more alerts
         if (mediaWrapper.viewOffset > (mediaWrapper.media.duration + self.settings.durationOffset)) and self.shouldSkipNext(mediaWrapper):
             self.log.info("Found %s media that has reached the end of its playback with viewOffset %d and duration %d with skip-next enabled, will skip to next" % (mediaWrapper, mediaWrapper.viewOffset, mediaWrapper.media.duration))
+            self.seekTo(mediaWrapper, mediaWrapper.media.duration)
+
+        # Certain players set playback state to "paused" at end of playback with <1000 ms viewOffset remaining
+        if (mediaWrapper.viewOffset > (mediaWrapper.media.duration - 1000)) and mediaWrapper.state != PLAYINGKEY and self.shouldSkipNext(mediaWrapper):
+            self.log.info("Found paused %s media that has reached the end of its playback with viewOffset %d and duration %d with skip-next enabled, will skip to next" % (mediaWrapper, mediaWrapper.viewOffset, mediaWrapper.media.duration))
             self.seekTo(mediaWrapper, mediaWrapper.media.duration)
 
         if mediaWrapper.sinceLastUpdate > self.TIMEOUT:
