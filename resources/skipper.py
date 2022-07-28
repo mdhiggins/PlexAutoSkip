@@ -111,7 +111,7 @@ class Skipper():
 
     def checkMedia(self, mediaWrapper: MediaWrapper) -> None:
         if mediaWrapper.seeking:
-            self.log.info("Checking media that's seeking, normally would be blocked")
+            self.log.debug("Checking media that's seeking, normally would be blocked")
             # return
 
         leftOffset = mediaWrapper.leftOffset or self.settings.leftOffset
