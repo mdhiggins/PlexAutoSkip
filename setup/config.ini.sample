@@ -27,6 +27,7 @@ next = False
 start = 3000
 end = 1000
 duration = 0
+safety = 0
 
 [Volume]
 low = 0

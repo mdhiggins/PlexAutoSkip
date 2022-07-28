@@ -111,7 +111,8 @@ class Skipper():
 
     def checkMedia(self, mediaWrapper: MediaWrapper) -> None:
         if mediaWrapper.seeking:
-            return
+            self.log.info("Checking media that's seeking, normally would be blocked")
+            # return
 
         leftOffset = mediaWrapper.leftOffset or self.settings.leftOffset
         rightOffset = mediaWrapper.rightOffset or self.settings.rightOffset
@@ -211,10 +212,6 @@ class Skipper():
         if not player:
             return False
 
-        if mediaWrapper.media.duration and targetOffset > mediaWrapper.media.duration:
-            self.log.debug("TargetOffset %d is greater than duration of media %d, adjusting to match" % (targetOffset, mediaWrapper.media.duration))
-            targetOffset = mediaWrapper.media.duration
-
         try:
             try:
                 self.log.info("Seeking %s player playing %s from %d to %d" % (player.product, mediaWrapper, mediaWrapper.viewOffset, targetOffset))
@@ -231,13 +228,18 @@ class Skipper():
                             self.log.debug(e)
                         if pq and pq.items[-1] == mediaWrapper.media:
                             self.log.debug("Seek target is the end but no more items in the playQueue, using seekTo to prevent skipNext loop")
-                            player.seekTo(targetOffset)
+                            player.seekTo(mediaWrapper.media.duration)
                             return True
                     else:
                         self.log.debug("Media %s has no playQueueID, cannot check if its last item" % mediaWrapper)
                     self.log.info("Seek target is the end, going to next")
                     player.skipNext()
+                    self.removeSession(mediaWrapper)
                 else:
+                    if mediaWrapper.media.duration and targetOffset > (mediaWrapper.media.duration - self.settings.safetyOffset):
+                        self.log.debug("TargetOffset %d is greater than duration of media %d, adjusting to match (safetyOffset: %d)" % (targetOffset, mediaWrapper.media.duration, self.settings.safetyOffset))
+                        targetOffset = mediaWrapper.media.duration - self.settings.safetyOffset
+
                     player.seekTo(targetOffset)
                 return True
             except ParseError:
