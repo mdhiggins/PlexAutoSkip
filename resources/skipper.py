@@ -216,26 +216,31 @@ class Skipper():
             try:
                 self.log.info("Seeking %s player playing %s from %d to %d" % (player.product, mediaWrapper, mediaWrapper.viewOffset, targetOffset))
                 if self.settings.skipnext and targetOffset >= (mediaWrapper.media.duration - self.settings.durationOffset):
-                    if mediaWrapper.playQueueID:
-                        try:
-                            pq = PlayQueue.get(self.server, mediaWrapper.playQueueID)
-                        except KeyboardInterrupt:
-                            raise
-                        except Exception as e:
-                            pq = None
-                            self.log.debug("Exception trying to get PlayQueue")
-                            self.log.debug(e)
-                        if pq and pq.items[-1] == mediaWrapper.media:
-                            self.log.debug("Seek target is the end but no more items in the playQueue, using seekTo to prevent skipNext loop")
-                            mediaWrapper.updateOffset(mediaWrapper.media.duration, seeking=True)
-                            player.seekTo(mediaWrapper.media.duration)
-                            return True
+                    try:
+                        pq = PlayQueue.get(self.server, mediaWrapper.playQueueID)
+                    except KeyboardInterrupt:
+                        raise
+                    except Exception as e:
+                        pq = None
+                        self.log.debug("Exception trying to get PlayQueue")
+                        self.log.debug(e)
+                    if pq and pq.items[-1] == mediaWrapper.media:
+                        self.log.debug("Seek target is the end but no more items in the playQueue, using seekTo to prevent skipNext loop")
+                        mediaWrapper.updateOffset(mediaWrapper.media.duration, seeking=True)
+                        player.seekTo(mediaWrapper.media.duration)
+                        return True
+                    elif pq:
+                        nextItem: Media = pq[pq.items.index(pq.selectedItem) + 1]
+                        self.ignoreSession(mediaWrapper)
+                        self.removeSession(mediaWrapper)
+                        self.log.info("Seek target is the end, skipTo next item in queue %s" % (nextItem.key))
+                        player.skipTo(nextItem.key)
+                        return True
                     else:
-                        self.log.debug("Media %s has no playQueueID, cannot check if its last item" % mediaWrapper)
-                    self.log.info("Seek target is the end, going to next")
-                    self.ignoreSession(mediaWrapper)
-                    self.removeSession(mediaWrapper)
-                    player.skipNext()
+                        self.log.info("Seek target is the end, no PlayQueue data available, triggering skipNext")
+                        self.ignoreSession(mediaWrapper)
+                        self.removeSession(mediaWrapper)
+                        player.skipNext()
                 else:
                     if targetOffset < mediaWrapper.viewOffset:
                         self.log.warning("TargetOffset %d is less than current viewOffset %d, cannot go back without creating infinite loop" % (targetOffset, mediaWrapper.viewOffset))
