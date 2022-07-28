@@ -131,7 +131,7 @@ class Skipper():
     def checkMediaSkip(self, mediaWrapper: MediaWrapper, leftOffset: int, rightOffset: int) -> None:
         skipMarkers = [m for m in mediaWrapper.customMarkers if m.mode == Settings.MODE_TYPES.SKIP]
         for marker in skipMarkers:
-            if marker.start <= mediaWrapper.viewOffset <= marker.end:
+            if marker.start <= mediaWrapper.viewOffset < marker.end:
                 self.log.info("Found a custom marker for media %s with range %d-%d and viewOffset %d (%d)" % (mediaWrapper, marker.start, marker.end, mediaWrapper.viewOffset, marker.key))
                 self.seekTo(mediaWrapper, marker.end)
                 return
@@ -146,13 +146,13 @@ class Skipper():
                 return
 
         for chapter in mediaWrapper.chapters:
-            if chapter.start <= mediaWrapper.viewOffset <= chapter.end:
+            if chapter.start <= mediaWrapper.viewOffset < chapter.end:
                 self.log.info("Found skippable chapter %s for media %s with range %d-%d and viewOffset %d" % (chapter.title, mediaWrapper, chapter.start, chapter.end, mediaWrapper.viewOffset))
                 self.seekTo(mediaWrapper, chapter.end)
                 return
 
         for marker in mediaWrapper.markers:
-            if (marker.start + leftOffset) <= mediaWrapper.viewOffset <= marker.end:
+            if (marker.start + leftOffset) <= mediaWrapper.viewOffset < marker.end:
                 self.log.info("Found skippable marker %s for media %s with range %d-%d and viewOffset %d" % (marker.type, mediaWrapper, marker.start + leftOffset, marker.end + rightOffset, mediaWrapper.viewOffset))
                 self.seekTo(mediaWrapper, marker.end + rightOffset)
                 return
@@ -171,7 +171,7 @@ class Skipper():
     def shouldLowerMediaVolume(self, mediaWrapper: MediaWrapper, leftOffset: int, rightOffset: int) -> bool:
         customVolumeMarkers = [m for m in mediaWrapper.customMarkers if m.mode == Settings.MODE_TYPES.VOLUME]
         for marker in customVolumeMarkers:
-            if marker.start <= mediaWrapper.viewOffset <= marker.end:
+            if marker.start <= mediaWrapper.viewOffset < marker.end:
                 self.log.debug("Inside a custom marker for media %s with range %d-%d and viewOffset %d (%d), volume should be low" % (mediaWrapper, marker.start, marker.end, mediaWrapper.viewOffset, marker.key))
                 return True
 
@@ -184,12 +184,12 @@ class Skipper():
                 return True
 
         for chapter in mediaWrapper.chapters:
-            if chapter.start <= mediaWrapper.viewOffset <= chapter.end:
+            if chapter.start <= mediaWrapper.viewOffset < chapter.end:
                 self.log.debug("Inside chapter %s for media %s with range %d-%d and viewOffset %d, volume should be low" % (chapter.title, mediaWrapper, chapter.start, chapter.end, mediaWrapper.viewOffset))
                 return True
 
         for marker in mediaWrapper.markers:
-            if (marker.start + leftOffset) <= mediaWrapper.viewOffset <= (marker.end + rightOffset):
+            if (marker.start + leftOffset) <= mediaWrapper.viewOffset < (marker.end + rightOffset):
                 self.log.debug("Inside marker %s for media %s with range %d-%d and viewOffset %d, volume should be low" % (marker.type, mediaWrapper, marker.start + leftOffset, marker.end, mediaWrapper.viewOffset))
                 return True
         return False
@@ -215,7 +215,6 @@ class Skipper():
         try:
             try:
                 self.log.info("Seeking %s player playing %s from %d to %d" % (player.product, mediaWrapper, mediaWrapper.viewOffset, targetOffset))
-                mediaWrapper.updateOffset(targetOffset, seeking=True)
                 if self.settings.skipnext and targetOffset >= (mediaWrapper.media.duration - self.settings.durationOffset):
                     if mediaWrapper.playQueueID:
                         try:
@@ -228,18 +227,25 @@ class Skipper():
                             self.log.debug(e)
                         if pq and pq.items[-1] == mediaWrapper.media:
                             self.log.debug("Seek target is the end but no more items in the playQueue, using seekTo to prevent skipNext loop")
+                            mediaWrapper.updateOffset(mediaWrapper.media.duration, seeking=True)
                             player.seekTo(mediaWrapper.media.duration)
                             return True
                     else:
                         self.log.debug("Media %s has no playQueueID, cannot check if its last item" % mediaWrapper)
                     self.log.info("Seek target is the end, going to next")
-                    player.skipNext()
+                    self.ignoreSession(mediaWrapper)
                     self.removeSession(mediaWrapper)
+                    player.skipNext()
                 else:
+                    if targetOffset < mediaWrapper.viewOffset:
+                        self.log.warning("TargetOffset %d is less than current viewOffset %d, cannot go back without creating infinite loop" % (targetOffset, mediaWrapper.viewOffset))
+                        return False
+
                     if mediaWrapper.media.duration and targetOffset > (mediaWrapper.media.duration - self.settings.safetyOffset):
                         self.log.debug("TargetOffset %d is greater than duration of media %d, adjusting to match (safetyOffset: %d)" % (targetOffset, mediaWrapper.media.duration, self.settings.safetyOffset))
                         targetOffset = mediaWrapper.media.duration - self.settings.safetyOffset
 
+                    mediaWrapper.updateOffset(targetOffset, seeking=True)
                     player.seekTo(targetOffset)
                 return True
             except ParseError:
