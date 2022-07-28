@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from plexapi import utils
 from plexapi.video import Episode, Movie
 from plexapi.server import PlexServer
 from plexapi.media import Marker, Chapter
@@ -73,7 +74,7 @@ class CustomMarker():
         return self.safeRange(self._end if self._end > 0 else self.duration + self._end)
 
     def __repr__(self) -> str:
-        return "%d-%d" % (self.start, self.end)
+        return "<CustomMarker:%s-%s>" % (utils.millisecondToHumanstr(self.start), utils.millisecondToHumanstr(self.end))
 
     @property
     def length(self) -> int:
@@ -138,7 +139,6 @@ class MediaWrapper():
                         try:
                             cm = CustomMarker(markerdata, self.media.grandparentRatingKey, self.media.duration, mode)
                             if cm not in self.customMarkers:
-                                self.log.debug("Found custom marker range %s entry for %s (grandparentRatingKey match)" % (cm, self))
                                 self.customMarkers.append(cm)
                         except CustomMarker.CustomMarkerException:
                             self.log.error("Invalid CustomMarker data for grandparentRatingKey %s" % (self.media.grandparentRatingKey))
@@ -262,14 +262,14 @@ class MediaWrapper():
     def updateOffset(self, offset: int, seeking: bool, state: str = None) -> bool:
         if self.seeking and not seeking and offset < self.seekTarget:
             if offset <= self.seekOrigin:
-                self.log.debug("Seeking but new offset is earlier than the old one for session %s, resetting" % (self))
+                self.log.debug("Seeking but new offset is earlier than the old one for session %s, resetting, state %s" % (self, state))
             else:
-                self.log.debug("Skipping update session %s is actively seeking" % (self))
+                self.log.debug("Skipping update session %s is actively seeking, state %s" % (self, state))
                 return False
         if not seeking:
-            self.log.debug("Updating session %s viewOffset %d, old %d, diff %dms (%ds since last update)" % (self, offset, self.viewOffset, (offset - self.viewOffset), (datetime.now() - self.lastUpdate).total_seconds()))
+            self.log.debug("Updating session %s state %s viewOffset %d, old %d, diff %dms (%ds since last update)" % (self, state, offset, self.viewOffset, (offset - self.viewOffset), (datetime.now() - self.lastUpdate).total_seconds()))
         if self.seeking and not seeking and offset >= self.seekTarget:
-            self.log.debug("Recent seek successful, server offset update %d meets/exceeds target %d, setting seeking to %s" % (offset, self.seekTarget, seeking))
+            self.log.debug("Recent seek successful, server offset update %d meets/exceeds target %d, setting seeking to %s, state %s" % (offset, self.seekTarget, seeking, state))
 
         self.seekOrigin = self._viewOffset if seeking else 0
         self.seekTarget = offset if seeking else 0
