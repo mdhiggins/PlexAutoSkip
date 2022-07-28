@@ -228,6 +228,11 @@ class Skipper():
                     if pq and pq.items[-1] == mediaWrapper.media:
                         self.log.debug("Seek target is the end but no more items in the playQueue, using seekTo to prevent loop")
                         player.seekTo(mediaWrapper.media.duration)
+                    elif pq:
+                        nextItem: Media = pq[pq.items.index(pq.selectedItem) + 1]
+                        self.log.info("Seek target is the end, skipTo next item in queue %s" % (nextItem.key))
+                        player.skipTo(nextItem.key)
+                        return True
                     else:
                         self.log.debug("Seek target is the end, triggering skipNext")
                         player.skipTo(mediaWrapper.media.key)
