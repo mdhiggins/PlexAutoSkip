@@ -257,7 +257,7 @@ class MediaWrapper():
         if self.state != PLAYINGKEY:
             return self._viewOffset
         vo = self._viewOffset + round((datetime.now() - self.lastUpdate).total_seconds() * 1000)
-        return vo if vo <= (self.media.duration or vo) else self.media.duration
+        return vo
 
     def updateOffset(self, offset: int, seeking: bool, state: str = None) -> bool:
         if self.seeking and not seeking and offset < self.seekTarget:

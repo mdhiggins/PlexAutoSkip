@@ -110,17 +110,13 @@ class Skipper():
             self.start(sslopt)
 
     def checkMedia(self, mediaWrapper: MediaWrapper) -> None:
-        if mediaWrapper.seeking:
-            self.log.debug("Checking media that's seeking, normally would be blocked")
-            # return
-
         leftOffset = mediaWrapper.leftOffset or self.settings.leftOffset
         rightOffset = mediaWrapper.rightOffset or self.settings.rightOffset
 
         self.checkMediaSkip(mediaWrapper, leftOffset, rightOffset)
         self.checkMediaVolume(mediaWrapper, leftOffset, rightOffset)
 
-        if (mediaWrapper.viewOffset >= (mediaWrapper.media.duration - self.settings.durationOffset)) and self.shouldSkipNext(mediaWrapper):
+        if (mediaWrapper.viewOffset > (mediaWrapper.media.duration + self.settings.durationOffset)) and self.shouldSkipNext(mediaWrapper):
             self.log.info("Found %s media that has reached the end of its playback with viewOffset %d and duration %d with skip-next enabled, will skip to next" % (mediaWrapper, mediaWrapper.viewOffset, mediaWrapper.media.duration))
             self.seekTo(mediaWrapper, mediaWrapper.media.duration)
 
@@ -212,10 +208,13 @@ class Skipper():
         if not player:
             return False
 
+        if mediaWrapper.media.duration and targetOffset > mediaWrapper.media.duration:
+            self.log.debug("TargetOffset %d is greater than duration of media %d, adjusting to match" % (targetOffset, mediaWrapper.media.duration))
+            targetOffset = mediaWrapper.media.duration
+
         try:
             try:
-                self.log.info("Seeking %s player playing %s from %d to %d" % (player.product, mediaWrapper, mediaWrapper.viewOffset, targetOffset))
-                if self.settings.skipnext and targetOffset >= (mediaWrapper.media.duration - self.settings.durationOffset):
+                if self.settings.skipnext and targetOffset >= mediaWrapper.media.duration:
                     try:
                         pq = PlayQueue.get(self.server, mediaWrapper.playQueueID)
                     except KeyboardInterrupt:
@@ -224,32 +223,21 @@ class Skipper():
                         pq = None
                         self.log.debug("Exception trying to get PlayQueue")
                         self.log.debug(e)
+
+                    self.removeSession(mediaWrapper)
                     if pq and pq.items[-1] == mediaWrapper.media:
-                        self.log.debug("Seek target is the end but no more items in the playQueue, using seekTo to prevent skipNext loop")
-                        mediaWrapper.updateOffset(mediaWrapper.media.duration, seeking=True)
+                        self.log.debug("Seek target is the end but no more items in the playQueue, using seekTo to prevent loop")
                         player.seekTo(mediaWrapper.media.duration)
-                        return True
-                    elif pq:
-                        nextItem: Media = pq[pq.items.index(pq.selectedItem) + 1]
-                        self.ignoreSession(mediaWrapper)
-                        self.removeSession(mediaWrapper)
-                        self.log.info("Seek target is the end, skipTo next item in queue %s" % (nextItem.key))
-                        player.skipTo(nextItem.key)
-                        return True
                     else:
-                        self.log.info("Seek target is the end, no PlayQueue data available, triggering skipNext")
-                        self.ignoreSession(mediaWrapper)
-                        self.removeSession(mediaWrapper)
+                        self.log.debug("Seek target is the end, triggering skipNext")
+                        player.skipTo(mediaWrapper.media.key)
                         player.skipNext()
                 else:
                     if targetOffset < mediaWrapper.viewOffset:
                         self.log.warning("TargetOffset %d is less than current viewOffset %d, cannot go back without creating infinite loop" % (targetOffset, mediaWrapper.viewOffset))
                         return False
 
-                    if mediaWrapper.media.duration and targetOffset > (mediaWrapper.media.duration - self.settings.safetyOffset):
-                        self.log.debug("TargetOffset %d is greater than duration of media %d, adjusting to match (safetyOffset: %d)" % (targetOffset, mediaWrapper.media.duration, self.settings.safetyOffset))
-                        targetOffset = mediaWrapper.media.duration - self.settings.safetyOffset
-
+                    self.log.info("Seeking %s player playing %s from %d to %d" % (player.product, mediaWrapper, mediaWrapper.viewOffset, targetOffset))
                     mediaWrapper.updateOffset(targetOffset, seeking=True)
                     player.seekTo(targetOffset)
                 return True
