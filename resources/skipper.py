@@ -231,6 +231,7 @@ class Skipper():
                     elif pq:
                         nextItem: Media = pq[pq.items.index(pq.selectedItem) + 1]
                         self.log.info("Seek target is the end, skipTo next item in queue %s" % (nextItem.key))
+                        player.play()
                         player.skipTo(nextItem.key)
                         return True
                     else:
