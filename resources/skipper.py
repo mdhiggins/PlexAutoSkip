@@ -22,6 +22,11 @@ from typing import Dict, List
 from pkg_resources import parse_version
 
 
+# During paused/stopped states some PlexClients will report viewOffset rounded down to the nearest 1000, round accordingly
+def rd(num: int, place: int = 1000) -> int:
+    return int(floor(num / place) * place)
+
+
 class Skipper():
     TROUBLESHOOT_URL = "https://github.com/mdhiggins/PlexAutoSkip/wiki/Troubleshooting"
     ERRORS = {
@@ -124,7 +129,7 @@ class Skipper():
         self.checkMediaSkip(mediaWrapper, leftOffset, rightOffset)
         self.checkMediaVolume(mediaWrapper, leftOffset, rightOffset)
 
-        if (mediaWrapper.viewOffset >= self.rd(mediaWrapper.media.duration)) and mediaWrapper.state in [STOPPEDKEY, PAUSEDKEY] and self.shouldSkipNext(mediaWrapper):
+        if (mediaWrapper.viewOffset >= rd(mediaWrapper.media.duration)) and mediaWrapper.state in [STOPPEDKEY, PAUSEDKEY] and self.shouldSkipNext(mediaWrapper):
             self.log.info("Found nonplaying %s media that has reached the end of its playback with viewOffset %d and duration %d with skip-next enabled, will skip to next" % (mediaWrapper, mediaWrapper.viewOffset, mediaWrapper.media.duration))
             self.seekTo(mediaWrapper, mediaWrapper.media.duration)
 
@@ -134,7 +139,7 @@ class Skipper():
 
         skipMarkers = [m for m in mediaWrapper.customMarkers if m.mode == Settings.MODE_TYPES.SKIP]
         for marker in skipMarkers:
-            if marker.start <= mediaWrapper.viewOffset < self.rd(marker.end):
+            if marker.start <= mediaWrapper.viewOffset < rd(marker.end):
                 self.log.info("Found a custom marker for media %s with range %d-%d and viewOffset %d (%d)" % (mediaWrapper, marker.start, marker.end, mediaWrapper.viewOffset, marker.key))
                 self.seekTo(mediaWrapper, marker.end)
                 return
@@ -143,19 +148,19 @@ class Skipper():
             return
 
         if self.settings.skiplastchapter and mediaWrapper.lastchapter and (mediaWrapper.lastchapter.start / mediaWrapper.media.duration) > self.settings.skiplastchapter:
-            if mediaWrapper.lastchapter and mediaWrapper.lastchapter.start <= mediaWrapper.viewOffset < self.rd(mediaWrapper.lastchapter.end):
+            if mediaWrapper.lastchapter and mediaWrapper.lastchapter.start <= mediaWrapper.viewOffset < rd(mediaWrapper.lastchapter.end):
                 self.log.info("Found a valid last chapter for media %s with range %d-%d and viewOffset %d with skip-last-chapter enabled" % (mediaWrapper, mediaWrapper.lastchapter.start, mediaWrapper.lastchapter.end, mediaWrapper.viewOffset))
                 self.seekTo(mediaWrapper, mediaWrapper.media.duration)
                 return
 
         for chapter in mediaWrapper.chapters:
-            if chapter.start <= mediaWrapper.viewOffset < self.rd(chapter.end):
+            if chapter.start <= mediaWrapper.viewOffset < rd(chapter.end):
                 self.log.info("Found skippable chapter %s for media %s with range %d-%d and viewOffset %d" % (chapter.title, mediaWrapper, chapter.start, chapter.end, mediaWrapper.viewOffset))
                 self.seekTo(mediaWrapper, chapter.end)
                 return
 
         for marker in mediaWrapper.markers:
-            if (marker.start + leftOffset) <= mediaWrapper.viewOffset < self.rd(marker.end):
+            if (marker.start + leftOffset) <= mediaWrapper.viewOffset < rd(marker.end):
                 self.log.info("Found skippable marker %s for media %s with range %d-%d and viewOffset %d" % (marker.type, mediaWrapper, marker.start + leftOffset, marker.end + rightOffset, mediaWrapper.viewOffset))
                 self.seekTo(mediaWrapper, marker.end + rightOffset)
                 return
@@ -190,12 +195,12 @@ class Skipper():
                 return True
 
         for chapter in mediaWrapper.chapters:
-            if chapter.start <= mediaWrapper.viewOffset < self.rd(chapter.end):
+            if chapter.start <= mediaWrapper.viewOffset < rd(chapter.end):
                 self.log.debug("Inside chapter %s for media %s with range %d-%d and viewOffset %d, volume should be low" % (chapter.title, mediaWrapper, chapter.start, chapter.end, mediaWrapper.viewOffset))
                 return True
 
         for marker in mediaWrapper.markers:
-            if (marker.start + leftOffset) <= mediaWrapper.viewOffset < self.rd(marker.end + rightOffset):
+            if (marker.start + leftOffset) <= mediaWrapper.viewOffset < rd(marker.end + rightOffset):
                 self.log.debug("Inside marker %s for media %s with range %d-%d and viewOffset %d, volume should be low" % (marker.type, mediaWrapper, marker.start + leftOffset, marker.end, mediaWrapper.viewOffset))
                 return True
         return False
@@ -498,7 +503,3 @@ class Skipper():
                 self.log.error(self.ERRORS[e])
                 return
         self.log.exception("%s, see %s" % (default, self.TROUBLESHOOT_URL))
-
-    # During paused/stopped states some PlexClients will report viewOffset rounded down to the nearest 1000, round accordingly
-    def rd(self, num: int, place: int = 1000) -> int:
-        return int(floor(num / place) * place)

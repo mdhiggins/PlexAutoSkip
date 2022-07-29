@@ -6,6 +6,7 @@ from plexapi.server import PlexServer
 from plexapi.media import Marker, Chapter
 from plexapi.client import PlexClient
 from plexapi.base import PlexSession
+from resources.skipper import rd
 from resources.customEntries import CustomEntries
 from resources.settings import Settings
 from resources.log import getLogger
@@ -271,8 +272,8 @@ class MediaWrapper():
         return vo if vo <= (self.media.duration or vo) else self.media.duration
 
     def seekTo(self, offset: int, player: PlexClient) -> None:
-        self.seekOrigin = self._viewOffset
-        self.seekTarget = offset
+        self.seekOrigin = rd(self._viewOffset)
+        self.seekTarget = rd(offset)
         self.lastUpdate = datetime.now()
         self._viewOffset = offset
         self.session.viewOffset = offset
