@@ -55,6 +55,7 @@ class Skipper():
 
     TIMEOUT = 30
     IGNORED_CAP = 200
+    ENDBUFFER = 2000
 
     @property
     def customEntries(self) -> CustomEntries:
@@ -133,7 +134,7 @@ class Skipper():
 
         skipMarkers = [m for m in mediaWrapper.customMarkers if m.mode == Settings.MODE_TYPES.SKIP]
         for marker in skipMarkers:
-            if marker.start <= mediaWrapper.viewOffset < (marker.end - leftOffset):
+            if marker.start <= mediaWrapper.viewOffset < (marker.end - self.ENDBUFFER):
                 self.log.info("Found a custom marker for media %s with range %d-%d and viewOffset %d (%d)" % (mediaWrapper, marker.start, marker.end, mediaWrapper.viewOffset, marker.key))
                 self.seekTo(mediaWrapper, marker.end)
                 return
@@ -142,19 +143,19 @@ class Skipper():
             return
 
         if self.settings.skiplastchapter and mediaWrapper.lastchapter and (mediaWrapper.lastchapter.start / mediaWrapper.media.duration) > self.settings.skiplastchapter:
-            if mediaWrapper.lastchapter and mediaWrapper.lastchapter.start <= mediaWrapper.viewOffset < (mediaWrapper.lastchapter.end - leftOffset):
+            if mediaWrapper.lastchapter and mediaWrapper.lastchapter.start <= mediaWrapper.viewOffset < (mediaWrapper.lastchapter.end - self.ENDBUFFER):
                 self.log.info("Found a valid last chapter for media %s with range %d-%d and viewOffset %d with skip-last-chapter enabled" % (mediaWrapper, mediaWrapper.lastchapter.start, mediaWrapper.lastchapter.end, mediaWrapper.viewOffset))
                 self.seekTo(mediaWrapper, mediaWrapper.media.duration)
                 return
 
         for chapter in mediaWrapper.chapters:
-            if chapter.start <= mediaWrapper.viewOffset < (chapter.end - leftOffset):
+            if chapter.start <= mediaWrapper.viewOffset < (chapter.end - self.ENDBUFFER):
                 self.log.info("Found skippable chapter %s for media %s with range %d-%d and viewOffset %d" % (chapter.title, mediaWrapper, chapter.start, chapter.end, mediaWrapper.viewOffset))
                 self.seekTo(mediaWrapper, chapter.end)
                 return
 
         for marker in mediaWrapper.markers:
-            if (marker.start + leftOffset) <= mediaWrapper.viewOffset < (marker.end - leftOffset):
+            if (marker.start + leftOffset) <= mediaWrapper.viewOffset < (marker.end - self.ENDBUFFER):
                 self.log.info("Found skippable marker %s for media %s with range %d-%d and viewOffset %d" % (marker.type, mediaWrapper, marker.start + leftOffset, marker.end + rightOffset, mediaWrapper.viewOffset))
                 self.seekTo(mediaWrapper, marker.end + rightOffset)
                 return
@@ -224,29 +225,7 @@ class Skipper():
         try:
             try:
                 if self.settings.skipnext and targetOffset >= mediaWrapper.media.duration:
-                    try:
-                        pq = PlayQueue.get(self.server, mediaWrapper.playQueueID)
-                    except KeyboardInterrupt:
-                        raise
-                    except Exception as e:
-                        pq = None
-                        self.log.debug("Exception trying to get PlayQueue %d" % (mediaWrapper.playQueueID))
-                        self.log.debug(e)
-
-                    self.removeSession(mediaWrapper)
-                    self.ignoreSession(mediaWrapper)
-                    if pq and pq.items[-1] == mediaWrapper.media:
-                        self.log.debug("Seek target is the end but no more items in the playQueue, using seekTo to prevent loop")
-                        player.seekTo(mediaWrapper.media.duration)
-                    elif pq:
-                        nextItem: Media = pq[pq.items.index(pq.selectedItem) + 1]
-                        newQueue = PlayQueue.create(self.server, list(pq.items), nextItem)
-                        player.playMedia(newQueue)
-                    else:
-                        self.log.warning("Seek target is the end but unable to get PlayQueue data from server, triggering skipNext")
-                        player.skipTo(mediaWrapper.media.key)
-                        player.skipNext()
-                    return True
+                    return self.skipPlayerTo(player, mediaWrapper)
                 else:
                     if targetOffset < mediaWrapper.viewOffset:
                         self.log.warning("TargetOffset %d is less than current viewOffset %d, cannot go back without creating infinite loop" % (targetOffset, mediaWrapper.viewOffset))
@@ -263,6 +242,30 @@ class Skipper():
                 return self.seekPlayerTo(self.recoverPlayer(player), mediaWrapper, targetOffset)
         except:
             raise
+
+    def skipPlayerTo(self, player: PlexClient, mediaWrapper: MediaWrapper) -> bool:
+        self.removeSession(mediaWrapper)
+        self.ignoreSession(mediaWrapper)
+        try:
+            pq = PlayQueue.get(self.server, mediaWrapper.playQueueID)
+            if pq.items[-1] == mediaWrapper.media:
+                self.log.debug("Seek target is the end but no more items in the playQueue, using seekTo to prevent loop")
+                player.seekTo(mediaWrapper.media.duration)
+            else:
+                nextItem: Media = pq[pq.items.index(mediaWrapper.media) + 1]
+                newQueue = PlayQueue.create(self.server, list(pq.items), nextItem)
+                player.playMedia(newQueue)
+            return True
+        except KeyboardInterrupt:
+            raise
+        except Exception as e:
+            self.log.debug("Exception trying to get PlayQueue %d" % (mediaWrapper.playQueueID))
+            self.log.debug(e)
+
+        self.log.warning("Seek target is the end but unable to get PlayQueue data from server, triggering skipNext")
+        player.skipTo(mediaWrapper.media.key)
+        player.skipNext()
+        return True
 
     def setVolume(self, mediaWrapper: MediaWrapper, volume: int, lowering: bool) -> None:
         t = Thread(target=self._setVolume, args=(mediaWrapper, volume, lowering))
