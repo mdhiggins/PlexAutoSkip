@@ -16,10 +16,13 @@ Media = TypeVar("Media", Episode, Movie)
 
 STARTKEY = "start"
 ENDKEY = "end"
+
 PLAYINGKEY = "playing"
 STOPPEDKEY = "stopped"
+PAUSEDKEY = "paused"
 CASCADEKEY = "cascade"
 BUFFERINGKEY = "buffering"
+
 MODEKEY = "mode"
 MARKERPREFIX = "m"
 CHAPTERPREFIX = "c"
