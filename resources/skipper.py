@@ -230,7 +230,7 @@ class Skipper():
                         raise
                     except Exception as e:
                         pq = None
-                        self.log.debug("Exception trying to get PlayQueue")
+                        self.log.debug("Exception trying to get PlayQueue %d" % (mediaWrapper.playQueueID))
                         self.log.debug(e)
 
                     self.removeSession(mediaWrapper)
@@ -240,14 +240,10 @@ class Skipper():
                         player.seekTo(mediaWrapper.media.duration)
                     elif pq:
                         nextItem: Media = pq[pq.items.index(pq.selectedItem) + 1]
-                        if player.timeline:
-                            self.log.debug("Seek target is the end, skipTo next item in queue %s" % (nextItem))
-                            player.skipTo(nextItem.key)
-                        else:
-                            self.log.debug("Seek target is the end, playMedia next item in queue %s %s" % (nextItem, pq.key))
-                            player.playMedia(nextItem, containerKey=pq.key)
+                        newQueue = PlayQueue.create(self.server, list(pq.items), nextItem)
+                        player.playMedia(newQueue)
                     else:
-                        self.log.debug("Seek target is the end, triggering skipNext")
+                        self.log.warning("Seek target is the end but unable to get PlayQueue data from server, triggering skipNext")
                         player.skipTo(mediaWrapper.media.key)
                         player.skipNext()
                     return True
