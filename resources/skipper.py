@@ -1,12 +1,11 @@
 #!/usr/bin/python3
 
 import logging
-from math import floor
 import time
 from resources.settings import Settings
 from resources.customEntries import CustomEntries
 from resources.sslAlertListener import SSLAlertListener
-from resources.mediaWrapper import Media, MediaWrapper, PLAYINGKEY, STOPPEDKEY, PAUSEDKEY, BUFFERINGKEY
+from resources.mediaWrapper import Media, MediaWrapper, PLAYINGKEY, STOPPEDKEY, PAUSEDKEY, BUFFERINGKEY, rd
 from resources.log import getLogger
 from xml.etree.ElementTree import ParseError
 from urllib3.exceptions import ReadTimeoutError
@@ -20,11 +19,6 @@ from plexapi.base import PlexSession
 from threading import Thread
 from typing import Dict, List
 from pkg_resources import parse_version
-
-
-# During paused/stopped states some PlexClients will report viewOffset rounded down to the nearest 1000, round accordingly
-def rd(num: int, place: int = 1000) -> int:
-    return int(floor(num / place) * place)
 
 
 class Skipper():

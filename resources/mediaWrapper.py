@@ -6,11 +6,11 @@ from plexapi.server import PlexServer
 from plexapi.media import Marker, Chapter
 from plexapi.client import PlexClient
 from plexapi.base import PlexSession
-from resources.skipper import rd
 from resources.customEntries import CustomEntries
 from resources.settings import Settings
 from resources.log import getLogger
 from typing import TypeVar, List
+from math import floor
 
 
 Media = TypeVar("Media", Episode, Movie)
@@ -27,6 +27,11 @@ BUFFERINGKEY = "buffering"
 MODEKEY = "mode"
 MARKERPREFIX = "m"
 CHAPTERPREFIX = "c"
+
+
+# During paused/stopped states some PlexClients will report viewOffset rounded down to the nearest 1000, round accordingly
+def rd(num: int, place: int = 1000) -> int:
+    return int(floor(num / place) * place)
 
 
 def strtobool(val):
