@@ -92,6 +92,7 @@ class MediaWrapper():
         self.clientIdentifier = clientIdentifier
         self.state: str = state
         self.playQueueID: dict = playQueueID
+        self.player = session.player
 
         self.lastUpdate: datetime = datetime.now()
         self.lastAlert: datetime = datetime.now()
@@ -246,10 +247,6 @@ class MediaWrapper():
     @property
     def pasIdentifier(self) -> str:
         return MediaWrapper.getSessionClientIdentifier(self.session.sessionKey, self.clientIdentifier)
-
-    @property
-    def player(self) -> PlexClient:
-        return next((p for p in self.session.players if p.machineIdentifier == self.clientIdentifier), None)
 
     @property
     def seeking(self) -> bool:
