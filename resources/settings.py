@@ -73,8 +73,7 @@ class Settings:
         },
         "Offsets": {
             "start": 3000,
-            "end": 1000,
-            "duration": 2000,
+            "end": 1000
         },
         "Volume": {
             "low": 0,
@@ -148,8 +147,6 @@ class Settings:
         self.skipnext: bool = False
         self.leftOffset: int = 0
         self.rightOffset: int = 0
-        self.durationOffset: int = 0
-        self.safetyOffset: int = 0
         self.customEntries: CustomEntries = None
 
         self._configFile: str = None
@@ -309,7 +306,6 @@ class Settings:
 
         self.leftOffset = config.getint("Offsets", "start")
         self.rightOffset = config.getint("Offsets", "end")
-        self.durationOffset = config.getint("Offsets", "duration")
 
         self.volumelow = config.getint("Volume", "low")
         self.volumehigh = config.getint("Volume", "high")

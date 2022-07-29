@@ -268,7 +268,7 @@ class MediaWrapper():
         if self.state != PLAYINGKEY:
             return self._viewOffset
         vo = self._viewOffset + round((datetime.now() - self.lastUpdate).total_seconds() * 1000)
-        return vo
+        return vo if vo <= (self.media.duration or vo) else self.media.duration
 
     def seekTo(self, offset: int, player: PlexClient) -> None:
         self.seekOrigin = self._viewOffset
