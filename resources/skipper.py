@@ -124,7 +124,7 @@ class Skipper():
         self.checkMediaSkip(mediaWrapper, leftOffset, rightOffset)
         self.checkMediaVolume(mediaWrapper, leftOffset, rightOffset)
 
-        if (mediaWrapper.viewOffset > (mediaWrapper.media.duration - 1000)) and mediaWrapper.state != STOPPEDKEY and self.shouldSkipNext(mediaWrapper):
+        if (mediaWrapper.viewOffset > (mediaWrapper.media.duration - 1000)) and mediaWrapper.state == STOPPEDKEY and self.shouldSkipNext(mediaWrapper):
             self.log.info("Found nonplaying %s media that has reached the end of its playback with viewOffset %d and duration %d with skip-next enabled, will skip to next" % (mediaWrapper, mediaWrapper.viewOffset, mediaWrapper.media.duration))
             self.seekTo(mediaWrapper, mediaWrapper.media.duration)
 
@@ -254,6 +254,7 @@ class Skipper():
             else:
                 nextItem: Media = pq[pq.items.index(mediaWrapper.media) + 1]
                 newQueue = PlayQueue.create(self.server, list(pq.items), nextItem)
+                player.stop()
                 player.playMedia(newQueue)
             return True
         except KeyboardInterrupt:
