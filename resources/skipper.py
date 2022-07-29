@@ -5,7 +5,7 @@ import time
 from resources.settings import Settings
 from resources.customEntries import CustomEntries
 from resources.sslAlertListener import SSLAlertListener
-from resources.mediaWrapper import Media, MediaWrapper, PLAYINGKEY
+from resources.mediaWrapper import Media, MediaWrapper, PLAYINGKEY, STOPPEDKEY, BUFFERINGKEY
 from resources.log import getLogger
 from xml.etree.ElementTree import ParseError
 from urllib3.exceptions import ReadTimeoutError
@@ -110,30 +110,30 @@ class Skipper():
             self.start(sslopt)
 
     def checkMedia(self, mediaWrapper: MediaWrapper) -> None:
+        if mediaWrapper.sinceLastAlert > self.TIMEOUT:
+            self.log.debug("Session %s hasn't been updated in %d seconds" % (mediaWrapper, self.TIMEOUT))
+            self.removeSession(mediaWrapper)
+
+        if mediaWrapper.state == BUFFERINGKEY:
+            return
+
         leftOffset = mediaWrapper.leftOffset or self.settings.leftOffset
         rightOffset = mediaWrapper.rightOffset or self.settings.rightOffset
 
         self.checkMediaSkip(mediaWrapper, leftOffset, rightOffset)
         self.checkMediaVolume(mediaWrapper, leftOffset, rightOffset)
 
-        # Most players stop updating at play next screen and leave state as "playing" with no more alerts
-        if (mediaWrapper.viewOffset > (mediaWrapper.media.duration + self.settings.durationOffset)) and self.shouldSkipNext(mediaWrapper):
-            self.log.info("Found %s media that has reached the end of its playback with viewOffset %d and duration %d with skip-next enabled, will skip to next" % (mediaWrapper, mediaWrapper.viewOffset, mediaWrapper.media.duration))
+        if (mediaWrapper.viewOffset > (mediaWrapper.media.duration - 1000)) and mediaWrapper.state != STOPPEDKEY and self.shouldSkipNext(mediaWrapper):
+            self.log.info("Found nonplaying %s media that has reached the end of its playback with viewOffset %d and duration %d with skip-next enabled, will skip to next" % (mediaWrapper, mediaWrapper.viewOffset, mediaWrapper.media.duration))
             self.seekTo(mediaWrapper, mediaWrapper.media.duration)
-
-        # Certain players set playback state to "paused" at end of playback with <1000 ms viewOffset remaining
-        if (mediaWrapper.viewOffset > (mediaWrapper.media.duration - 1000)) and mediaWrapper.state != PLAYINGKEY and self.shouldSkipNext(mediaWrapper):
-            self.log.info("Found paused %s media that has reached the end of its playback with viewOffset %d and duration %d with skip-next enabled, will skip to next" % (mediaWrapper, mediaWrapper.viewOffset, mediaWrapper.media.duration))
-            self.seekTo(mediaWrapper, mediaWrapper.media.duration)
-
-        if mediaWrapper.sinceLastUpdate > self.TIMEOUT:
-            self.log.debug("Session %s hasn't been updated in %d seconds" % (mediaWrapper, self.TIMEOUT))
-            self.removeSession(mediaWrapper)
 
     def checkMediaSkip(self, mediaWrapper: MediaWrapper, leftOffset: int, rightOffset: int) -> None:
+        if mediaWrapper.state != PLAYINGKEY:
+            return
+
         skipMarkers = [m for m in mediaWrapper.customMarkers if m.mode == Settings.MODE_TYPES.SKIP]
         for marker in skipMarkers:
-            if marker.start <= mediaWrapper.viewOffset < marker.end:
+            if marker.start <= mediaWrapper.viewOffset < (marker.end - leftOffset):
                 self.log.info("Found a custom marker for media %s with range %d-%d and viewOffset %d (%d)" % (mediaWrapper, marker.start, marker.end, mediaWrapper.viewOffset, marker.key))
                 self.seekTo(mediaWrapper, marker.end)
                 return
@@ -142,24 +142,27 @@ class Skipper():
             return
 
         if self.settings.skiplastchapter and mediaWrapper.lastchapter and (mediaWrapper.lastchapter.start / mediaWrapper.media.duration) > self.settings.skiplastchapter:
-            if mediaWrapper.lastchapter and mediaWrapper.lastchapter.start <= mediaWrapper.viewOffset <= mediaWrapper.lastchapter.end:
+            if mediaWrapper.lastchapter and mediaWrapper.lastchapter.start <= mediaWrapper.viewOffset < (mediaWrapper.lastchapter.end - leftOffset):
                 self.log.info("Found a valid last chapter for media %s with range %d-%d and viewOffset %d with skip-last-chapter enabled" % (mediaWrapper, mediaWrapper.lastchapter.start, mediaWrapper.lastchapter.end, mediaWrapper.viewOffset))
                 self.seekTo(mediaWrapper, mediaWrapper.media.duration)
                 return
 
         for chapter in mediaWrapper.chapters:
-            if chapter.start <= mediaWrapper.viewOffset < chapter.end:
+            if chapter.start <= mediaWrapper.viewOffset < (chapter.end - leftOffset):
                 self.log.info("Found skippable chapter %s for media %s with range %d-%d and viewOffset %d" % (chapter.title, mediaWrapper, chapter.start, chapter.end, mediaWrapper.viewOffset))
                 self.seekTo(mediaWrapper, chapter.end)
                 return
 
         for marker in mediaWrapper.markers:
-            if (marker.start + leftOffset) <= mediaWrapper.viewOffset < marker.end:
+            if (marker.start + leftOffset) <= mediaWrapper.viewOffset < (marker.end - leftOffset):
                 self.log.info("Found skippable marker %s for media %s with range %d-%d and viewOffset %d" % (marker.type, mediaWrapper, marker.start + leftOffset, marker.end + rightOffset, mediaWrapper.viewOffset))
                 self.seekTo(mediaWrapper, marker.end + rightOffset)
                 return
 
     def checkMediaVolume(self, mediaWrapper: MediaWrapper, leftOffset: int, rightOffset: int) -> None:
+        if mediaWrapper.state != PLAYINGKEY:
+            return
+
         shouldLower = self.shouldLowerMediaVolume(mediaWrapper, leftOffset, rightOffset)
         if not mediaWrapper.loweringVolume and shouldLower:
             self.log.info("Moving from normal volume to low volume viewOffset %d which is a low volume area for media %s, lowering volume to %d" % (mediaWrapper.viewOffset, mediaWrapper, self.settings.volumelow))
@@ -231,27 +234,30 @@ class Skipper():
                         self.log.debug(e)
 
                     self.removeSession(mediaWrapper)
+                    self.ignoreSession(mediaWrapper)
                     if pq and pq.items[-1] == mediaWrapper.media:
                         self.log.debug("Seek target is the end but no more items in the playQueue, using seekTo to prevent loop")
                         player.seekTo(mediaWrapper.media.duration)
                     elif pq:
                         nextItem: Media = pq[pq.items.index(pq.selectedItem) + 1]
-                        self.log.debug("Seek target is the end, skipTo next item in queue %s" % (nextItem.key))
-                        player.play()
-                        player.skipTo(nextItem.key)
-                        return True
+                        if player.timeline:
+                            self.log.debug("Seek target is the end, skipTo next item in queue %s" % (nextItem))
+                            player.skipTo(nextItem.key)
+                        else:
+                            self.log.debug("Seek target is the end, playMedia next item in queue %s %s" % (nextItem, pq.key))
+                            player.playMedia(nextItem, containerKey=pq.key)
                     else:
                         self.log.debug("Seek target is the end, triggering skipNext")
                         player.skipTo(mediaWrapper.media.key)
                         player.skipNext()
+                    return True
                 else:
                     if targetOffset < mediaWrapper.viewOffset:
                         self.log.warning("TargetOffset %d is less than current viewOffset %d, cannot go back without creating infinite loop" % (targetOffset, mediaWrapper.viewOffset))
                         return False
 
                     self.log.info("Seeking %s player playing %s from %d to %d" % (player.product, mediaWrapper, mediaWrapper.viewOffset, targetOffset))
-                    mediaWrapper.updateOffset(targetOffset, seeking=True)
-                    player.seekTo(targetOffset)
+                    mediaWrapper.seekTo(targetOffset, player)
                 return True
             except ParseError:
                 self.log.debug("ParseError, seems to be certain players but still functional, continuing")
@@ -328,14 +334,15 @@ class Skipper():
             clientIdentifier = data['PlaySessionStateNotification'][0]['clientIdentifier']
             playQueueID = int(data['PlaySessionStateNotification'][0]['playQueueID'])
             pasIdentifier = MediaWrapper.getSessionClientIdentifier(sessionKey, clientIdentifier)
+            viewOffset = int(data['PlaySessionStateNotification'][0]['viewOffset'])
 
             if pasIdentifier in self.ignored:
                 return
 
             try:
-                mediaSession = self.getMediaSession(sessionKey)
-                if mediaSession and mediaSession.session and mediaSession.session.location == 'lan':
-                    if pasIdentifier not in self.media_sessions:
+                if pasIdentifier not in self.media_sessions:
+                    mediaSession = self.getMediaSession(sessionKey)
+                    if mediaSession and mediaSession.session and mediaSession.session.location == 'lan':
                         wrapper = MediaWrapper(mediaSession, clientIdentifier, state, playQueueID, self.server, tags=self.settings.tags, mode=self.settings.mode, custom=self.customEntries, logger=self.log)
                         if not self.blockedClientUser(wrapper):
                             if self.shouldAdd(wrapper):
@@ -346,10 +353,8 @@ class Skipper():
                                     self.addSession(wrapper)
                                 else:
                                     self.ignoreSession(wrapper)
-                    else:
-                        self.media_sessions[pasIdentifier].updateOffset(mediaSession.viewOffset, seeking=False, state=state)
                 else:
-                    pass
+                    self.media_sessions[pasIdentifier].updateOffset(viewOffset, state=state)
             except KeyboardInterrupt:
                 raise
             except:

@@ -17,7 +17,9 @@ Media = TypeVar("Media", Episode, Movie)
 STARTKEY = "start"
 ENDKEY = "end"
 PLAYINGKEY = "playing"
+STOPPEDKEY = "stopped"
 CASCADEKEY = "cascade"
+BUFFERINGKEY = "buffering"
 MODEKEY = "mode"
 MARKERPREFIX = "m"
 CHAPTERPREFIX = "c"
@@ -92,6 +94,7 @@ class MediaWrapper():
         self.playQueueID: dict = playQueueID
 
         self.lastUpdate: datetime = datetime.now()
+        self.lastAlert: datetime = datetime.now()
         self.lastSeek: datetime = datetime(1970, 1, 1)
 
         self.seekTarget: int = 0
@@ -232,6 +235,10 @@ class MediaWrapper():
             return "%s (%s) %s.%s" % (base, self.media.title, self.player.title, self.clientIdentifier)
         return "%s %s.%s" % (base, self.player.title, self.clientIdentifier)
 
+    @property
+    def hasContent(self) -> bool:
+        return len(self.chapters + self.markers + self.customMarkers) > 0
+
     @staticmethod
     def getSessionClientIdentifier(sessionKey, clientIdentifier) -> str:
         return "%s-%s" % (sessionKey, clientIdentifier)
@@ -253,31 +260,44 @@ class MediaWrapper():
         return (datetime.now() - self.lastUpdate).total_seconds()
 
     @property
+    def sinceLastAlert(self) -> int:
+        return (datetime.now() - self.lastAlert).total_seconds()
+
+    @property
     def viewOffset(self) -> int:
         if self.state != PLAYINGKEY:
             return self._viewOffset
         vo = self._viewOffset + round((datetime.now() - self.lastUpdate).total_seconds() * 1000)
         return vo
 
-    def updateOffset(self, offset: int, seeking: bool, state: str = None) -> bool:
-        if self.seeking and not seeking and offset < self.seekTarget:
-            if offset <= self.seekOrigin:
-                self.log.debug("Seeking but new offset is earlier than the old one for session %s, resetting, state %s" % (self, state))
-            else:
-                self.log.debug("Skipping update session %s is actively seeking, state %s" % (self, state))
-                return False
-        if not seeking:
-            self.log.debug("Updating session %s state %s viewOffset %d, old %d, diff %dms (%ds since last update)" % (self, state, offset, self.viewOffset, (offset - self.viewOffset), (datetime.now() - self.lastUpdate).total_seconds()))
-        if self.seeking and not seeking and offset >= self.seekTarget:
-            self.log.debug("Recent seek successful, server offset update %d meets/exceeds target %d, setting seeking to %s, state %s" % (offset, self.seekTarget, seeking, state))
+    def seekTo(self, offset: int, player: PlexClient) -> None:
+        self.seekOrigin = self._viewOffset
+        self.seekTarget = offset
+        self.lastUpdate = datetime.now()
+        self._viewOffset = offset
+        self.session.viewOffset = offset
+        player.seekTo(offset)
 
-        self.seekOrigin = self._viewOffset if seeking else 0
-        self.seekTarget = offset if seeking else 0
+    def updateOffset(self, offset: int, state: str) -> None:
+        self.state = state or self.state
+        self.lastAlert = datetime.now()
+
+        if self.seeking:
+            if self.seekOrigin < offset < self.seekTarget:
+                self.log.debug("Skipping %d update session %s is actively seeking [%s]" % (offset, self, state))
+                return
+            elif offset < self.seekOrigin:
+                self.log.debug("Seeking but new offset is earlier than the old one for session %s [%s], updating data" % (self, state))
+            else:
+                self.log.debug("Recent seek successful, server offset update %d meets/exceeds target %d [%s]" % (offset, self.seekTarget, state))
+
+        self.log.debug("Updating session %s [%s] viewOffset %d, old %d, diff %dms (%ds since last update)" % (self, state, offset, self.viewOffset, (offset - self.viewOffset), (datetime.now() - self.lastUpdate).total_seconds()))
+
+        self.seekOrigin = 0
+        self.seekTarget = 0
         self._viewOffset = offset
         self.session.viewOffset = offset
         self.lastUpdate = datetime.now()
-        self.state = state or self.state
-        return True
 
     def updateVolume(self, volume: int, previousVolume: int, lowering: bool) -> bool:
         self.cachedVolume = previousVolume
