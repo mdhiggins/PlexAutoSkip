@@ -189,12 +189,12 @@ class Skipper():
                 return True
 
         for chapter in mediaWrapper.chapters:
-            if chapter.start <= mediaWrapper.viewOffset < rd(chapter.end):
+            if chapter.start <= mediaWrapper.viewOffset < chapter.end:
                 self.log.debug("Inside chapter %s for media %s with range %d-%d and viewOffset %d, volume should be low" % (chapter.title, mediaWrapper, chapter.start, chapter.end, mediaWrapper.viewOffset))
                 return True
 
         for marker in mediaWrapper.markers:
-            if (marker.start + leftOffset) <= mediaWrapper.viewOffset < rd(marker.end + rightOffset):
+            if (marker.start + leftOffset) <= mediaWrapper.viewOffset < (marker.end + rightOffset):
                 self.log.debug("Inside marker %s for media %s with range %d-%d and viewOffset %d, volume should be low" % (marker.type, mediaWrapper, marker.start + leftOffset, marker.end, mediaWrapper.viewOffset))
                 return True
         return False
