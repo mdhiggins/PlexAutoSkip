@@ -100,6 +100,7 @@ class MediaWrapper():
 
         self.clientIdentifier = clientIdentifier
         self.state: str = state
+        self.ended: bool = False
         self.playQueueID: dict = playQueueID
         self.player = session.player
 
@@ -304,6 +305,8 @@ class MediaWrapper():
         self._viewOffset = offset
         self.session.viewOffset = offset
         self.lastUpdate = datetime.now()
+        if not self.ended and state in [PAUSEDKEY, STOPPEDKEY] and offset >= rd(self.media.duration):
+            self.ended = True
 
     def updateVolume(self, volume: int, previousVolume: int, lowering: bool) -> bool:
         self.cachedVolume = previousVolume
