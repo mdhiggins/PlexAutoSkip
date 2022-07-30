@@ -26,6 +26,7 @@ next = False
 [Offsets]
 start = 3000
 end = 1000
+delay = 500
 
 [Volume]
 low = 0

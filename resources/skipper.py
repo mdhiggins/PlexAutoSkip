@@ -56,7 +56,6 @@ class Skipper():
     TIMEOUT = 30
     IGNORED_CAP = 200
     DURATION_TOLERANCE = 1000
-    COMMAND_DELAY = 500
 
     @property
     def customEntries(self) -> CustomEntries:
@@ -250,6 +249,7 @@ class Skipper():
     def skipPlayerTo(self, player: PlexClient, mediaWrapper: MediaWrapper) -> bool:
         self.removeSession(mediaWrapper)
         self.ignoreSession(mediaWrapper)
+        commandDelay = mediaWrapper.commandDelay or self.settings.commandDelay
         try:
             pq = PlayQueue.get(self.server, mediaWrapper.playQueueID)
             if pq.items[-1] == mediaWrapper.media:
@@ -262,19 +262,17 @@ class Skipper():
                 else:
                     server = PlexServer(self.server._baseurl, token=mediaWrapper.userToken, session=self.server._session, timeout=self.server._timeout)
                 newQueue = PlayQueue.create(server, list(pq.items), nextItem)
-                time.sleep(self.COMMAND_DELAY / 1000)
+                time.sleep(commandDelay / 1000)
                 player.stop()
-                time.sleep(self.COMMAND_DELAY / 1000)
+                time.sleep(commandDelay / 1000)
                 player.playMedia(newQueue)
             return True
         except KeyboardInterrupt:
             raise
         except Exception as e:
-            self.log.debug("Exception trying to get PlayQueue %d" % (mediaWrapper.playQueueID))
+            self.log.warning("Seek target is the end but unable to get PlayQueue %d data from server, aborting to prevent extra skips or playback issues" % (mediaWrapper.playQueueID))
             self.log.debug(e)
-
-        self.log.warning("Seek target is the end but unable to get PlayQueue data from server, aborting to prevent extra skips or playback issues")
-        return True
+            return False
 
     def setVolume(self, mediaWrapper: MediaWrapper, volume: int, lowering: bool) -> None:
         t = Thread(target=self._setVolume, args=(mediaWrapper, volume, lowering))

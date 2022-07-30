@@ -121,6 +121,7 @@ class MediaWrapper():
 
         self.leftOffset: int = 0
         self.rightOffset: int = 0
+        self.commandDelay: int = 0
 
         self.tags: List[str] = tags
 
@@ -221,16 +222,23 @@ class MediaWrapper():
             elif self.clientIdentifier in custom.mode:
                 self.mode = Settings.MODE_MATCHER.get(custom.mode[self.clientIdentifier], self.mode)
 
+            if self.player.title in custom.offsets:
+                self.commandDelay = custom.offsets[self.player.title].get("command", self.commandDelay)
+            elif self.clientIdentifier in custom.offsets:
+                self.commandDelay = custom.offsets[self.clientIdentifier].get("command", self.commandDelay)
+
             self.tags = [x.lower() for x in self.tags]
 
             if self.leftOffset:
-                self.log.debug("Custom start offset value of %d found for %s" % (self.leftOffset, self))
+                self.log.debug("Custom start offset value of %dms found for %s" % (self.leftOffset, self))
             if self.rightOffset:
-                self.log.debug("Custom end offset value of %d found for %s" % (self.rightOffset, self))
+                self.log.debug("Custom end offset value of %dms found for %s" % (self.rightOffset, self))
             if self.tags != tags:
                 self.log.debug("Custom tags value of %s found for %s" % (self.tags, self))
             if self.mode != mode:
                 self.log.debug("Custom mode value of %s found for %s" % (self.mode, self))
+            if self.commandDelay:
+                self.log.debug("Custom command delay value of %dms found for %s" % (self.commandDelay, self))
 
         if hasattr(self.media, 'markers') and not self.customOnly:
             self.markers = [x for x in self.media.markers if x.type and (x.type.lower() in self.tags or "%s:%s" % (MARKERPREFIX, x.type.lower()) in self.tags)]
