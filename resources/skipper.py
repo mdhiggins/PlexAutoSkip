@@ -273,9 +273,7 @@ class Skipper():
             self.log.debug("Exception trying to get PlayQueue %d" % (mediaWrapper.playQueueID))
             self.log.debug(e)
 
-        self.log.warning("Seek target is the end but unable to get PlayQueue data from server, triggering skipNext")
-        player.skipTo(mediaWrapper.media.key)
-        player.skipNext()
+        self.log.warning("Seek target is the end but unable to get PlayQueue data from server, aborting to prevent extra skips or playback issues")
         return True
 
     def setVolume(self, mediaWrapper: MediaWrapper, volume: int, lowering: bool) -> None:
