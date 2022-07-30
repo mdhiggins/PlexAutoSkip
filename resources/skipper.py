@@ -55,7 +55,8 @@ class Skipper():
 
     TIMEOUT = 30
     IGNORED_CAP = 200
-    DURATION_TOLERANCE = 500
+    DURATION_TOLERANCE = 1000
+    COMMAND_DELAY = 500
 
     @property
     def customEntries(self) -> CustomEntries:
@@ -256,8 +257,14 @@ class Skipper():
                 player.seekTo(mediaWrapper.media.duration)
             else:
                 nextItem: Media = pq[pq.items.index(mediaWrapper.media) + 1]
-                newQueue = PlayQueue.create(self.server, list(pq.items), nextItem)
+                if mediaWrapper.session.user == self.server.myPlexAccount:
+                    server = self.server
+                else:
+                    server = PlexServer(self.server._baseurl, token=mediaWrapper.userToken, session=self.server._session, timeout=self.server._timeout)
+                newQueue = PlayQueue.create(server, list(pq.items), nextItem)
+                time.sleep(self.COMMAND_DELAY / 1000)
                 player.stop()
+                time.sleep(self.COMMAND_DELAY / 1000)
                 player.playMedia(newQueue)
             return True
         except KeyboardInterrupt:
