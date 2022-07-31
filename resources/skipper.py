@@ -262,6 +262,7 @@ class Skipper():
                 else:
                     server = PlexServer(self.server._baseurl, token=mediaWrapper.userToken, session=self.server._session, timeout=self.server._timeout)
                 newQueue = PlayQueue.create(server, list(pq.items), nextItem)
+                self.log.debug("Creating new PlayQueue %d with start item %s" % (newQueue.playQueueID, nextItem))
                 time.sleep(commandDelay / 1000)
                 player.stop()
                 time.sleep(commandDelay / 1000)
