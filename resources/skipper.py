@@ -124,7 +124,7 @@ class Skipper():
         self.checkMediaSkip(mediaWrapper, leftOffset, rightOffset)
         self.checkMediaVolume(mediaWrapper, leftOffset, rightOffset)
 
-        if (mediaWrapper.viewOffset >= rd(mediaWrapper.media.duration - self.DURATION_TOLERANCE)) and mediaWrapper.ended and self.shouldSkipNext(mediaWrapper):
+        if mediaWrapper.skipnext and mediaWrapper.ended and (mediaWrapper.viewOffset >= rd(mediaWrapper.media.duration - self.DURATION_TOLERANCE)):
             self.log.info("Found nonplaying %s media that has reached the end of its playback with viewOffset %d and duration %d with skip-next enabled, will skip to next" % (mediaWrapper, mediaWrapper.viewOffset, mediaWrapper.media.duration))
             self.seekTo(mediaWrapper, mediaWrapper.media.duration)
         elif mediaWrapper.ended:
@@ -227,7 +227,7 @@ class Skipper():
 
         try:
             try:
-                if self.settings.skipnext and targetOffset >= mediaWrapper.media.duration:
+                if mediaWrapper.skipnext and targetOffset >= mediaWrapper.media.duration:
                     return self.skipPlayerTo(player, mediaWrapper)
                 else:
                     if targetOffset < mediaWrapper.viewOffset:
@@ -349,7 +349,7 @@ class Skipper():
                 if pasIdentifier not in self.media_sessions:
                     mediaSession = self.getMediaSession(sessionKey)
                     if mediaSession and mediaSession.session and mediaSession.session.location == 'lan':
-                        wrapper = MediaWrapper(mediaSession, clientIdentifier, state, playQueueID, self.server, tags=self.settings.tags, mode=self.settings.mode, custom=self.customEntries, logger=self.log)
+                        wrapper = MediaWrapper(mediaSession, clientIdentifier, state, playQueueID, self.server, settings=self.settings, custom=self.customEntries, logger=self.log)
                         if not self.blockedClientUser(wrapper):
                             if self.shouldAdd(wrapper):
                                 self.addSession(wrapper)
@@ -371,7 +371,6 @@ class Skipper():
                 self.log.exception("Unexpected error getting data from session alert")
 
     def blockedClientUser(self, mediaWrapper: MediaWrapper) -> bool:
-        media = mediaWrapper.media
         session = mediaWrapper.session
 
         # Users
@@ -394,17 +393,6 @@ class Skipper():
             self.log.debug("Blocking %s based on blocked player %s %s" % (mediaWrapper, mediaWrapper.player.title, mediaWrapper.clientIdentifier))
             return True
         return False
-
-    def shouldSkipNext(self, mediaWrapper: MediaWrapper) -> bool:
-        if self.customEntries.allowedSkipNext and (mediaWrapper.player.title not in self.customEntries.allowedSkipNext and mediaWrapper.clientIdentifier not in self.customEntries.allowedSkipNext):
-            self.log.debug("Blocking skip-next %s based on no allowed player in %s %s" % (mediaWrapper, mediaWrapper.player.title, mediaWrapper.clientIdentifier))
-            return False
-
-        if self.customEntries.blockedSkipNext and (mediaWrapper.player.title in self.customEntries.blockedSkipNext or mediaWrapper.clientIdentifier in self.customEntries.blockedSkipNext):
-            self.log.debug("Blocking skip-next %s based on blocked player in %s %s" % (mediaWrapper, mediaWrapper.player.title, mediaWrapper.clientIdentifier))
-            return False
-
-        return self.settings.skipnext
 
     def shouldAdd(self, mediaWrapper: MediaWrapper) -> bool:
         media = mediaWrapper.media

@@ -94,7 +94,7 @@ class CustomMarker():
 
 
 class MediaWrapper():
-    def __init__(self, session: PlexSession, clientIdentifier: str, state: str, playQueueID: int, server: PlexServer, tags: List[str] = [], mode: Settings.MODE_TYPES = Settings.MODE_TYPES.SKIP, custom: CustomEntries = None, logger: logging.Logger = None) -> None:
+    def __init__(self, session: PlexSession, clientIdentifier: str, state: str, playQueueID: int, server: PlexServer, settings: Settings, custom: CustomEntries = None, logger: logging.Logger = None) -> None:
         self._viewOffset: int = session.viewOffset
         self.session: PlexSession = session
         self.media: Media = session.source()
@@ -123,14 +123,16 @@ class MediaWrapper():
         self.rightOffset: int = 0
         self.commandDelay: int = 0
 
-        self.tags: List[str] = tags
+        self.tags: List[str] = settings.tags
 
         self.log = logger or getLogger(__name__)
         self.customMarkers = []
         self.markers = []
         self.chapters = []
 
-        self.mode: Settings.MODE_TYPES = mode
+        self.mode: Settings.MODE_TYPES = settings.mode
+
+        self.skipnext: bool = settings.skipnext
 
         self.cachedVolume: int = 0
         self.loweringVolume: bool = False
@@ -155,7 +157,7 @@ class MediaWrapper():
                 if str(self.media.grandparentRatingKey) in custom.markers:
                     for markerdata in custom.markers[str(self.media.grandparentRatingKey)]:
                         try:
-                            cm = CustomMarker(markerdata, self.media.grandparentRatingKey, self.media.duration, mode)
+                            cm = CustomMarker(markerdata, self.media.grandparentRatingKey, self.media.duration, settings.mode)
                             if cm not in self.customMarkers:
                                 self.customMarkers.append(cm)
                         except CustomMarker.CustomMarkerException:
@@ -178,7 +180,7 @@ class MediaWrapper():
                         self.customMarkers = filtered
                     for markerdata in custom.markers[str(self.media.parentRatingKey)]:
                         try:
-                            cm = CustomMarker(markerdata, self.media.parentRatingKey, self.media.duration, mode)
+                            cm = CustomMarker(markerdata, self.media.parentRatingKey, self.media.duration, settings.mode)
                             if cm not in self.customMarkers:
                                 self.log.debug("Found custom marker range %s entry for %s (parentRatingKey match)" % (cm, self))
                                 self.customMarkers.append(cm)
@@ -201,7 +203,7 @@ class MediaWrapper():
                     self.customMarkers = filtered
                 for markerdata in custom.markers[str(self.media.ratingKey)]:
                     try:
-                        cm = CustomMarker(markerdata, self.media.ratingKey, self.media.duration, mode)
+                        cm = CustomMarker(markerdata, self.media.ratingKey, self.media.duration, settings.mode)
                         if cm not in self.customMarkers:
                             self.log.debug("Found custom marker range %s entry for %s" % (cm, self))
                             self.customMarkers.append(cm)
@@ -227,18 +229,27 @@ class MediaWrapper():
             elif self.clientIdentifier in custom.offsets:
                 self.commandDelay = custom.offsets[self.clientIdentifier].get("command", self.commandDelay)
 
+            if not self.skipnext and custom.allowedSkipNext and (self.player.title in custom.allowedSkipNext or self.clientIdentifier in custom.allowedSkipNext):
+                self.skipnext = True
+            elif self.skipnext and custom.allowedSkipNext and (self.player.title not in custom.allowedSkipNext and self.clientIdentifier not in custom.allowedSkipNext):
+                self.skipnext = False
+            elif self.skipnext and custom.blockedSkipNext and (self.player.title in custom.blockedSkipNext or self.clientIdentifier in custom.blockedSkipNext):
+                self.skipnext = False
+
             self.tags = [x.lower() for x in self.tags]
 
             if self.leftOffset:
                 self.log.debug("Custom start offset value of %dms found for %s" % (self.leftOffset, self))
             if self.rightOffset:
                 self.log.debug("Custom end offset value of %dms found for %s" % (self.rightOffset, self))
-            if self.tags != tags:
+            if self.tags != settings.tags:
                 self.log.debug("Custom tags value of %s found for %s" % (self.tags, self))
-            if self.mode != mode:
+            if self.mode != settings.mode:
                 self.log.debug("Custom mode value of %s found for %s" % (self.mode, self))
             if self.commandDelay:
                 self.log.debug("Custom command delay value of %dms found for %s" % (self.commandDelay, self))
+            if self.skipnext != settings.skipnext:
+                self.log.debug("Custom skipNext value of %s found for %s" % (self.skipnext, self))
 
         if hasattr(self.media, 'markers') and not self.customOnly:
             self.markers = [x for x in self.media.markers if x.type and (x.type.lower() in self.tags or "%s:%s" % (MARKERPREFIX, x.type.lower()) in self.tags)]
