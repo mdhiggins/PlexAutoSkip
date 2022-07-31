@@ -297,20 +297,20 @@ class MediaWrapper():
         player.seekTo(offset)
 
     def updateOffset(self, offset: int, state: str) -> None:
-        self.state = state or self.state
         self.lastAlert = datetime.now()
 
         if self.seeking:
             if self.seekOrigin < offset < self.seekTarget:
-                self.log.debug("Skipping %d update session %s is actively seeking [%s]" % (offset, self, state))
+                self.log.debug("Rejecting %d [%s] update session %s, alert is out of date" % (offset, state, self))
                 return
             elif offset < self.seekOrigin:
-                self.log.debug("Seeking but new offset is earlier than the old one for session %s [%s], updating data" % (self, state))
+                self.log.debug("Seeking but new offset is earlier than the old one for session %s [%s], updating data and assuming user manual seek" % (self, state))
             else:
                 self.log.debug("Recent seek successful, server offset update %d meets/exceeds target %d [%s]" % (offset, self.seekTarget, state))
 
         self.log.debug("Updating session %s [%s] viewOffset %d, old %d, diff %dms (%ds since last update)" % (self, state, offset, self.viewOffset, (offset - self.viewOffset), (datetime.now() - self.lastUpdate).total_seconds()))
 
+        self.state = state
         self.seekOrigin = 0
         self.seekTarget = 0
         self._viewOffset = offset
