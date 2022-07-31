@@ -264,9 +264,9 @@ class MediaWrapper():
         base = "%d [%d]" % (self.session.sessionKey, self.media.ratingKey)
         if hasattr(self.media, "title"):
             if hasattr(self.media, "grandparentTitle") and hasattr(self.media, "seasonEpisode"):
-                return "%s (%s %s - %s) %s.%s" % (base, self.media.grandparentTitle, self.media.seasonEpisode, self.media.title, self.player.title, self.clientIdentifier)
-            return "%s (%s) %s.%s" % (base, self.media.title, self.player.title, self.clientIdentifier)
-        return "%s %s.%s" % (base, self.player.title, self.clientIdentifier)
+                return "%s (%s %s - %s) %s|%s" % (base, self.media.grandparentTitle, self.media.seasonEpisode, self.media.title, self.player.title, self.clientIdentifier)
+            return "%s (%s) %s|%s" % (base, self.media.title, self.player.title, self.clientIdentifier)
+        return "%s %s|%s" % (base, self.player.title, self.clientIdentifier)
 
     @property
     def hasContent(self) -> bool:
