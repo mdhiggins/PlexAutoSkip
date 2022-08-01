@@ -337,16 +337,17 @@ class Skipper():
     def processAlert(self, data: dict) -> None:
         if data['type'] == 'playing':
             sessionKey = int(data['PlaySessionStateNotification'][0]['sessionKey'])
-            state = data['PlaySessionStateNotification'][0]['state']
             clientIdentifier = data['PlaySessionStateNotification'][0]['clientIdentifier']
-            playQueueID = int(data['PlaySessionStateNotification'][0]['playQueueID'])
             pasIdentifier = MediaWrapper.getSessionClientIdentifier(sessionKey, clientIdentifier)
-            viewOffset = int(data['PlaySessionStateNotification'][0]['viewOffset'])
 
             if pasIdentifier in self.ignored:
                 return
 
             try:
+                state = data['PlaySessionStateNotification'][0]['state']
+                viewOffset = int(data['PlaySessionStateNotification'][0]['viewOffset'])
+                playQueueID = int(data['PlaySessionStateNotification'][0]['playQueueID'])
+
                 if pasIdentifier not in self.media_sessions:
                     mediaSession = self.getMediaSession(sessionKey)
                     if mediaSession and mediaSession.session and mediaSession.session.location == 'lan':
