@@ -258,9 +258,8 @@ class Skipper():
                 player.seekTo(mediaWrapper.media.duration)
             else:
                 nextItem: Media = pq[pq.items.index(mediaWrapper.media) + 1]
-                if mediaWrapper.session.user == self.server.myPlexAccount:
-                    server = self.server
-                else:
+                server = self.server
+                if mediaWrapper.session.user != self.server.myPlexAccount and mediaWrapper.userToken:
                     server = PlexServer(self.server._baseurl, token=mediaWrapper.userToken, session=self.server._session, timeout=self.server._timeout)
                 newQueue = PlayQueue.create(server, list(pq.items), nextItem)
                 self.log.debug("Creating new PlayQueue %d with start item %s" % (newQueue.playQueueID, nextItem))
@@ -462,7 +461,7 @@ class Skipper():
             if mediaWrapper.customOnly:
                 self.log.info("Found blocked session %s viewOffset %d %s, using custom markers only, sessions: %d" % (mediaWrapper, mediaWrapper.session.viewOffset, mediaWrapper.session.usernames, len(self.media_sessions)))
             else:
-                self.log.info("Found new session %s viewOffset %d %s, sessions: %d" % (mediaWrapper, mediaWrapper.session.viewOffset, mediaWrapper.session.usernames, len(self.media_sessions)))
+                self.log.info("Found new session %s viewOffset %d %s, sessions: %d" % (mediaWrapper, mediaWrapper.session.viewOffset, mediaWrapper.session.user, len(self.media_sessions)))
             self.purgeOldSessions(mediaWrapper)
             self.checkMedia(mediaWrapper)
             self.media_sessions[mediaWrapper.pasIdentifier] = mediaWrapper
