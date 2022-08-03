@@ -242,6 +242,7 @@ class Skipper():
                 return True
             except BadRequest as br:
                 self.logErrorMessage(br, "BadRequest exception seekPlayerTo")
+                mediaWrapper.badSeek()
                 return self.seekPlayerTo(self.recoverPlayer(player), mediaWrapper, targetOffset)
         except:
             raise

@@ -300,12 +300,19 @@ class MediaWrapper():
         return vo if vo <= (self.media.duration or vo) else self.media.duration
 
     def seekTo(self, offset: int, player: PlexClient) -> None:
+        self.session.viewOffset = self.viewOffset
         self.seekOrigin = rd(self._viewOffset)
         self.seekTarget = rd(offset)
         self.lastUpdate = datetime.now()
         self._viewOffset = offset
-        self.session.viewOffset = offset
         player.seekTo(offset)
+        self.session.viewOffset = offset
+
+    def badSeek(self) -> None:
+        self._viewOffset = self.session.viewOffset
+        self.seekOrigin = 0
+        self.seekTarget = 0
+        self.lastUpdate = datetime.now()
 
     def updateOffset(self, offset: int, state: str) -> None:
         self.lastAlert = datetime.now()
