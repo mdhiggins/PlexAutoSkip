@@ -461,7 +461,7 @@ class Skipper():
             if mediaWrapper.customOnly:
                 self.log.info("Found blocked session %s viewOffset %d %s, using custom markers only, sessions: %d" % (mediaWrapper, mediaWrapper.session.viewOffset, mediaWrapper.session.usernames, len(self.media_sessions)))
             else:
-                self.log.info("Found new session %s viewOffset %d %s, sessions: %d" % (mediaWrapper, mediaWrapper.session.viewOffset, mediaWrapper.session.user, len(self.media_sessions)))
+                self.log.info("Found new session %s viewOffset %d %s, sessions: %d" % (mediaWrapper, mediaWrapper.session.viewOffset, mediaWrapper.session.user.username, len(self.media_sessions)))
             self.purgeOldSessions(mediaWrapper)
             self.checkMedia(mediaWrapper)
             self.media_sessions[mediaWrapper.pasIdentifier] = mediaWrapper
