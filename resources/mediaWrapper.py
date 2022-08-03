@@ -7,6 +7,7 @@ from plexapi.media import Marker, Chapter
 from plexapi.client import PlexClient
 from plexapi.base import PlexSession
 from plexapi.myplex import MyPlexAccount
+from plexapi.exceptions import NotFound
 from resources.customEntries import CustomEntries
 from resources.settings import Settings
 from resources.log import getLogger
@@ -137,7 +138,10 @@ class MediaWrapper():
         self.cachedVolume: int = 0
         self.loweringVolume: bool = False
 
-        self.userToken: str = self.session.user._token if isinstance(self.session.user, MyPlexAccount) else self.session.user.get_token(server.machineIdentifier)
+        try:
+            self.userToken: str = self.session.user._token if isinstance(self.session.user, MyPlexAccount) else self.session.user.get_token(server.machineIdentifier)
+        except NotFound:
+            self.userToken: str = None
 
         if custom and self.player.title in custom.clients:
             self.player._baseurl = custom.clients[self.player.title].strip('/')
