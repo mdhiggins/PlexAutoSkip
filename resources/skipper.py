@@ -376,14 +376,14 @@ class Skipper():
         session = mediaWrapper.session
 
         # Users
-        if any(b for b in self.customEntries.blockedUsers if b in session.usernames):
-            self.log.debug("Blocking %s based on blocked user in %s" % (mediaWrapper, session.usernames))
+        if session._username in self.customEntries.blockedUsers:
+            self.log.debug("Blocking %s based on blocked user in %s" % (mediaWrapper, session._username))
             return True
-        if self.customEntries.allowedUsers and not any(u for u in session.usernames if u in self.customEntries.allowedUsers):
-            self.log.debug("Blocking %s based on no allowed user in %s" % (mediaWrapper, session.usernames))
+        if self.customEntries.allowedUsers and session._username not in self.customEntries.allowedUsers:
+            self.log.debug("Blocking %s based on no allowed user in %s" % (mediaWrapper, session._username))
             return True
         elif self.customEntries.allowedUsers:
-            self.log.debug("Allowing %s based on allowed user in %s" % (mediaWrapper, session.usernames))
+            self.log.debug("Allowing %s based on allowed user in %s" % (mediaWrapper, session._username))
 
         # Clients/players
         if self.customEntries.allowedClients and (mediaWrapper.player.title not in self.customEntries.allowedClients and mediaWrapper.clientIdentifier not in self.customEntries.allowedClients):
@@ -459,9 +459,9 @@ class Skipper():
     def addSession(self, mediaWrapper: MediaWrapper) -> None:
         if mediaWrapper.player and self.validPlayer(mediaWrapper.player):
             if mediaWrapper.customOnly:
-                self.log.info("Found blocked session %s viewOffset %d %s, using custom markers only, sessions: %d" % (mediaWrapper, mediaWrapper.session.viewOffset, mediaWrapper.session.usernames, len(self.media_sessions)))
+                self.log.info("Found blocked session %s viewOffset %d %s, using custom markers only, sessions: %d" % (mediaWrapper, mediaWrapper.session.viewOffset, mediaWrapper.session._username, len(self.media_sessions)))
             else:
-                self.log.info("Found new session %s viewOffset %d %s, sessions: %d" % (mediaWrapper, mediaWrapper.session.viewOffset, mediaWrapper.session.user.username, len(self.media_sessions)))
+                self.log.info("Found new session %s viewOffset %d %s, sessions: %d" % (mediaWrapper, mediaWrapper.session.viewOffset, mediaWrapper.session._username, len(self.media_sessions)))
             self.purgeOldSessions(mediaWrapper)
             self.checkMedia(mediaWrapper)
             self.media_sessions[mediaWrapper.pasIdentifier] = mediaWrapper
@@ -473,7 +473,7 @@ class Skipper():
         self.purgeOldSessions(mediaWrapper)
         self.ignored.append(mediaWrapper.pasIdentifier)
         self.ignored = self.ignored[-self.IGNORED_CAP:]
-        self.log.debug("Ignoring session %s %s, ignored: %d" % (mediaWrapper, mediaWrapper.session.usernames, len(self.ignored)))
+        self.log.debug("Ignoring session %s %s, ignored: %d" % (mediaWrapper, mediaWrapper.session._username, len(self.ignored)))
 
     def purgeOldSessions(self, mediaWrapper: MediaWrapper) -> None:
         for sessionMediaWrapper in list(self.media_sessions.values()):
