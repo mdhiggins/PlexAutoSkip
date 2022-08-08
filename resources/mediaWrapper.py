@@ -258,7 +258,7 @@ class MediaWrapper():
         if not hasattr(self.media, 'markers') and not self.customOnly:
             # Allow markers to be loaded on non-standard media (currently only loaded for episodes)
             try:
-                self.media.markers = self.media.findItem(self.media._data, media.Marker)
+                self.media.markers = self.media.findItems(self.media._data, media.Marker)
             except:
                 self.log.debug("Exception trying to load markers on non-standard media")
 
