@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from plexapi import utils
+from plexapi import media, utils
 from plexapi.video import Episode, Movie
 from plexapi.server import PlexServer
 from plexapi.media import Marker, Chapter
@@ -254,6 +254,13 @@ class MediaWrapper():
                 self.log.debug("Custom command delay value of %dms found for %s" % (self.commandDelay, self))
             if self.skipnext != settings.skipnext:
                 self.log.debug("Custom skipNext value of %s found for %s" % (self.skipnext, self))
+
+        if not hasattr(self.media, 'markers') and not self.customOnly:
+            # Allow markers to be loaded on non-standard media (currently only loaded for episodes)
+            try:
+                self.media.markers = self.media.findItem(self.media._data, media.Marker)
+            except:
+                self.log.debug("Exception trying to load markers on non-standard media")
 
         if hasattr(self.media, 'markers') and not self.customOnly:
             self.markers = [x for x in self.media.markers if x.type and (x.type.lower() in self.tags or "%s:%s" % (MARKERPREFIX, x.type.lower()) in self.tags)]
