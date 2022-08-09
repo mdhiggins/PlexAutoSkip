@@ -346,7 +346,7 @@ class Skipper():
             try:
                 state = data['PlaySessionStateNotification'][0]['state']
                 viewOffset = int(data['PlaySessionStateNotification'][0]['viewOffset'])
-                playQueueID = int(data['PlaySessionStateNotification'][0]['playQueueID'])
+                playQueueID = int(data['PlaySessionStateNotification'][0].get('playQueueID', 0))
 
                 if pasIdentifier not in self.media_sessions:
                     mediaSession = self.getMediaSession(sessionKey)
