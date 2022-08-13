@@ -259,7 +259,7 @@ class Skipper():
             else:
                 nextItem: Media = pq[pq.items.index(mediaWrapper.media) + 1]
                 server = self.server
-                if mediaWrapper.session.user != self.server.myPlexAccount and mediaWrapper.userToken:
+                if mediaWrapper.session.user != self.server.myPlexAccount() and mediaWrapper.userToken:
                     server = PlexServer(self.server._baseurl, token=mediaWrapper.userToken, session=self.server._session, timeout=self.server._timeout)
                 newQueue = PlayQueue.create(server, list(pq.items), nextItem)
                 self.log.debug("Creating new PlayQueue %d with start item %s" % (newQueue.playQueueID, nextItem))
