@@ -8,6 +8,7 @@ import requests
 
 ###########################################################################################################################
 # Credit to https://gist.github.com/liamcottle/86180844b81fcf8085e2c9182daa278c for the original script
+# Requires "New Content Added to Library" notification to be enabled
 ###########################################################################################################################
 
 log = getLogger(__name__)
