@@ -33,6 +33,7 @@ def getPlexServer(settings: Settings, logger: logging.Logger = None) -> Tuple[Pl
         session.verify = False
         requests.packages.urllib3.disable_warnings()
 
+    log.info("Connecting to Plex server...")
     if settings.username and settings.servername:
         try:
             account = None
