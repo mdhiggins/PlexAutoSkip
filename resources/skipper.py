@@ -158,7 +158,8 @@ class Skipper():
                 return
 
         for marker in mediaWrapper.markers:
-            if (marker.start + leftOffset) <= mediaWrapper.viewOffset < rd(marker.end):
+            start = marker.start if marker.start < leftOffset else (marker.start + leftOffset)
+            if (start) <= mediaWrapper.viewOffset < rd(marker.end):
                 self.log.info("Found skippable marker %s for media %s with range %d-%d and viewOffset %d" % (marker.type, mediaWrapper, marker.start + leftOffset, marker.end + rightOffset, mediaWrapper.viewOffset))
                 self.seekTo(mediaWrapper, marker.end + rightOffset)
                 return
