@@ -324,6 +324,7 @@ class MediaWrapper():
         self.seekOrigin = 0
         self.seekTarget = 0
         self.lastUpdate = datetime.now()
+        self.state = BUFFERINGKEY
 
     def updateOffset(self, offset: int, state: str) -> None:
         self.lastAlert = datetime.now()

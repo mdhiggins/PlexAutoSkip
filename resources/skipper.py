@@ -231,8 +231,8 @@ class Skipper():
                 if mediaWrapper.skipnext and targetOffset >= mediaWrapper.media.duration:
                     return self.skipPlayerTo(player, mediaWrapper)
                 else:
-                    if targetOffset < mediaWrapper._viewOffset:
-                        self.log.warning("TargetOffset %d is less than last viewOffset %d, cannot go back without creating infinite loop" % (targetOffset, mediaWrapper.viewOffset))
+                    if targetOffset < mediaWrapper.viewOffset:
+                        self.log.warning("TargetOffset %d is less than current viewOffset %d, cannot go back without creating infinite loop" % (targetOffset, mediaWrapper.viewOffset))
                         return False
 
                     self.log.info("Seeking %s player playing %s from %d to %d" % (player.product, mediaWrapper, mediaWrapper.viewOffset, targetOffset))
@@ -243,6 +243,7 @@ class Skipper():
                 return True
             except BadRequest as br:
                 self.logErrorMessage(br, "BadRequest exception seekPlayerTo")
+                mediaWrapper.badSeek()
                 return self.seekPlayerTo(self.recoverPlayer(player), mediaWrapper, targetOffset)
         except:
             raise
