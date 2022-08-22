@@ -321,16 +321,16 @@ class MediaWrapper():
 
     def badSeek(self) -> None:
         self.state = BUFFERINGKEY
-        # self._viewOffset = self.session.viewOffset
+        self._viewOffset = self.session.viewOffset
         # self.seekOrigin = 0
         # self.seekTarget = 0
-        # self.lastUpdate = datetime.now()
+        self.lastUpdate = datetime.now()
 
     def updateOffset(self, offset: int, state: str) -> None:
         self.lastAlert = datetime.now()
 
         if self.seeking:
-            if self.seekOrigin < offset < self.seekTarget:
+            if self.seekOrigin < offset < self.seekTarget or state in [PAUSEDKEY, STOPPEDKEY]:
                 self.log.debug("Rejecting %d [%s] update session %s, alert is out of date" % (offset, state, self))
                 return
             elif offset < self.seekOrigin:
