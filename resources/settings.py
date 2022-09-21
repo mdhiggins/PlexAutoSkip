@@ -291,7 +291,7 @@ class Settings:
         self.ignore_certs = config.getboolean("Security", "ignore-certs")
 
         self.mode = self.MODE_MATCHER.get(config.get("Skip", "mode").lower(), self.MODE_TYPES.SKIP)
-        self.tags = config.getlist("Skip", "tags")
+        self.tags = config.getlist("Skip", "tags", replace=[])
         self.types = config.getlist("Skip", "types")
         self.ignoredlibraries = config.getlist("Skip", "ignored-libraries", replace=[])
         self.skipunwatched = config.getboolean("Skip", "unwatched")
