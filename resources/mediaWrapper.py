@@ -103,7 +103,7 @@ class MediaWrapper():
         self.clientIdentifier = clientIdentifier
         self.state: str = state
         self.ended: bool = False
-        self.playQueueID: dict = playQueueID
+        self.playQueueID: int = playQueueID
         self.player = session.player
 
         self.lastUpdate: datetime = datetime.now()
