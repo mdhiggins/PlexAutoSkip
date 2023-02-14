@@ -2,25 +2,14 @@ PlexAutoSkip
 ==============
  **Automatically skip tagged content in Plex**
 
-A background python script that monitors local playback on your server and will automatically 'press' the Skip Intro button or skip other similarly tagged content automatically. Maintains real-time playback states for your server (not dependent on API updates) for accurate skip timing. Threaded to handle multiple players simultaneously. Several layers of state validation to prevent unnecessary stuttering/buffering. Custom definitions allow you to expand on features and functionality beyond what is automatically detected by Plex
+A background python script that monitors local playback on your server and will automatically 'press' the Skip Intro button or skip other similarly tagged content automatically. Maintains real-time playback states for your server (not dependent on API updates) for accurate skip timing. Threaded to handle multiple players simultaneously. Several layers of state validation to prevent unnecessary stuttering/buffering. Custom definitions allow you to expand on features and functionality beyond what is automatically detected by Plex. Works with all automatically tagged markers including intros, credits, and advertisements.
 
-Only works on LAN sessions (not remote) as Plex does not allow seeking adjustments via the API for remote sessions
-
-Notice
+Requirements
 --------------
-Plex has recently removed the "advertise as player" feature from the Plex Web client as well as its desktop clients for Windows/Mac/Linux which breaks the PlexAutoSkip functionality. **All other players that have Plex Companion continue to work normally.** I'm unclear why this feature which has been stable and present for years was removed without warning from this small subset of players, but the patch notes can be found [here](https://forums.plex.tv/t/plex-for-mac-windows-and-linux/446435/63) and [here](https://forums.plex.tv/t/plex-web/20528/389).
+- LAN sessions (not remote) as Plex does not allow seeking adjustments via the API for remote sessions
+- "Advertise as Player" / Plex Companion compatible player
 
-Currently I would recommend rolling back to Plex Desktop Client **Plex-1.41.0.2876-e960c9ca** or Plex Server **Plex-1.27.2.5929-a806c5905** which still includes **Plex Web 4.76.1**. If you access the web player via plex.tv/web this will be a newer version of the web player which will not support "advertise as player", you'll need to access the web client from the local plex server address (localhost:32400/web).
-
-You can disable the auto update feature of the Plex Desktop Client by accessing the `plex.ini` file in `C:\Users\<username>\AppData\Local\Plex` and adding the disableUpdater line to the debug section
-
-```ini
-[debug]
-disableUpdater=true
-```
-
-This is a temporary solution unfortunately and I would encourage all of your who support this project and hope for similar projects in the future to voice your support on the [Plex forums](https://forums.plex.tv/t/please-restore-plex-companion-advertise-as-player-feature/799789)
-
+See https://github.com/mdhiggins/PlexAutoSkip/wiki/Troubleshooting#notice for changes to Plex Web based players
 
 Features
 --------------
