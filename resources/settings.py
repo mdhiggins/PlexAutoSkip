@@ -62,7 +62,7 @@ class Settings:
         },
         "Skip": {
             "mode": "skip",
-            "tags": "intro, commercial, advertisement",
+            "tags": "intro, commercial, advertisement, credits",
             "types": "movie, episode",
             "ignored-libraries": "",
             "last-chapter": 0.0,
