@@ -313,9 +313,12 @@ class Skipper():
         except:
             raise
 
+    def safeVersion(self, version) -> str:
+        return version.split("-")[0]
+
     def validPlayer(self, player: PlexClient) -> bool:
         bad = self.BROKEN_CLIENTS.get(player.product)
-        if bad and player.version and parse_version(player.version) >= parse_version(bad):
+        if bad and player.version and parse_version(self.safeVersion(player.version)) >= parse_version(bad):
             self.log.error("Bad %s version %s due to Plex team removing 'Advertise as Player/Plex Companion' functionality. Please visit %s#notice to review this issue and voice your support on the Plex forums for this feature to be restored" % (player.product, player.version, self.TROUBLESHOOT_URL))
             return False
         return True
