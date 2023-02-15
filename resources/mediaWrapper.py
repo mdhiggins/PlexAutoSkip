@@ -19,6 +19,7 @@ Media = TypeVar("Media", Episode, Movie)
 
 STARTKEY = "start"
 ENDKEY = "end"
+TAGKEY = "tags"
 
 PLAYINGKEY = "playing"
 STOPPEDKEY = "stopped"
@@ -122,14 +123,13 @@ class MediaWrapper():
 
         self.leftOffset: int = 0
         self.rightOffset: int = 0
+        self.offsetTags: List[str] = settings.offsetTags
         self.commandDelay: int = 0
 
         self.tags: List[str] = settings.tags
 
         self.log = logger or getLogger(__name__)
         self.customMarkers = []
-        self.markers = []
-        self.chapters = []
 
         self.mode: Settings.MODE_TYPES = settings.mode
 
@@ -171,6 +171,7 @@ class MediaWrapper():
                 if str(self.media.grandparentRatingKey) in custom.offsets:
                     self.leftOffset = custom.offsets[str(self.media.grandparentRatingKey)].get(STARTKEY, self.leftOffset)
                     self.rightOffset = custom.offsets[str(self.media.grandparentRatingKey)].get(ENDKEY, self.rightOffset)
+                    self.offsetTags = custom.offsets[str(self.media.grandparentRatingKey)].get(TAGKEY, self.offsetTags)
                 if str(self.media.grandparentRatingKey) in custom.tags:
                     self.tags = custom.tags[str(self.media.grandparentRatingKey)]
                 if str(self.media.grandparentRatingKey) in custom.mode:
@@ -195,6 +196,7 @@ class MediaWrapper():
                 if str(self.media.parentRatingKey) in custom.offsets:
                     self.leftOffset = custom.offsets[str(self.media.parentRatingKey)].get(STARTKEY, self.leftOffset)
                     self.rightOffset = custom.offsets[str(self.media.parentRatingKey)].get(ENDKEY, self.rightOffset)
+                    self.offsetTags = custom.offsets[str(self.media.parentRatingKey)].get(TAGKEY, self.offsetTags)
                 if str(self.media.parentRatingKey) in custom.tags:
                     self.tags = custom.tags[str(self.media.parentRatingKey)]
                 if str(self.media.parentRatingKey) in custom.mode:
@@ -218,6 +220,7 @@ class MediaWrapper():
             if str(self.media.ratingKey) in custom.offsets:
                 self.leftOffset = custom.offsets[str(self.media.ratingKey)].get(STARTKEY, self.leftOffset)
                 self.rightOffset = custom.offsets[str(self.media.ratingKey)].get(ENDKEY, self.rightOffset)
+                self.offsetTags = custom.offsets[str(self.media.ratingKey)].get(TAGKEY, self.offsetTags)
             if str(self.media.ratingKey) in custom.tags:
                 self.tags = custom.tags[str(self.media.ratingKey)]
             if str(self.media.ratingKey) in custom.mode:
@@ -248,6 +251,8 @@ class MediaWrapper():
                 self.log.debug("Custom end offset value of %dms found for %s" % (self.rightOffset, self))
             if self.tags != settings.tags:
                 self.log.debug("Custom tags value of %s found for %s" % (self.tags, self))
+            if self.offsetTags != settings.offsetTags:
+                self.log.debug("Custom offset tags value of %s found for %s" % (self.offsetTags, self))
             if self.mode != settings.mode:
                 self.log.debug("Custom mode value of %s found for %s" % (self.mode, self))
             if self.commandDelay:

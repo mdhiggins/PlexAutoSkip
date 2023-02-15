@@ -27,6 +27,7 @@ next = False
 start = 3000
 end = 1000
 delay = 500
+tags = intro
 
 [Volume]
 low = 0

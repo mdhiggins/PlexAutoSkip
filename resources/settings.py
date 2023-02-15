@@ -74,7 +74,8 @@ class Settings:
         "Offsets": {
             "start": 3000,
             "end": 1000,
-            "command": 500
+            "command": 500,
+            "tags": "intro"
         },
         "Volume": {
             "low": 0,
@@ -148,6 +149,7 @@ class Settings:
         self.skipnext: bool = False
         self.leftOffset: int = 0
         self.rightOffset: int = 0
+        self.offsetTags: list = []
         self.commandDelay: int = 0
         self.customEntries: CustomEntries = None
 
@@ -309,6 +311,7 @@ class Settings:
         self.leftOffset = config.getint("Offsets", "start")
         self.rightOffset = config.getint("Offsets", "end")
         self.commandDelay = config.getint("Offsets", "command")
+        self.offsetTags = config.getlist("Offsets", "tags", replace=[])
 
         self.volumelow = config.getint("Volume", "low")
         self.volumehigh = config.getint("Volume", "high")
