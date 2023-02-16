@@ -276,7 +276,7 @@ class Skipper():
         except KeyboardInterrupt:
             raise
         except Exception as e:
-            self.log.warning("Seek target is the end but unable to get PlayQueue %d (%d) data from server, aborting to prevent extra skips or playback issues" % (mediaWrapper.playQueueID, mediaWrapper.media.playQueueItemID))
+            self.log.warning("Seek target is the end but unable to get PlayQueue %d (%s) data from server, aborting to prevent extra skips or playback issues" % (mediaWrapper.playQueueID, mediaWrapper.media.playQueueItemID))
             self.log.debug(e)
             return False
 
