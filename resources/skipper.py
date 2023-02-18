@@ -37,6 +37,10 @@ class Skipper():
         "Plex for Mac": 32700
     }
 
+    CREDIT_SKIP_FIX = [
+        "Plex for Roku"
+    ]
+
     # :( </3
     BROKEN_CLIENTS = {
         "Plex Web": "4.83.2",
@@ -226,9 +230,9 @@ class Skipper():
         if not player:
             return False
 
-        if mediaWrapper.media.duration and targetOffset > mediaWrapper.media.duration:
-            self.log.debug("TargetOffset %d is greater than duration of media %d, adjusting to match" % (targetOffset, mediaWrapper.media.duration))
-            targetOffset = mediaWrapper.media.duration
+        if mediaWrapper.media.duration and targetOffset >= mediaWrapper.media.duration:
+            self.log.debug("TargetOffset %d is greater or equal to duration of media %d, adjusting to match" % (targetOffset, mediaWrapper.media.duration))
+            targetOffset = rd(mediaWrapper.media.duration - 1000) if player.product in self.CREDIT_SKIP_FIX else mediaWrapper.media.duration
 
         try:
             try:
@@ -264,7 +268,7 @@ class Skipper():
             else:
                 nextItem: Media = pq[pq.items.index(mediaWrapper.media) + 1]
                 server = self.server
-                if mediaWrapper.session.user != self.server.myPlexAccount() and mediaWrapper.userToken:
+                if mediaWrapper.plexsession.user != self.server.myPlexAccount() and mediaWrapper.userToken:
                     server = PlexServer(self.server._baseurl, token=mediaWrapper.userToken, session=self.server._session, timeout=self.server._timeout)
                 newQueue = PlayQueue.create(server, list(pq.items), nextItem)
                 self.log.debug("Creating new PlayQueue %d with start item %s" % (newQueue.playQueueID, nextItem))
@@ -381,7 +385,7 @@ class Skipper():
                 self.log.exception("Unexpected error getting data from session alert")
 
     def blockedClientUser(self, mediaWrapper: MediaWrapper) -> bool:
-        session = mediaWrapper.session
+        session = mediaWrapper.plexsession
 
         # Users
         if session._username in self.customEntries.blockedUsers:
@@ -467,9 +471,9 @@ class Skipper():
     def addSession(self, mediaWrapper: MediaWrapper) -> None:
         if mediaWrapper.player and self.validPlayer(mediaWrapper.player):
             if mediaWrapper.customOnly:
-                self.log.info("Found blocked session %s viewOffset %d %s, using custom markers only, sessions: %d" % (mediaWrapper, mediaWrapper.session.viewOffset, mediaWrapper.session._username, len(self.media_sessions)))
+                self.log.info("Found blocked session %s viewOffset %d %s, using custom markers only, sessions: %d" % (mediaWrapper, mediaWrapper.plexsession.viewOffset, mediaWrapper.plexsession._username, len(self.media_sessions)))
             else:
-                self.log.info("Found new session %s viewOffset %d %s, sessions: %d" % (mediaWrapper, mediaWrapper.session.viewOffset, mediaWrapper.session._username, len(self.media_sessions)))
+                self.log.info("Found new session %s viewOffset %d %s, sessions: %d" % (mediaWrapper, mediaWrapper.plexsession.viewOffset, mediaWrapper.plexsession._username, len(self.media_sessions)))
             self.purgeOldSessions(mediaWrapper)
             self.checkMedia(mediaWrapper)
             self.media_sessions[mediaWrapper.pasIdentifier] = mediaWrapper
@@ -481,12 +485,12 @@ class Skipper():
         self.purgeOldSessions(mediaWrapper)
         self.ignored.append(mediaWrapper.pasIdentifier)
         self.ignored = self.ignored[-self.IGNORED_CAP:]
-        self.log.debug("Ignoring session %s %s, ignored: %d" % (mediaWrapper, mediaWrapper.session._username, len(self.ignored)))
+        self.log.debug("Ignoring session %s %s, ignored: %d" % (mediaWrapper, mediaWrapper.plexsession._username, len(self.ignored)))
 
     def purgeOldSessions(self, mediaWrapper: MediaWrapper) -> None:
         for sessionMediaWrapper in list(self.media_sessions.values()):
             if sessionMediaWrapper.clientIdentifier == mediaWrapper.player.machineIdentifier:
-                self.log.info("Session %s shares player (%s) with new session %s, deleting old session %s" % (sessionMediaWrapper, mediaWrapper.player.machineIdentifier, mediaWrapper, sessionMediaWrapper.session.sessionKey))
+                self.log.info("Session %s shares player (%s) with new session %s, deleting old session %s" % (sessionMediaWrapper, mediaWrapper.player.machineIdentifier, mediaWrapper, sessionMediaWrapper.plexsession.sessionKey))
                 self.removeSession(sessionMediaWrapper)
                 break
 

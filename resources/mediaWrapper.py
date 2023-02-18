@@ -98,7 +98,7 @@ class CustomMarker():
 class MediaWrapper():
     def __init__(self, session: PlexSession, clientIdentifier: str, state: str, playQueueID: int, server: PlexServer, settings: Settings, custom: CustomEntries = None, logger: logging.Logger = None) -> None:
         self._viewOffset: int = session.viewOffset
-        self.session: PlexSession = session
+        self.plexsession: PlexSession = session
         self.media: Media = session.source()
 
         self.clientIdentifier = clientIdentifier
@@ -139,7 +139,7 @@ class MediaWrapper():
         self.loweringVolume: bool = False
 
         try:
-            self.userToken: str = self.session.user._token if isinstance(self.session.user, MyPlexAccount) else self.session.user.get_token(server.machineIdentifier)
+            self.userToken: str = self.plexsession.user._token if isinstance(self.plexsession.user, MyPlexAccount) else self.plexsession.user.get_token(server.machineIdentifier)
         except NotFound:
             self.userToken: str = None
 
@@ -277,7 +277,7 @@ class MediaWrapper():
             self.lastchapter = self.media.chapters[-1]
 
     def __repr__(self) -> str:
-        base = "%d [%d]" % (self.session.sessionKey, self.media.ratingKey)
+        base = "%d [%d]" % (self.plexsession.sessionKey, self.media.ratingKey)
         if hasattr(self.media, "title"):
             if hasattr(self.media, "grandparentTitle") and hasattr(self.media, "seasonEpisode"):
                 return "%s (%s %s - %s) %s|%s" % (base, self.media.grandparentTitle, self.media.seasonEpisode, self.media.title, self.player.title, self.clientIdentifier)
@@ -294,7 +294,7 @@ class MediaWrapper():
 
     @property
     def pasIdentifier(self) -> str:
-        return MediaWrapper.getSessionClientIdentifier(self.session.sessionKey, self.clientIdentifier)
+        return MediaWrapper.getSessionClientIdentifier(self.plexsession.sessionKey, self.clientIdentifier)
 
     @property
     def seeking(self) -> bool:
@@ -316,17 +316,17 @@ class MediaWrapper():
         return vo if vo <= (self.media.duration or vo) else self.media.duration
 
     def seekTo(self, offset: int, player: PlexClient) -> None:
-        self.session.viewOffset = self.viewOffset
+        self.plexsession.viewOffset = self.viewOffset
         self.seekOrigin = rd(self._viewOffset)
         self.seekTarget = rd(offset)
         self.lastUpdate = datetime.now()
         self._viewOffset = offset
         player.seekTo(offset)
-        self.session.viewOffset = offset
+        self.plexsession.viewOffset = offset
 
     def badSeek(self) -> None:
         self.state = BUFFERINGKEY
-        self._viewOffset = self.session.viewOffset
+        self._viewOffset = self.plexsession.viewOffset
         # self.seekOrigin = 0
         # self.seekTarget = 0
         self.lastUpdate = datetime.now()
@@ -349,7 +349,7 @@ class MediaWrapper():
         self.seekOrigin = 0
         self.seekTarget = 0
         self._viewOffset = offset
-        self.session.viewOffset = offset
+        self.plexsession.viewOffset = offset
         self.lastUpdate = datetime.now()
         if not self.ended and state in [PAUSEDKEY, STOPPEDKEY] and offset >= rd(self.media.duration):
             self.ended = True
