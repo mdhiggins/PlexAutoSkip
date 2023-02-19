@@ -37,9 +37,9 @@ class Skipper():
         "Plex for Mac": 32700
     }
 
-    CREDIT_SKIP_FIX = [
-        "Plex for Roku"
-    ]
+    CREDIT_SKIP_FIX = {
+        "Plex for Roku": 1000
+    }
 
     # :( </3
     BROKEN_CLIENTS = {
@@ -232,7 +232,7 @@ class Skipper():
 
         if mediaWrapper.media.duration and targetOffset >= mediaWrapper.media.duration:
             self.log.debug("TargetOffset %d is greater or equal to duration of media %d, adjusting to match" % (targetOffset, mediaWrapper.media.duration))
-            targetOffset = rd(mediaWrapper.media.duration - 1000) if player.product in self.CREDIT_SKIP_FIX else mediaWrapper.media.duration
+            targetOffset = rd(mediaWrapper.media.duration - self.CREDIT_SKIP_FIX[player.product]) if player.product in self.CREDIT_SKIP_FIX else mediaWrapper.media.duration
 
         try:
             try:
