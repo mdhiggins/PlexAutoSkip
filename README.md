@@ -14,11 +14,12 @@ See https://github.com/mdhiggins/PlexAutoSkip/wiki/Troubleshooting#notice for ch
 Features
 --------------
 - Skip any Plex identified markers with adjustable offsets
-  - Markers
-    - Intros (Plex Pass)
-    - Commercials (Plex Pass)
-  - Chapters
+  - Markers (Can skip any marker but Plex includes the following with Plex Pass)
+    - Intros
+    - Commercials
     - Advertisements
+    - Credits
+  - Chapters
 - Only skip for watched content
 - Ignore skipping series and season premieres
 - Skip last chapter (credits)
