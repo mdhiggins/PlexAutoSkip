@@ -129,7 +129,7 @@ class Skipper():
         self.checkMediaVolume(mediaWrapper, leftOffset, rightOffset)
 
         if mediaWrapper.skipnext and mediaWrapper.ended and (mediaWrapper.viewOffset >= rd(mediaWrapper.media.duration * self.DURATION_TOLERANCE)):
-            self.log.info("Found ended %s session that has reached the end of its duration %d with viewOffset %d with skip-next enabled, will skip to next" % (mediaWrapper, mediaWrapper.media.duration, mediaWrapper.viewOffset))
+            self.log.info("Found ended session %s that has reached the end of its duration %d with viewOffset %d with skip-next enabled, will skip to next" % (mediaWrapper, mediaWrapper.media.duration, mediaWrapper.viewOffset))
             self.seekTo(mediaWrapper, mediaWrapper.media.duration)
         elif mediaWrapper.ended:
             self.log.debug("Session %s has been marked as ended with viewOffset %d and state %s, removing" % (mediaWrapper, mediaWrapper.viewOffset, mediaWrapper.state))
