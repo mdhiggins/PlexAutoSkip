@@ -38,7 +38,7 @@ class Skipper():
     }
 
     CREDIT_SKIP_FIX = {
-        "Plex for Roku": 1000
+        "Plex for Roku": 1500
     }
 
     # :( </3
@@ -55,8 +55,8 @@ class Skipper():
         "Plex for Mac",
         "Plex for Linux"
     ]
-    DEFAULT_CLIENT_PORT = 32500
 
+    DEFAULT_CLIENT_PORT = 32500
     TIMEOUT = 30
     IGNORED_CAP = 200
     DURATION_TOLERANCE = 0.995
@@ -230,17 +230,17 @@ class Skipper():
         if not player:
             return False
 
-        if mediaWrapper.media.duration and targetOffset >= mediaWrapper.media.duration:
+        if mediaWrapper.media.duration and targetOffset >= (mediaWrapper.media.duration - self.CREDIT_SKIP_FIX.get(player.product, 0)):
             self.log.debug("TargetOffset %d is greater or equal to duration of media %d, adjusting to match" % (targetOffset, mediaWrapper.media.duration))
-            targetOffset = rd(mediaWrapper.media.duration - self.CREDIT_SKIP_FIX[player.product]) if player.product in self.CREDIT_SKIP_FIX else mediaWrapper.media.duration
+            targetOffset = mediaWrapper.media.duration - self.CREDIT_SKIP_FIX.get(player.product, 0)
 
         try:
             try:
                 if mediaWrapper.skipnext and targetOffset >= mediaWrapper.media.duration:
                     return self.skipPlayerTo(player, mediaWrapper)
                 else:
-                    if targetOffset < mediaWrapper.viewOffset:
-                        self.log.warning("TargetOffset %d is less than current viewOffset %d, cannot go back without creating infinite loop" % (targetOffset, mediaWrapper.viewOffset))
+                    if targetOffset <= mediaWrapper.viewOffset:
+                        self.log.debug("TargetOffset %d is less than or equal to current viewOffset %d, ignoring" % (targetOffset, mediaWrapper.viewOffset))
                         return False
 
                     self.log.info("Seeking %s player playing %s from %d to %d" % (player.product, mediaWrapper, mediaWrapper.viewOffset, targetOffset))
