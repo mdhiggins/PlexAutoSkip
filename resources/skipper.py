@@ -163,15 +163,13 @@ class Skipper():
                 return
 
         for marker in mediaWrapper.markers:
-            leftOffset = leftOffset if marker.type.lower() in mediaWrapper.offsetTags else 0
-            rightOffset = rightOffset if marker.type.lower() in mediaWrapper.offsetTags else 0
+            lo = leftOffset if marker.type.lower() in mediaWrapper.offsetTags else 0
+            ro = rightOffset if marker.type.lower() in mediaWrapper.offsetTags else 0
 
-            start = marker.start if marker.start < leftOffset else (marker.start + leftOffset)
+            start = marker.start if marker.start < lo else (marker.start + lo)
             if (start) <= mediaWrapper.viewOffset < rd(marker.end):
-                if marker.type.lower() not in mediaWrapper.offsetTags:
-                    self.log.debug("Marker %s not in offset tags %s, setting offsets to 0" % (marker.type, mediaWrapper.offsetTags))
-                self.log.info("Found skippable marker %s for media %s with range %d(+%d)-%d(+%d) and viewOffset %d" % (marker.type, mediaWrapper, marker.start, leftOffset, marker.end, rightOffset, mediaWrapper.viewOffset))
-                self.seekTo(mediaWrapper, marker.end + rightOffset)
+                self.log.info("Found skippable marker %s for media %s with range %d(+%d)-%d(+%d) and viewOffset %d" % (marker.type, mediaWrapper, marker.start, lo, marker.end, ro, mediaWrapper.viewOffset))
+                self.seekTo(mediaWrapper, marker.end + ro)
                 return
 
     def checkMediaVolume(self, mediaWrapper: MediaWrapper, leftOffset: int, rightOffset: int) -> None:
@@ -209,10 +207,10 @@ class Skipper():
                 return True
 
         for marker in mediaWrapper.markers:
-            leftOffset = leftOffset if marker.type.lower() in mediaWrapper.offsetTags else 0
-            rightOffset = rightOffset if marker.type.lower() in mediaWrapper.offsetTags else 0
-            if (marker.start + leftOffset) <= mediaWrapper.viewOffset < (marker.end + rightOffset):
-                self.log.debug("Inside marker %s for media %s with range %d(+%d)-%d(+%d) and viewOffset %d, volume should be low" % (marker.type, mediaWrapper, marker.start, leftOffset, marker.end, rightOffset, mediaWrapper.viewOffset))
+            lo = leftOffset if marker.type.lower() in mediaWrapper.offsetTags else 0
+            ro = rightOffset if marker.type.lower() in mediaWrapper.offsetTags else 0
+            if (marker.start + lo) <= mediaWrapper.viewOffset < (marker.end + ro):
+                self.log.debug("Inside marker %s for media %s with range %d(+%d)-%d(+%d) and viewOffset %d, volume should be low" % (marker.type, mediaWrapper, marker.start, lo, marker.end, ro, mediaWrapper.viewOffset))
                 return True
         return False
 
