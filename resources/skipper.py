@@ -75,7 +75,7 @@ class Skipper():
         self.ignored: List[str] = []
         self.reconnect: bool = True
 
-        self.log.debug("IntroSeeker init with leftOffset %d rightOffset %d" % (self.settings.leftOffset, self.settings.rightOffset))
+        self.log.debug("%s init with leftOffset %d rightOffset %d" % (self.__class__.__name__, self.settings.leftOffset, self.settings.rightOffset))
         self.log.debug("Operating in %s mode" % (self.settings.mode))
         self.log.debug("Skip tags %s" % (self.settings.tags))
         self.log.debug("Skip S01E01 %s" % (self.settings.skipS01E01))
