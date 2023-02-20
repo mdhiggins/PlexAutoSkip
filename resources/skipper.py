@@ -2,6 +2,7 @@
 
 import logging
 import time
+import os
 from resources.settings import Settings
 from resources.customEntries import CustomEntries
 from resources.sslAlertListener import SSLAlertListener
@@ -69,6 +70,7 @@ class Skipper():
         self.server = server
         self.settings = settings
         self.log = logger or getLogger(__name__)
+        self.verbose = os.environ.get("PAS_VERBOSE", "").lower() == "true"
 
         self.media_sessions: Dict[str, MediaWrapper] = {}
         self.delete: List[str] = []
@@ -359,6 +361,8 @@ class Skipper():
             pasIdentifier = MediaWrapper.getSessionClientIdentifier(sessionKey, clientIdentifier)
 
             if pasIdentifier in self.ignored:
+                if self.verbose:
+                    self.log.debug("Ignoring session %s" % pasIdentifier)
                 return
 
             try:
@@ -368,6 +372,8 @@ class Skipper():
 
                 if pasIdentifier not in self.media_sessions:
                     mediaSession = self.getMediaSession(sessionKey)
+                    if self.verbose:
+                        self.log.debug("Found alert for %s with state %s viewOffset %d playQueueID %d location %s" % (pasIdentifier, state, viewOffset, playQueueID, mediaSession.session.location))
                     if mediaSession and mediaSession.session and mediaSession.session.location == 'lan':
                         wrapper = MediaWrapper(mediaSession, clientIdentifier, state, playQueueID, self.server, settings=self.settings, custom=self.customEntries, logger=self.log)
                         if not self.blockedClientUser(wrapper):
