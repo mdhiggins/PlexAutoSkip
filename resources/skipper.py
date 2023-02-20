@@ -373,7 +373,7 @@ class Skipper():
                 if pasIdentifier not in self.media_sessions:
                     mediaSession = self.getMediaSession(sessionKey)
                     if self.verbose:
-                        self.log.debug("Found alert for %s with state %s viewOffset %d playQueueID %d location %s" % (pasIdentifier, state, viewOffset, playQueueID, mediaSession.session.location))
+                        self.log.debug("Alert for %s with state %s viewOffset %d playQueueID %d location %s" % (pasIdentifier, state, viewOffset, playQueueID, mediaSession.session.location))
                     if mediaSession and mediaSession.session and mediaSession.session.location == 'lan':
                         wrapper = MediaWrapper(mediaSession, clientIdentifier, state, playQueueID, self.server, settings=self.settings, custom=self.customEntries, logger=self.log)
                         if not self.blockedClientUser(wrapper):
