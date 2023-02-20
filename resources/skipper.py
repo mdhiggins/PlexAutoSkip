@@ -163,8 +163,8 @@ class Skipper():
                 return
 
         for marker in mediaWrapper.markers:
-            leftOffset = leftOffset if marker.type in mediaWrapper.offsetTags else 0
-            rightOffset = rightOffset if marker.type in mediaWrapper.offsetTags else 0
+            leftOffset = leftOffset if marker.type.lower() in mediaWrapper.offsetTags else 0
+            rightOffset = rightOffset if marker.type.lower() in mediaWrapper.offsetTags else 0
             start = marker.start if marker.start < leftOffset else (marker.start + leftOffset)
             if (start) <= mediaWrapper.viewOffset < rd(marker.end):
                 self.log.info("Found skippable marker %s for media %s with range %d(+%d)-%d(+%d) and viewOffset %d" % (marker.type, mediaWrapper, marker.start, leftOffset, marker.end, rightOffset, mediaWrapper.viewOffset))
@@ -231,10 +231,6 @@ class Skipper():
         if not player:
             return False
 
-        if mediaWrapper.media.duration and targetOffset >= (mediaWrapper.media.duration - self.CREDIT_SKIP_FIX.get(player.product, 0)):
-            self.log.debug("TargetOffset %d is greater or equal to duration of media %d, adjusting to match" % (targetOffset, mediaWrapper.media.duration))
-            targetOffset = mediaWrapper.media.duration - self.CREDIT_SKIP_FIX.get(player.product, 0)
-
         try:
             try:
                 if mediaWrapper.skipnext and targetOffset >= mediaWrapper.media.duration:
@@ -246,6 +242,10 @@ class Skipper():
                         return False
                     return self.skipPlayerTo(player, mediaWrapper, pq)
                 else:
+                    if mediaWrapper.media.duration and targetOffset >= (mediaWrapper.media.duration - self.CREDIT_SKIP_FIX.get(player.product, 0)):
+                        self.log.debug("TargetOffset %d is greater or equal to duration of media %d(-%d), adjusting to match" % (targetOffset, mediaWrapper.media.duration, self.CREDIT_SKIP_FIX.get(player.product, 0)))
+                        targetOffset = mediaWrapper.media.duration - self.CREDIT_SKIP_FIX.get(player.product, 0)
+
                     if targetOffset <= mediaWrapper.viewOffset:
                         self.log.debug("TargetOffset %d is less than or equal to current viewOffset %d, ignoring" % (targetOffset, mediaWrapper.viewOffset))
                         return False
