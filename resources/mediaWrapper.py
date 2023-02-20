@@ -31,6 +31,8 @@ MODEKEY = "mode"
 MARKERPREFIX = "m"
 CHAPTERPREFIX = "c"
 
+DURATION_TOLERANCE = 0.995
+
 
 # During paused/stopped states some PlexClients will report viewOffset rounded down to the nearest 1000, round accordingly
 def rd(num: int, place: int = 1000) -> int:
@@ -351,7 +353,7 @@ class MediaWrapper():
         self._viewOffset = offset
         self.plexsession.viewOffset = offset
         self.lastUpdate = datetime.now()
-        if not self.ended and state in [PAUSEDKEY, STOPPEDKEY] and offset >= rd(self.media.duration):
+        if not self.ended and state in [PAUSEDKEY, STOPPEDKEY] and offset >= rd(self.media.duration * DURATION_TOLERANCE):
             self.ended = True
 
     def updateVolume(self, volume: int, previousVolume: int, lowering: bool) -> bool:

@@ -5,7 +5,7 @@ import time
 from resources.settings import Settings
 from resources.customEntries import CustomEntries
 from resources.sslAlertListener import SSLAlertListener
-from resources.mediaWrapper import Media, MediaWrapper, PLAYINGKEY, STOPPEDKEY, PAUSEDKEY, BUFFERINGKEY, rd
+from resources.mediaWrapper import Media, MediaWrapper, PLAYINGKEY, STOPPEDKEY, PAUSEDKEY, BUFFERINGKEY, DURATION_TOLERANCE, rd
 from resources.log import getLogger
 from xml.etree.ElementTree import ParseError
 from urllib3.exceptions import ReadTimeoutError
@@ -33,6 +33,7 @@ class Skipper():
         "Plex for Android (TV)": 32500,
         "Plex for Android (Mobile)": 32500,
         "Plex for iOS": 32500,
+        "Plex for Apple TV": 32500,
         "Plex for Windows": 32700,
         "Plex for Mac": 32700
     }
@@ -59,7 +60,6 @@ class Skipper():
     DEFAULT_CLIENT_PORT = 32500
     TIMEOUT = 30
     IGNORED_CAP = 200
-    DURATION_TOLERANCE = 0.995
 
     @property
     def customEntries(self) -> CustomEntries:
@@ -128,7 +128,7 @@ class Skipper():
         self.checkMediaSkip(mediaWrapper, leftOffset, rightOffset)
         self.checkMediaVolume(mediaWrapper, leftOffset, rightOffset)
 
-        if mediaWrapper.skipnext and mediaWrapper.ended and (mediaWrapper.viewOffset >= rd(mediaWrapper.media.duration * self.DURATION_TOLERANCE)):
+        if mediaWrapper.skipnext and mediaWrapper.ended and (mediaWrapper.viewOffset >= rd(mediaWrapper.media.duration * DURATION_TOLERANCE)):
             self.log.info("Found ended session %s that has reached the end of its duration %d with viewOffset %d with skip-next enabled, will skip to next" % (mediaWrapper, mediaWrapper.media.duration, mediaWrapper.viewOffset))
             self.seekTo(mediaWrapper, mediaWrapper.media.duration)
         elif mediaWrapper.ended:
@@ -226,7 +226,7 @@ class Skipper():
             self.log.exception("Exception, removing from cache to prevent false triggers, will be restored with next sync")
             self.removeSession(mediaWrapper)
 
-    def seekPlayerTo(self, player: PlexClient, mediaWrapper: MediaWrapper, targetOffset: int) -> bool:
+    def seekPlayerTo(self, player: PlexClient, mediaWrapper: MediaWrapper, targetOffset: int, pq: PlayQueue = None) -> bool:
         if not player:
             return False
 
@@ -237,7 +237,13 @@ class Skipper():
         try:
             try:
                 if mediaWrapper.skipnext and targetOffset >= mediaWrapper.media.duration:
-                    return self.skipPlayerTo(player, mediaWrapper)
+                    try:
+                        pq = pq or PlayQueue.get(self.server, mediaWrapper.playQueueID)
+                    except Exception as e:
+                        self.log.warning("Seek target is the end but unable to get PlayQueue %d (%s) data from server, aborting to prevent extra skips or playback issues" % (mediaWrapper.playQueueID, mediaWrapper.media.playQueueItemID))
+                        self.log.debug(e)
+                        return False
+                    return self.skipPlayerTo(player, mediaWrapper, pq)
                 else:
                     if targetOffset <= mediaWrapper.viewOffset:
                         self.log.debug("TargetOffset %d is less than or equal to current viewOffset %d, ignoring" % (targetOffset, mediaWrapper.viewOffset))
@@ -252,37 +258,35 @@ class Skipper():
             except BadRequest as br:
                 self.logErrorMessage(br, "BadRequest exception seekPlayerTo")
                 mediaWrapper.badSeek()
-                return self.seekPlayerTo(self.recoverPlayer(player), mediaWrapper, targetOffset)
+                return self.seekPlayerTo(self.recoverPlayer(player), mediaWrapper, targetOffset, pq)
         except:
             raise
 
-    def skipPlayerTo(self, player: PlexClient, mediaWrapper: MediaWrapper) -> bool:
+    def skipPlayerTo(self, player: PlexClient, mediaWrapper: MediaWrapper, pq: PlayQueue) -> bool:
         self.removeSession(mediaWrapper)
         self.ignoreSession(mediaWrapper)
-        commandDelay = mediaWrapper.commandDelay or self.settings.commandDelay
-        try:
-            pq = PlayQueue.get(self.server, mediaWrapper.playQueueID)
-            if pq.items[-1] == mediaWrapper.media:
-                self.log.debug("Seek target is the end but no more items in the playQueue, using seekTo to prevent loop")
-                player.seekTo(mediaWrapper.media.duration)
-            else:
-                nextItem: Media = pq[pq.items.index(mediaWrapper.media) + 1]
-                server = self.server
-                if mediaWrapper.plexsession.user != self.server.myPlexAccount() and mediaWrapper.userToken:
-                    server = PlexServer(self.server._baseurl, token=mediaWrapper.userToken, session=self.server._session, timeout=self.server._timeout)
-                newQueue = PlayQueue.create(server, list(pq.items), nextItem)
-                self.log.debug("Creating new PlayQueue %d with start item %s" % (newQueue.playQueueID, nextItem))
-                time.sleep(commandDelay / 1000)
-                player.stop()
-                time.sleep(commandDelay / 1000)
-                player.playMedia(newQueue)
-            return True
-        except KeyboardInterrupt:
-            raise
-        except Exception as e:
-            self.log.warning("Seek target is the end but unable to get PlayQueue %d (%s) data from server, aborting to prevent extra skips or playback issues" % (mediaWrapper.playQueueID, mediaWrapper.media.playQueueItemID))
-            self.log.debug(e)
+
+        if not pq or not pq.items:
+            self.log.warning("Unable to get PlayQueue %d (%s) data from server, aborting to prevent extra skips or playback issues" % (mediaWrapper.playQueueID, mediaWrapper.media.playQueueItemID))
             return False
+
+        commandDelay = mediaWrapper.commandDelay or self.settings.commandDelay
+
+        if pq.items[-1] == mediaWrapper.media:
+            self.log.debug("Seek target is the end but no more items in the playQueue, using seekTo to prevent loop")
+            mediaWrapper.seekTo(mediaWrapper.media.duration - self.CREDIT_SKIP_FIX.get(player.product, 0), player)
+        else:
+            nextItem: Media = pq[pq.items.index(mediaWrapper.media) + 1]
+            server = self.server
+            if mediaWrapper.plexsession.user != self.server.myPlexAccount() and mediaWrapper.userToken:
+                server = PlexServer(self.server._baseurl, token=mediaWrapper.userToken, session=self.server._session, timeout=self.server._timeout)
+            newQueue = PlayQueue.create(server, list(pq.items), nextItem)
+            self.log.debug("Creating new PlayQueue %d with start item %s" % (newQueue.playQueueID, nextItem))
+            time.sleep(commandDelay / 1000)
+            player.stop()
+            time.sleep(commandDelay / 1000)
+            player.playMedia(newQueue)
+        return True
 
     def setVolume(self, mediaWrapper: MediaWrapper, volume: int, lowering: bool) -> None:
         t = Thread(target=self._setVolume, args=(mediaWrapper, volume, lowering))
@@ -471,9 +475,9 @@ class Skipper():
     def addSession(self, mediaWrapper: MediaWrapper) -> None:
         if mediaWrapper.player and self.validPlayer(mediaWrapper.player):
             if mediaWrapper.customOnly:
-                self.log.info("Found blocked session %s viewOffset %d %s, using custom markers only, sessions: %d" % (mediaWrapper, mediaWrapper.plexsession.viewOffset, mediaWrapper.plexsession._username, len(self.media_sessions)))
+                self.log.info("Found blocked session %s viewOffset %d %s on %s, using custom markers only, sessions: %d" % (mediaWrapper, mediaWrapper.plexsession.viewOffset, mediaWrapper.plexsession._username, mediaWrapper.plexsession.player.product, len(self.media_sessions)))
             else:
-                self.log.info("Found new session %s viewOffset %d %s, sessions: %d" % (mediaWrapper, mediaWrapper.plexsession.viewOffset, mediaWrapper.plexsession._username, len(self.media_sessions)))
+                self.log.info("Found new session %s viewOffset %d %s on %s, sessions: %d" % (mediaWrapper, mediaWrapper.plexsession.viewOffset, mediaWrapper.plexsession._username, mediaWrapper.plexsession.player.product, len(self.media_sessions)))
             self.purgeOldSessions(mediaWrapper)
             self.checkMedia(mediaWrapper)
             self.media_sessions[mediaWrapper.pasIdentifier] = mediaWrapper
