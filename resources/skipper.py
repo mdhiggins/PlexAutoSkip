@@ -230,20 +230,14 @@ class Skipper():
             self.log.exception("Exception, removing from cache to prevent false triggers, will be restored with next sync")
             self.removeSession(mediaWrapper)
 
-    def seekPlayerTo(self, player: PlexClient, mediaWrapper: MediaWrapper, targetOffset: int, pq: PlayQueue = None) -> bool:
+    def seekPlayerTo(self, player: PlexClient, mediaWrapper: MediaWrapper, targetOffset: int, pq: PlayQueue = None, server: PlexServer = None) -> bool:
         if not player:
             return False
 
         try:
             try:
                 if mediaWrapper.skipnext and targetOffset >= mediaWrapper.media.duration:
-                    try:
-                        pq = pq or PlayQueue.get(self.server, mediaWrapper.playQueueID)
-                    except Exception as e:
-                        self.log.warning("Seek target is the end but unable to get PlayQueue %d (%s) data from server, aborting to prevent extra skips or playback issues" % (mediaWrapper.playQueueID, mediaWrapper.media.playQueueItemID))
-                        self.log.debug(e)
-                        return False
-                    return self.skipPlayerTo(player, mediaWrapper, pq)
+                    return self.skipPlayerTo(player, mediaWrapper, pq, server)
                 else:
                     if mediaWrapper.media.duration and targetOffset >= (mediaWrapper.media.duration - self.CREDIT_SKIP_FIX.get(player.product, 0)):
                         self.log.debug("TargetOffset %d is greater or equal to duration of media %d(-%d), adjusting to match" % (targetOffset, mediaWrapper.media.duration, self.CREDIT_SKIP_FIX.get(player.product, 0)))
@@ -262,34 +256,61 @@ class Skipper():
             except BadRequest as br:
                 self.logErrorMessage(br, "BadRequest exception seekPlayerTo")
                 mediaWrapper.badSeek()
-                return self.seekPlayerTo(self.recoverPlayer(player), mediaWrapper, targetOffset, pq)
+                return self.seekPlayerTo(self.recoverPlayer(player), mediaWrapper, targetOffset, pq, server)
         except:
             raise
 
-    def skipPlayerTo(self, player: PlexClient, mediaWrapper: MediaWrapper, pq: PlayQueue) -> bool:
+    def skipPlayerTo(self, player: PlexClient, mediaWrapper: MediaWrapper, pq: PlayQueue, server: PlexServer) -> bool:
         self.removeSession(mediaWrapper)
         self.ignoreSession(mediaWrapper)
 
-        if not pq or not pq.items:
-            self.log.warning("Unable to get PlayQueue %d (%s) data from server, aborting to prevent extra skips or playback issues" % (mediaWrapper.playQueueID, mediaWrapper.media.playQueueItemID))
-            return False
+        server = server or self.server
+        if mediaWrapper.plexsession.user != server.myPlexAccount():
+            try:
+                self.log.debug("Creating new server session with user %s" % (mediaWrapper.plexsession._username))
+                server = server.switchUser(mediaWrapper.plexsession._username)
+            except:
+                self.log.exception("Unable to create new server instance to maintain current user")
 
-        commandDelay = mediaWrapper.commandDelay or self.settings.commandDelay
+        try:
+            pq = pq or PlayQueue.get(self.server, mediaWrapper.playQueueID)
+            nextItem: Media = pq[pq.items.index(mediaWrapper.media) + 1]
+            pq = PlayQueue.create(server, list(pq.items), nextItem)
+            self.log.debug("Creating new PlayQueue %d with start item %s" % (pq.playQueueID, nextItem))
+        except Exception as e:
+            self.log.debug("Seek target is the end but unable to get existing PlayQueue %d (%s) data from server" % (mediaWrapper.playQueueID, mediaWrapper.media.playQueueItemID))
+            if self.verbose:
+                self.log.debug(e)
+            if mediaWrapper.media.type == "episode":
+                self.log.debug("Attempting to create a new PlayQueue using remaining episodes")
+                try:
+                    episodes = mediaWrapper.media.show().episodes()
+                    if episodes and episodes[-1] != mediaWrapper.media:
+                        self.log.debug("Generating new PlayQueue using remaining episodes in series")
+                        pq = PlayQueue.create(server, episodes, episodes[episodes.index(mediaWrapper.media) + 1])
+                    else:
+                        self.log.debug("Generating new PlayQueue using on deck episodes in series")
+                        data = server.query(mediaWrapper.media._details_key)
+                        items = mediaWrapper.media.findItems(data, rtag='OnDeck')
+                        if items:
+                            items = [mediaWrapper.media] + items
+                            pq = PlayQueue.create(server, items, items[1])
+                except:
+                    self.log.exception("Unable to create new PlayQueue for %s" % (mediaWrapper))
+
+        if not pq or not pq.items:
+            self.log.warning("No available PlayQueue data %d (%s), using seekTo to go to media end" % (mediaWrapper.playQueueID, mediaWrapper.media.playQueueItemID))
+            mediaWrapper.seekTo(mediaWrapper.media.duration - self.CREDIT_SKIP_FIX.get(player.product, 0), player)
+            return True
 
         if pq.items[-1] == mediaWrapper.media:
-            self.log.debug("Seek target is the end but no more items in the playQueue, using seekTo to prevent loop")
+            self.log.debug("Seek target is the end but no more items in the PlayQueue, using seekTo to prevent loop")
             mediaWrapper.seekTo(mediaWrapper.media.duration - self.CREDIT_SKIP_FIX.get(player.product, 0), player)
         else:
-            # nextItem: Media = pq[pq.items.index(mediaWrapper.media) + 1]
-            # server = self.server
-            # if mediaWrapper.plexsession.user != self.server.myPlexAccount() and mediaWrapper.userToken:
-            #     server = PlexServer(self.server._baseurl, token=mediaWrapper.userToken, session=self.server._session, timeout=self.server._timeout)
-            # newQueue = PlayQueue.create(server, list(pq.items), nextItem)
-            # self.log.debug("Creating new PlayQueue %d with start item %s" % (newQueue.playQueueID, nextItem))
+            commandDelay = mediaWrapper.commandDelay or self.settings.commandDelay
             time.sleep(commandDelay / 1000)
             player.stop()
             time.sleep(commandDelay / 1000)
-            pq.removeItem(pq.selectedItem)
             player.playMedia(pq)
         return True
 
