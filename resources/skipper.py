@@ -280,16 +280,17 @@ class Skipper():
             self.log.debug("Seek target is the end but no more items in the playQueue, using seekTo to prevent loop")
             mediaWrapper.seekTo(mediaWrapper.media.duration - self.CREDIT_SKIP_FIX.get(player.product, 0), player)
         else:
-            nextItem: Media = pq[pq.items.index(mediaWrapper.media) + 1]
-            server = self.server
-            if mediaWrapper.plexsession.user != self.server.myPlexAccount() and mediaWrapper.userToken:
-                server = PlexServer(self.server._baseurl, token=mediaWrapper.userToken, session=self.server._session, timeout=self.server._timeout)
-            newQueue = PlayQueue.create(server, list(pq.items), nextItem)
-            self.log.debug("Creating new PlayQueue %d with start item %s" % (newQueue.playQueueID, nextItem))
+            # nextItem: Media = pq[pq.items.index(mediaWrapper.media) + 1]
+            # server = self.server
+            # if mediaWrapper.plexsession.user != self.server.myPlexAccount() and mediaWrapper.userToken:
+            #     server = PlexServer(self.server._baseurl, token=mediaWrapper.userToken, session=self.server._session, timeout=self.server._timeout)
+            # newQueue = PlayQueue.create(server, list(pq.items), nextItem)
+            # self.log.debug("Creating new PlayQueue %d with start item %s" % (newQueue.playQueueID, nextItem))
             time.sleep(commandDelay / 1000)
             player.stop()
             time.sleep(commandDelay / 1000)
-            player.playMedia(newQueue)
+            pq.removeItem(pq.selectedItem)
+            player.playMedia(pq)
         return True
 
     def setVolume(self, mediaWrapper: MediaWrapper, volume: int, lowering: bool) -> None:
@@ -373,8 +374,10 @@ class Skipper():
                 if pasIdentifier not in self.media_sessions:
                     mediaSession = self.getMediaSession(sessionKey)
                     if self.verbose:
-                        if mediaSession:
-                            self.log.debug("Alert for %s with state %s viewOffset %d playQueueID %d location %s" % (pasIdentifier, state, viewOffset, playQueueID, mediaSession.session.location))
+                        if mediaSession and mediaSession.session and mediaSession.player:
+                            self.log.debug("Alert for %s with state %s viewOffset %d playQueueID %d location %s user %s player IP %s" % (pasIdentifier, state, viewOffset, playQueueID, mediaSession.session.location, mediaSession._username, mediaSession.player.address))
+                        elif mediaSession and mediaSession.session:
+                            self.log.debug("Alert for %s with state %s viewOffset %d playQueueID %d location %s user %s" % (pasIdentifier, state, viewOffset, playQueueID, mediaSession.session.location, mediaSession._username))
                         else:
                             self.log.debug("Alert for %s with state %s viewOffset %d playQueueID %d but no session data" % (pasIdentifier, state, viewOffset, playQueueID))
                     if mediaSession and mediaSession.session and mediaSession.session.location == 'lan':
