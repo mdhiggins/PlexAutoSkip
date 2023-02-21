@@ -22,6 +22,7 @@ Features
   - Chapters
 - Only skip for watched content
 - Ignore skipping series and season premieres
+- Ignore skipping first episodes in every new viewing session
 - Skip last chapter (credits)
 - Bypass the "Up Next" screen
 - Custom Definitions
