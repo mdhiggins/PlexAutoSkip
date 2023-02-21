@@ -69,6 +69,8 @@ class Settings:
             "unwatched": True,
             "first-episode-series": "Watched",
             "first-episode-season": "Always",
+            "subsequent-session-episodes": False,
+            "session-length": 120,
             "next": False
         },
         "Offsets": {
@@ -146,6 +148,8 @@ class Settings:
         self.skipunwatched: bool = False
         self.skipE01: Settings.SKIP_TYPES = Settings.SKIP_TYPES.ALWAYS
         self.skipS01E01: Settings.SKIP_TYPES = Settings.SKIP_TYPES.ALWAYS
+        self.skipSubsequentSessionEpisodes: bool = False
+        self.sessionLength: int = 120
         self.skipnext: bool = False
         self.leftOffset: int = 0
         self.rightOffset: int = 0
@@ -306,6 +310,8 @@ class Settings:
             self.skipE01 = self.SKIP_MATCHER.get(config.getboolean("Skip", "first-episode-season"))  # Legacy bool support
         except ValueError:
             self.skipE01 = self.SKIP_MATCHER.get(config.get("Skip", "first-episode-season").lower(), self.SKIP_TYPES.ALWAYS)
+        self.skipSubsequentSessionEpisodes = self.SKIP_MATCHER.get(config.getboolean("Skip", "subsequent-session-episodes"))
+        self.sessionLength = config.getint("Skip", "session-length")
         self.skipnext = config.getboolean("Skip", "next")
 
         self.leftOffset = config.getint("Offsets", "start")
