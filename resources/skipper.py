@@ -272,31 +272,34 @@ class Skipper():
             except:
                 self.log.exception("Unable to create new server instance to maintain current user")
 
-        try:
-            pq = pq or PlayQueue.get(self.server, mediaWrapper.playQueueID)
-            nextItem: Media = pq[pq.items.index(mediaWrapper.media) + 1]
-            pq = PlayQueue.create(server, list(pq.items), nextItem)
-            self.log.debug("Creating new PlayQueue %d with start item %s" % (pq.playQueueID, nextItem))
-        except Exception as e:
-            self.log.debug("Seek target is the end but unable to get existing PlayQueue %d (%s) data from server" % (mediaWrapper.playQueueID, mediaWrapper.media.playQueueItemID))
-            if self.verbose:
-                self.log.debug(e)
-            if mediaWrapper.media.type == "episode":
-                self.log.debug("Attempting to create a new PlayQueue using remaining episodes")
-                try:
-                    episodes = mediaWrapper.media.show().episodes()
-                    if episodes and episodes[-1] != mediaWrapper.media:
-                        self.log.debug("Generating new PlayQueue using remaining episodes in series")
-                        pq = PlayQueue.create(server, episodes, episodes[episodes.index(mediaWrapper.media) + 1])
-                    else:
-                        self.log.debug("Generating new PlayQueue using on deck episodes in series")
-                        data = server.query(mediaWrapper.media._details_key)
-                        items = mediaWrapper.media.findItems(data, rtag='OnDeck')
-                        if items:
-                            items = [mediaWrapper.media] + items
-                            pq = PlayQueue.create(server, items, items[1])
-                except:
-                    self.log.exception("Unable to create new PlayQueue for %s" % (mediaWrapper))
+        if not pq:
+            try:
+                current = PlayQueue.get(self.server, mediaWrapper.playQueueID)
+                nextItem: Media = current[current.items.index(mediaWrapper.media) + 1]
+                pq = PlayQueue.create(server, list(current.items), nextItem)
+                self.log.debug("Creating new PlayQueue %d with start item %s" % (pq.playQueueID, nextItem))
+            except Exception as e:
+                self.log.debug("Seek target is the end but unable to get existing PlayQueue %d (%s) data from server" % (mediaWrapper.playQueueID, mediaWrapper.media.playQueueItemID))
+                if self.verbose:
+                    self.log.debug(e)
+                if mediaWrapper.media.type == "episode":
+                    self.log.debug("Attempting to create a new PlayQueue using remaining episodes")
+                    try:
+                        episodes = mediaWrapper.media.show().episodes()
+                        if episodes and episodes[-1] != mediaWrapper.media:
+                            self.log.debug("Generating new PlayQueue using remaining episodes in series")
+                            pq = PlayQueue.create(server, episodes, episodes[episodes.index(mediaWrapper.media) + 1])
+                        else:
+                            data = server.query(mediaWrapper.media._details_key)
+                            items = mediaWrapper.media.findItems(data, rtag='OnDeck')
+                            if items:
+                                self.log.debug("Generating new PlayQueue using on deck episodes in series")
+                                items = [mediaWrapper.media] + items
+                                pq = PlayQueue.create(server, items, items[1])
+                            else:
+                                self.log.debug("No remaining episodes found to build a PlayQueue")
+                    except:
+                        self.log.exception("Unable to create new PlayQueue for %s" % (mediaWrapper))
 
         if not pq or not pq.items:
             self.log.warning("No available PlayQueue data %d (%s), using seekTo to go to media end" % (mediaWrapper.playQueueID, mediaWrapper.media.playQueueItemID))
