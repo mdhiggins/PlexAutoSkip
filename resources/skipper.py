@@ -250,7 +250,6 @@ class Skipper():
     def clearEndedSessions(self) -> None:
         userIDsToDelete = []
         for userID in self.medias_in_session:
-            self.medias_in_session[userID] = self.medias_in_session[userID]
             mediaToDelete = []
             for media in self.medias_in_session[userID]:
                 if datetime.now() >= self.medias_in_session[userID][media] + timedelta(minutes=self.settings.sessionLength):
@@ -261,7 +260,7 @@ class Skipper():
             if not self.medias_in_session[userID]:
                 userIDsToDelete.append(userID)
         for userID in userIDsToDelete:
-            self.log.debug("UserID [REDACTED] has not been watched any media %s minutes and is no longer being tracked for subsequent viewing" % (self.settings.sessionLength))
+            self.log.debug("UserID [REDACTED] has not watched any media in %s minutes and is no longer being tracked for subsequent viewing" % (self.settings.sessionLength))
             self.medias_in_session.pop(userID)
 
     def seekTo(self, mediaWrapper: MediaWrapper, targetOffset: int) -> None:
