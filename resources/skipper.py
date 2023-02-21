@@ -75,7 +75,7 @@ class Skipper():
         self.verbose = os.environ.get("PAS_VERBOSE", "").lower() == "true"
 
         self.media_sessions: Dict[str, MediaWrapper] = {}
-        self.medias_in_session: Dict[int, Dict[Show, datetime]] = {}
+        self.medias_in_session: Dict[int, Dict[Show, List[datetime, int]]] = {}
         self.delete: List[str] = []
         self.ignored: List[str] = []
         self.reconnect: bool = True
@@ -86,7 +86,7 @@ class Skipper():
         self.log.debug("Skip tags %s" % (self.settings.tags))
         self.log.debug("Skip S01E01 %s" % (self.settings.skipS01E01))
         self.log.debug("Skip S**E01 %s" % (self.settings.skipE01))
-        self.log.debug("Skip subsequent session episodes %s" % (self.settings.skipSubsequentSessionEpisodes))
+        self.log.debug("Skip subsequent session episodes after %s" % (self.settings.skipSubsequentSessionEpisodesAfter))
         self.log.debug("Skip last chapter %s" % (self.settings.skiplastchapter))
         self.log.debug("Session length %s" % (self.settings.sessionLength))
 
@@ -222,11 +222,11 @@ class Skipper():
                 return True
         return False
 
-    def isSubsequentSessionEpisode(self, mediaWrapper: MediaWrapper) -> bool:
+    def getEpisodeInViewingSession(self, mediaWrapper: MediaWrapper) -> int:
         media = mediaWrapper.plexsession.source()
         if media.type == "movie":
-            self.log.debug("Media %s is of type '%s' and is being ignored" % (media, media.type))
-            return True  # True ensures movies are always ignored
+            self.log.debug("Media %s is of type '%s' and is being ignored for subsequent viewing" % (media, media.type))
+            return self.settings.skipSubsequentSessionEpisodesAfter+1
 
         if media.type in {"season", "episode"}:
             self.log.debug("Media %s is of type '%s', retreiving parent media %s" % (media, media.type, media.show()))
@@ -238,21 +238,21 @@ class Skipper():
             self.medias_in_session[userID] = {}
 
         if media in self.medias_in_session[userID]:
-            if datetime.now() < self.medias_in_session[userID][media] + timedelta(minutes=self.settings.sessionLength):
-                self.log.debug("Media %s has reset its timer of %s minutes due to new instance being viewed" % (media, self.settings.sessionLength))
-                self.medias_in_session[userID][media] = datetime.now()  # Reset the time
-                return True  # Subsequent episode within the time period
+            if datetime.now() < self.medias_in_session[userID][media][0] + timedelta(minutes=self.settings.sessionLength):
+                self.log.debug("Media %s has reset its timer of %s minutes for episode %s in viewing session" % (media, self.settings.sessionLength, self.medias_in_session[userID][media][1]+1))
+                self.medias_in_session[userID][media][0] = datetime.now()
+                self.medias_in_session[userID][media][1] += 1
         else:
             self.log.debug("Media %s is now being tracked for subsequent viewing for the next %s minutes" % (media, self.settings.sessionLength))
-            self.medias_in_session[userID] = {media: datetime.now()}  # First episode of the session
-        return False
+            self.medias_in_session[userID] = {media: [datetime.now(), 1]}
+        return self.medias_in_session[userID][media][1]
 
     def clearEndedSessions(self) -> None:
         userIDsToDelete = []
         for userID in self.medias_in_session:
             mediaToDelete = []
             for media in self.medias_in_session[userID]:
-                if datetime.now() >= self.medias_in_session[userID][media] + timedelta(minutes=self.settings.sessionLength):
+                if datetime.now() >= self.medias_in_session[userID][media][0] + timedelta(minutes=self.settings.sessionLength):
                     mediaToDelete.append(media)
             for media in mediaToDelete:
                 self.log.debug("Media %s has not been watched in %s minutes and is no longer being tracked for subsequent viewing" % (media, self.settings.sessionLength))
@@ -502,8 +502,9 @@ class Skipper():
                     return False
 
         # Session episodes
-        if self.settings.skipSubsequentSessionEpisodes == Settings.SKIP_TYPES.ALWAYS and not self.isSubsequentSessionEpisode(mediaWrapper):
-            self.log.debug("Blocking %s, first episode in session and skip-subsequent-session-episodes is %s" % (mediaWrapper, self.settings.skipSubsequentSessionEpisodes))
+        episodeNum = self.getEpisodeInViewingSession(mediaWrapper)
+        if episodeNum <= self.settings.skipSubsequentSessionEpisodesAfter:
+            self.log.debug("Blocking %s, episode %s in session and skip-subsequent-session-episodes-after is %s" % (mediaWrapper, episodeNum, self.settings.skipSubsequentSessionEpisodesAfter))
             return False
 
         # Keys
