@@ -21,6 +21,8 @@ last-chapter = 0.0
 unwatched = True
 first-episode-series = Watched
 first-episode-season = Always
+subsequent-session-episodes-after = 1
+session-length = 120
 next = False
 
 [Offsets]
