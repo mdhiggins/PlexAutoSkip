@@ -19,7 +19,10 @@ Media = TypeVar("Media", Episode, Movie)
 
 STARTKEY = "start"
 ENDKEY = "end"
+TYPEKEY = "type"
 TAGKEY = "tags"
+
+CUSTOMTAG = "custom"
 
 PLAYINGKEY = "playing"
 STOPPEDKEY = "stopped"
@@ -62,6 +65,7 @@ class CustomMarker():
         try:
             self._start = int(data[STARTKEY])
             self._end = int(data[ENDKEY])
+            self.type = data.get(TYPEKEY, CUSTOMTAG)
             self.cascade = data.get(CASCADEKEY, False)
             if isinstance(self.cascade, str):
                 self.cascade = bool(strtobool(self.cascade))
@@ -107,7 +111,7 @@ class MediaWrapper():
         self.state: str = state
         self.ended: bool = False
         self.playQueueID: int = playQueueID
-        self.player = session.player
+        self.player: PlexClient = session.player
 
         self.lastUpdate: datetime = datetime.now()
         self.lastAlert: datetime = datetime.now()
@@ -246,6 +250,11 @@ class MediaWrapper():
                 self.skipnext = False
 
             self.tags = [x.lower() for x in self.tags]
+            self.playerTags = custom.tags.get(self.player.machineIdentifier, custom.tags.get(self.player.product, []))
+            if self.playerTags:
+                self.playerTags = [x.lower() for x in self.playerTags]
+                self.log.debug("Found a special set of tags %s for player %s %s, filtering tags" % (self.playerTags, self.player.product, self.player.machineIdentifier))
+                self.tags = [x for x in self.tags if x in self.playerTags]
 
             if self.leftOffset:
                 self.log.debug("Custom start offset value of %dms found for %s" % (self.leftOffset, self))
@@ -268,6 +277,10 @@ class MediaWrapper():
                 self.media.markers = self.media.findItems(self.media._data, media.Marker)
             except:
                 self.log.debug("Exception trying to load markers on non-standard media")
+
+        if self.playerTags:
+            self.log.debug("Filtering custom markers based on playerTags %s, add 'custom' or a specified 'type' to the definition to keep them" % (self.playerTags))
+            self.customMarkers = [x for x in self.customMarkers if x.type.lower() in self.playerTags]
 
         if hasattr(self.media, 'markers') and not self.customOnly:
             self.markers = [x for x in self.media.markers if x.type and (x.type.lower() in self.tags or "%s:%s" % (MARKERPREFIX, x.type.lower()) in self.tags)]
