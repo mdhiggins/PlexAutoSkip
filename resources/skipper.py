@@ -6,7 +6,7 @@ import os
 from resources.settings import Settings
 from resources.customEntries import CustomEntries
 from resources.sslAlertListener import SSLAlertListener
-from resources.mediaWrapper import Media, MediaWrapper, PLAYINGKEY, STOPPEDKEY, PAUSEDKEY, BUFFERINGKEY, DURATION_TOLERANCE, rd
+from resources.mediaWrapper import Media, MediaWrapper, PLAYINGKEY, STOPPEDKEY, PAUSEDKEY, BUFFERINGKEY, rd
 from resources.log import getLogger
 from xml.etree.ElementTree import ParseError
 from urllib3.exceptions import ReadTimeoutError
@@ -131,7 +131,7 @@ class Skipper():
         self.checkMediaSkip(mediaWrapper, leftOffset, rightOffset)
         self.checkMediaVolume(mediaWrapper, leftOffset, rightOffset)
 
-        if mediaWrapper.skipnext and mediaWrapper.ended and (mediaWrapper.viewOffset >= rd(mediaWrapper.media.duration * DURATION_TOLERANCE)):
+        if mediaWrapper.skipnext and mediaWrapper.ended:
             self.log.info("Found ended session %s that has reached the end of its duration %d with viewOffset %d with skip-next enabled, will skip to next" % (mediaWrapper, mediaWrapper.media.duration, mediaWrapper.viewOffset))
             self.seekTo(mediaWrapper, mediaWrapper.media.duration)
         elif mediaWrapper.ended:
