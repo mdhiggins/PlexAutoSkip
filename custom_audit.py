@@ -4,6 +4,7 @@ import json
 from argparse import ArgumentParser
 from resources.customEntries import CustomEntries
 from resources.settings import Settings
+from resources.mediaWrapper import STARTKEY, ENDKEY, TYPEKEY
 from resources.log import getLogger
 from plexapi.server import PlexServer
 from plexapi.video import Show, Season, Episode, Movie
@@ -101,15 +102,17 @@ def dumpMarkers(media: ComplexMedia, settings: Settings, useGuid: bool = False) 
             for m in c.markers:
                 if m.type and m.type.lower() in settings.tags:
                     data['markers'][key].append({
-                        'start': m.start,
-                        'end': m.end
+                        STARTKEY: m.start,
+                        ENDKEY: m.end,
+                        TYPEKEY: m.type
                     })
         if hasattr(c, 'chapters'):
             for m in c.chapters:
                 if m.title and m.title.lower() in settings.tags:
                     data['markers'][key].append({
-                        'start': m.start,
-                        'end': m.end
+                        STARTKEY: m.start,
+                        ENDKEY: m.end,
+                        TYPEKEY: m.title
                     })
     return data
 
