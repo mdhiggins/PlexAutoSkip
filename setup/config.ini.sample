@@ -27,6 +27,7 @@ next = False
 [Binge]
 ignore-skip-for = 0
 safe-tags = 
+same-show-only = False
 
 [Offsets]
 start = 3000

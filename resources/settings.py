@@ -77,6 +77,7 @@ class Settings:
         "Binge": {
             "ignore-skip-for": 0,
             "safe-tags": "",
+            "same-show-only": False
         },
         "Offsets": {
             "start": 3000,
@@ -156,6 +157,7 @@ class Settings:
         self.firstsafetags: list = []
         self.binge: int = 0
         self.bingesafetags: list = []
+        self.bingesameshowonly: bool = False
         self.sessionLength: int = 120
         self.skipnext: bool = False
         self.leftOffset: int = 0
@@ -322,6 +324,7 @@ class Settings:
 
         self.binge = config.getint("Binge", "ignore-skip-for")
         self.bingesafetags = config.getlist("Binge", "safe-tags", replace=[])
+        self.bingesameshowonly = config.getboolean("Binge", "same-show-only")
 
         self.leftOffset = config.getint("Offsets", "start")
         self.rightOffset = config.getint("Offsets", "end")
