@@ -84,7 +84,7 @@ class BingeSessions():
                 self.log.debug("Updating binge starter (%s) with %s, remaining %d" % ("active" if self.sessions[mediaWrapper.clientIdentifier].block else "inactive", mediaWrapper, self.sessions[mediaWrapper.clientIdentifier].remaining))
                 return
             else:
-                self.log.debug("Binge starter %s is no longer relavant, player is playing alternative content" % (self.sessions[mediaWrapper.clientIdentifier]))
+                self.log.debug("Binge starter %s is no longer relavant, player is playing alternative content, deleting" % (self.sessions[mediaWrapper.clientIdentifier]))
                 del self.sessions[mediaWrapper.clientIdentifier]
 
         try:
