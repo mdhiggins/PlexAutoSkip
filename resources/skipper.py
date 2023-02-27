@@ -3,6 +3,7 @@
 import logging
 import time
 import os
+from datetime import datetime, timedelta
 from resources.settings import Settings
 from resources.customEntries import CustomEntries
 from resources.sslAlertListener import SSLAlertListener
@@ -17,6 +18,7 @@ from plexapi.client import PlexClient
 from plexapi.server import PlexServer
 from plexapi.playqueue import PlayQueue
 from plexapi.base import PlexSession
+from plexapi.video import Show
 from threading import Thread
 from typing import Dict, List
 from pkg_resources import parse_version
@@ -73,6 +75,7 @@ class Skipper():
         self.verbose = os.environ.get("PAS_VERBOSE", "").lower() == "true"
 
         self.media_sessions: Dict[str, MediaWrapper] = {}
+        self.medias_in_session: Dict[int, Dict[Show, List[datetime, int]]] = {}
         self.delete: List[str] = []
         self.ignored: List[str] = []
         self.reconnect: bool = True
@@ -83,7 +86,9 @@ class Skipper():
         self.log.debug("Skip tags %s" % (self.settings.tags))
         self.log.debug("Skip S01E01 %s" % (self.settings.skipS01E01))
         self.log.debug("Skip S**E01 %s" % (self.settings.skipE01))
+        self.log.debug("Skip subsequent session episodes after %s" % (self.settings.skipSubsequentSessionEpisodesAfter))
         self.log.debug("Skip last chapter %s" % (self.settings.skiplastchapter))
+        self.log.debug("Session length %s" % (self.settings.sessionLength))
 
         if settings.customEntries.needsGuidResolution:
             self.log.debug("Custom entries contain GUIDs that need ratingKey resolution")
@@ -108,6 +113,7 @@ class Skipper():
             try:
                 for session in list(self.media_sessions.values()):
                     self.checkMedia(session)
+                self.clearEndedSessions()
                 time.sleep(1)
             except KeyboardInterrupt:
                 self.log.debug("Stopping listener")
@@ -215,6 +221,47 @@ class Skipper():
                 self.log.debug("Inside marker %s for media %s with range %d(+%d)-%d(+%d) and viewOffset %d, volume should be low" % (marker.type, mediaWrapper, marker.start, lo, marker.end, ro, mediaWrapper.viewOffset))
                 return True
         return False
+
+    def getEpisodeInViewingSession(self, mediaWrapper: MediaWrapper) -> int:
+        media = mediaWrapper.plexsession.source()
+        if media.type == "movie":
+            self.log.debug("Media %s is of type '%s' and is being ignored for subsequent viewing" % (media, media.type))
+            return self.settings.skipSubsequentSessionEpisodesAfter+1
+
+        if media.type in {"season", "episode"}:
+            self.log.debug("Media %s is of type '%s', retreiving parent media %s" % (media, media.type, media.show()))
+            media = media.show()
+
+        userID = mediaWrapper.plexsession.user.id
+        if userID not in self.medias_in_session:
+            self.log.debug("No previous media detected for userID [REDACTED], starting monitoring for user")
+            self.medias_in_session[userID] = {}
+
+        if media in self.medias_in_session[userID]:
+            if datetime.now() < self.medias_in_session[userID][media][0] + timedelta(minutes=self.settings.sessionLength):
+                self.log.debug("Media %s has reset its timer of %s minutes for episode %s in viewing session" % (media, self.settings.sessionLength, self.medias_in_session[userID][media][1]+1))
+                self.medias_in_session[userID][media][0] = datetime.now()
+                self.medias_in_session[userID][media][1] += 1
+        else:
+            self.log.debug("Media %s is now being tracked for subsequent viewing for the next %s minutes" % (media, self.settings.sessionLength))
+            self.medias_in_session[userID] = {media: [datetime.now(), 1]}
+        return self.medias_in_session[userID][media][1]
+
+    def clearEndedSessions(self) -> None:
+        userIDsToDelete = []
+        for userID in self.medias_in_session:
+            mediaToDelete = []
+            for media in self.medias_in_session[userID]:
+                if datetime.now() >= self.medias_in_session[userID][media][0] + timedelta(minutes=self.settings.sessionLength):
+                    mediaToDelete.append(media)
+            for media in mediaToDelete:
+                self.log.debug("Media %s has not been watched in %s minutes and is no longer being tracked for subsequent viewing" % (media, self.settings.sessionLength))
+                self.medias_in_session[userID].pop(media)
+            if not self.medias_in_session[userID]:
+                userIDsToDelete.append(userID)
+        for userID in userIDsToDelete:
+            self.log.debug("UserID [REDACTED] has not watched any media in %s minutes and is no longer being tracked for subsequent viewing" % (self.settings.sessionLength))
+            self.medias_in_session.pop(userID)
 
     def seekTo(self, mediaWrapper: MediaWrapper, targetOffset: int) -> None:
         t = Thread(target=self._seekTo, args=(mediaWrapper, targetOffset,))
@@ -475,8 +522,14 @@ class Skipper():
                     self.log.debug("Blocking %s, first episode in series and skip-first-episode-series is %s" % (mediaWrapper, self.settings.skipS01E01))
                     return False
                 elif self.settings.skipS01E01 == Settings.SKIP_TYPES.WATCHED and not media.isWatched:
-                    self.log.debug("Blocking %s first episode in series and skip-first-episode-series is %s and isWatched %s" % (mediaWrapper, self.settings.skipS01E01, media.isWatched))
+                    self.log.debug("Blocking %s, first episode in series and skip-first-episode-series is %s and isWatched %s" % (mediaWrapper, self.settings.skipS01E01, media.isWatched))
                     return False
+
+        # Session episodes
+        episodeNum = self.getEpisodeInViewingSession(mediaWrapper)
+        if episodeNum <= self.settings.skipSubsequentSessionEpisodesAfter:
+            self.log.debug("Blocking %s, episode %s in session and skip-subsequent-session-episodes-after is %s" % (mediaWrapper, episodeNum, self.settings.skipSubsequentSessionEpisodesAfter))
+            return False
 
         # Keys
         allowed = False
