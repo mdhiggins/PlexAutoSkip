@@ -21,9 +21,12 @@ last-chapter = 0.0
 unwatched = True
 first-episode-series = Watched
 first-episode-season = Always
-subsequent-session-episodes-after = 1
-session-length = 120
+first-safe-tags = 
 next = False
+
+[Binge]
+ignore-skip-for = 0
+safe-tags = 
 
 [Offsets]
 start = 3000

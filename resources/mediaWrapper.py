@@ -282,14 +282,17 @@ class MediaWrapper():
             self.log.debug("Filtering custom markers based on playerTags %s, add 'custom' or a specified 'type' to the definition to keep them" % (self.playerTags))
             self.customMarkers = [x for x in self.customMarkers if x.type.lower() in self.playerTags]
 
+        self.updateMarkers()
+
+        if hasattr(self.media, 'chapters') and not self.customOnly and len(self.media.chapters) > 0:
+            self.lastchapter = self.media.chapters[-1]
+
+    def updateMarkers(self) -> None:
         if hasattr(self.media, 'markers') and not self.customOnly:
             self.markers = [x for x in self.media.markers if x.type and (x.type.lower() in self.tags or "%s:%s" % (MARKERPREFIX, x.type.lower()) in self.tags)]
 
         if hasattr(self.media, 'chapters') and not self.customOnly:
             self.chapters = [x for x in self.media.chapters if x.title and (x.title.lower() in self.tags or "%s:%s" % (CHAPTERPREFIX, x.title.lower()) in self.tags)]
-
-        if hasattr(self.media, 'chapters') and not self.customOnly and len(self.media.chapters) > 0:
-            self.lastchapter = self.media.chapters[-1]
 
     def __repr__(self) -> str:
         base = "%d [%d]" % (self.plexsession.sessionKey, self.media.ratingKey)

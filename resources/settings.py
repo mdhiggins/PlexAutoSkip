@@ -69,9 +69,14 @@ class Settings:
             "unwatched": True,
             "first-episode-series": "Watched",
             "first-episode-season": "Always",
+            "first-safe-tags": "",
             "subsequent-session-episodes-after": 0,
             "session-length": 120,
             "next": False
+        },
+        "Binge": {
+            "ignore-skip-for": 0,
+            "safe-tags": "",
         },
         "Offsets": {
             "start": 3000,
@@ -148,7 +153,9 @@ class Settings:
         self.skipunwatched: bool = False
         self.skipE01: Settings.SKIP_TYPES = Settings.SKIP_TYPES.ALWAYS
         self.skipS01E01: Settings.SKIP_TYPES = Settings.SKIP_TYPES.ALWAYS
-        self.skipSubsequentSessionEpisodesAfter: int = 0
+        self.firstsafetags: list = []
+        self.binge: int = 0
+        self.bingesafetags: list = []
         self.sessionLength: int = 120
         self.skipnext: bool = False
         self.leftOffset: int = 0
@@ -310,9 +317,11 @@ class Settings:
             self.skipE01 = self.SKIP_MATCHER.get(config.getboolean("Skip", "first-episode-season"))  # Legacy bool support
         except ValueError:
             self.skipE01 = self.SKIP_MATCHER.get(config.get("Skip", "first-episode-season").lower(), self.SKIP_TYPES.ALWAYS)
-        self.skipSubsequentSessionEpisodesAfter = config.getint("Skip", "subsequent-session-episodes-after")
-        self.sessionLength = config.getint("Skip", "session-length")
+        self.firstsafetags = config.getlist("Skip", "first-safe-tags", replace=[])
         self.skipnext = config.getboolean("Skip", "next")
+
+        self.binge = config.getint("Binge", "ignore-skip-for")
+        self.bingesafetags = config.getlist("Binge", "safe-tags", replace=[])
 
         self.leftOffset = config.getint("Offsets", "start")
         self.rightOffset = config.getint("Offsets", "end")

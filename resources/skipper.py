@@ -3,11 +3,11 @@
 import logging
 import time
 import os
-from datetime import datetime, timedelta
 from resources.settings import Settings
 from resources.customEntries import CustomEntries
 from resources.sslAlertListener import SSLAlertListener
 from resources.mediaWrapper import Media, MediaWrapper, PLAYINGKEY, STOPPEDKEY, PAUSEDKEY, BUFFERINGKEY, DURATION_TOLERANCE, rd
+from resources.binge import BingeSessions
 from resources.log import getLogger
 from xml.etree.ElementTree import ParseError
 from urllib3.exceptions import ReadTimeoutError
@@ -18,7 +18,6 @@ from plexapi.client import PlexClient
 from plexapi.server import PlexServer
 from plexapi.playqueue import PlayQueue
 from plexapi.base import PlexSession
-from plexapi.video import Show
 from threading import Thread
 from typing import Dict, List
 from pkg_resources import parse_version
@@ -75,10 +74,10 @@ class Skipper():
         self.verbose = os.environ.get("PAS_VERBOSE", "").lower() == "true"
 
         self.media_sessions: Dict[str, MediaWrapper] = {}
-        self.medias_in_session: Dict[int, Dict[Show, List[datetime, int]]] = {}
         self.delete: List[str] = []
         self.ignored: List[str] = []
         self.reconnect: bool = True
+        self.bingeSessions = BingeSessions(self.settings, self.log)
 
         self.log.debug("%s init with leftOffset %d rightOffset %d" % (self.__class__.__name__, self.settings.leftOffset, self.settings.rightOffset))
         self.log.debug("Offset tags %s" % (self.settings.offsetTags))
@@ -86,9 +85,8 @@ class Skipper():
         self.log.debug("Skip tags %s" % (self.settings.tags))
         self.log.debug("Skip S01E01 %s" % (self.settings.skipS01E01))
         self.log.debug("Skip S**E01 %s" % (self.settings.skipE01))
-        self.log.debug("Skip subsequent session episodes after %s" % (self.settings.skipSubsequentSessionEpisodesAfter))
         self.log.debug("Skip last chapter %s" % (self.settings.skiplastchapter))
-        self.log.debug("Session length %s" % (self.settings.sessionLength))
+        self.log.debug("Binge ignore skip for length %s" % (self.settings.binge))
 
         if settings.customEntries.needsGuidResolution:
             self.log.debug("Custom entries contain GUIDs that need ratingKey resolution")
@@ -113,7 +111,7 @@ class Skipper():
             try:
                 for session in list(self.media_sessions.values()):
                     self.checkMedia(session)
-                self.clearEndedSessions()
+                self.bingeSessions.clean()
                 time.sleep(1)
             except KeyboardInterrupt:
                 self.log.debug("Stopping listener")
@@ -221,47 +219,6 @@ class Skipper():
                 self.log.debug("Inside marker %s for media %s with range %d(+%d)-%d(+%d) and viewOffset %d, volume should be low" % (marker.type, mediaWrapper, marker.start, lo, marker.end, ro, mediaWrapper.viewOffset))
                 return True
         return False
-
-    def getEpisodeInViewingSession(self, mediaWrapper: MediaWrapper) -> int:
-        media = mediaWrapper.plexsession.source()
-        if media.type == "movie":
-            self.log.debug("Media %s is of type '%s' and is being ignored for subsequent viewing" % (media, media.type))
-            return self.settings.skipSubsequentSessionEpisodesAfter+1
-
-        if media.type in {"season", "episode"}:
-            self.log.debug("Media %s is of type '%s', retreiving parent media %s" % (media, media.type, media.show()))
-            media = media.show()
-
-        userID = mediaWrapper.plexsession.user.id
-        if userID not in self.medias_in_session:
-            self.log.debug("No previous media detected for userID [REDACTED], starting monitoring for user")
-            self.medias_in_session[userID] = {}
-
-        if media in self.medias_in_session[userID]:
-            if datetime.now() < self.medias_in_session[userID][media][0] + timedelta(minutes=self.settings.sessionLength):
-                self.log.debug("Media %s has reset its timer of %s minutes for episode %s in viewing session" % (media, self.settings.sessionLength, self.medias_in_session[userID][media][1]+1))
-                self.medias_in_session[userID][media][0] = datetime.now()
-                self.medias_in_session[userID][media][1] += 1
-        else:
-            self.log.debug("Media %s is now being tracked for subsequent viewing for the next %s minutes" % (media, self.settings.sessionLength))
-            self.medias_in_session[userID] = {media: [datetime.now(), 1]}
-        return self.medias_in_session[userID][media][1]
-
-    def clearEndedSessions(self) -> None:
-        userIDsToDelete = []
-        for userID in self.medias_in_session:
-            mediaToDelete = []
-            for media in self.medias_in_session[userID]:
-                if datetime.now() >= self.medias_in_session[userID][media][0] + timedelta(minutes=self.settings.sessionLength):
-                    mediaToDelete.append(media)
-            for media in mediaToDelete:
-                self.log.debug("Media %s has not been watched in %s minutes and is no longer being tracked for subsequent viewing" % (media, self.settings.sessionLength))
-                self.medias_in_session[userID].pop(media)
-            if not self.medias_in_session[userID]:
-                userIDsToDelete.append(userID)
-        for userID in userIDsToDelete:
-            self.log.debug("UserID [REDACTED] has not watched any media in %s minutes and is no longer being tracked for subsequent viewing" % (self.settings.sessionLength))
-            self.medias_in_session.pop(userID)
 
     def seekTo(self, mediaWrapper: MediaWrapper, targetOffset: int) -> None:
         t = Thread(target=self._seekTo, args=(mediaWrapper, targetOffset,))
@@ -431,6 +388,7 @@ class Skipper():
             sessionKey = int(data['PlaySessionStateNotification'][0]['sessionKey'])
             clientIdentifier = data['PlaySessionStateNotification'][0]['clientIdentifier']
             pasIdentifier = MediaWrapper.getSessionClientIdentifier(sessionKey, clientIdentifier)
+            playQueueID = int(data['PlaySessionStateNotification'][0].get('playQueueID', 0))
 
             if pasIdentifier in self.ignored:
                 if self.verbose:
@@ -440,7 +398,6 @@ class Skipper():
             try:
                 state = data['PlaySessionStateNotification'][0]['state']
                 viewOffset = int(data['PlaySessionStateNotification'][0]['viewOffset'])
-                playQueueID = int(data['PlaySessionStateNotification'][0].get('playQueueID', 0))
 
                 if pasIdentifier not in self.media_sessions:
                     mediaSession = self.getMediaSession(sessionKey)
@@ -465,6 +422,7 @@ class Skipper():
                 else:
                     mediaSession = self.media_sessions[pasIdentifier]
                     mediaSession.updateOffset(viewOffset, state=state)
+                    self.bingeSessions.ping(clientIdentifier, playQueueID, state)
                     if not mediaSession.ended and state in [STOPPEDKEY, PAUSEDKEY] and not self.getMediaSession(sessionKey):
                         self.media_sessions[pasIdentifier].ended = True
 
@@ -508,29 +466,6 @@ class Skipper():
             self.log.debug("Blocking %s in library %s as its library is on the ignored list %s" % (mediaWrapper, media.librarySectionTitle, self.settings.ignoredlibraries))
             return False
 
-        # First episodes
-        if hasattr(media, "episodeNumber"):
-            if media.episodeNumber == 1:
-                if self.settings.skipE01 == Settings.SKIP_TYPES.NEVER:
-                    self.log.debug("Blocking %s, first episode in season and skip-first-episode-season is %s" % (mediaWrapper, self.settings.skipE01))
-                    return False
-                elif self.settings.skipE01 == Settings.SKIP_TYPES.WATCHED and not media.isWatched:
-                    self.log.debug("Blocking %s, first episode in season and skip-first-episode-season is %s and isWatched %s" % (mediaWrapper, self.settings.skipE01, media.isWatched))
-                    return False
-            if hasattr(media, "seasonNumber") and media.seasonNumber == 1 and media.episodeNumber == 1:
-                if self.settings.skipS01E01 == Settings.SKIP_TYPES.NEVER:
-                    self.log.debug("Blocking %s, first episode in series and skip-first-episode-series is %s" % (mediaWrapper, self.settings.skipS01E01))
-                    return False
-                elif self.settings.skipS01E01 == Settings.SKIP_TYPES.WATCHED and not media.isWatched:
-                    self.log.debug("Blocking %s, first episode in series and skip-first-episode-series is %s and isWatched %s" % (mediaWrapper, self.settings.skipS01E01, media.isWatched))
-                    return False
-
-        # Session episodes
-        episodeNum = self.getEpisodeInViewingSession(mediaWrapper)
-        if episodeNum <= self.settings.skipSubsequentSessionEpisodesAfter:
-            self.log.debug("Blocking %s, episode %s in session and skip-subsequent-session-episodes-after is %s" % (mediaWrapper, episodeNum, self.settings.skipSubsequentSessionEpisodesAfter))
-            return False
-
         # Keys
         allowed = False
         if media.ratingKey in self.customEntries.allowedKeys:
@@ -563,6 +498,29 @@ class Skipper():
             return False
         return True
 
+    def firstAdjust(self, mediaWrapper: MediaWrapper) -> None:
+        media = mediaWrapper.media
+
+        if hasattr(media, "episodeNumber"):
+            if media.episodeNumber == 1:
+                if self.settings.skipE01 == Settings.SKIP_TYPES.NEVER:
+                    self.log.debug("Erasing tags %s, first episode in season and skip-first-episode-season is %s" % (mediaWrapper, self.settings.skipE01))
+                    mediaWrapper.tags = [t for t in mediaWrapper.tags if t in self.settings.firstsafetags]
+                    mediaWrapper.updateMarkers()
+                elif self.settings.skipE01 == Settings.SKIP_TYPES.WATCHED and not media.isWatched:
+                    self.log.debug("Erasing tags %s, first episode in season and skip-first-episode-season is %s and isWatched %s" % (mediaWrapper, self.settings.skipE01, media.isWatched))
+                    mediaWrapper.tags = [t for t in mediaWrapper.tags if t in self.settings.firstsafetags]
+                    mediaWrapper.updateMarkers()
+            if hasattr(media, "seasonNumber") and media.seasonNumber == 1 and media.episodeNumber == 1:
+                if self.settings.skipS01E01 == Settings.SKIP_TYPES.NEVER:
+                    self.log.debug("Erasing tags %s, first episode in series and skip-first-episode-series is %s" % (mediaWrapper, self.settings.skipS01E01))
+                    mediaWrapper.tags = [t for t in mediaWrapper.tags if t in self.settings.firstsafetags]
+                    mediaWrapper.updateMarkers()
+                elif self.settings.skipS01E01 == Settings.SKIP_TYPES.WATCHED and not media.isWatched:
+                    self.log.debug("Erasing tags %s, first episode in series and skip-first-episode-series is %s and isWatched %s" % (mediaWrapper, self.settings.skipS01E01, media.isWatched))
+                    mediaWrapper.tags = [t for t in mediaWrapper.tags if t in self.settings.firstsafetags]
+                    mediaWrapper.updateMarkers()
+
     def addSession(self, mediaWrapper: MediaWrapper) -> None:
         if mediaWrapper.player and self.validPlayer(mediaWrapper.player):
             if mediaWrapper.customOnly:
@@ -570,6 +528,8 @@ class Skipper():
             else:
                 self.log.info("Found new session %s viewOffset %d %s on %s, sessions: %d" % (mediaWrapper, mediaWrapper.plexsession.viewOffset, mediaWrapper.plexsession._username, mediaWrapper.plexsession.player.product, len(self.media_sessions)))
             self.purgeOldSessions(mediaWrapper)
+            self.bingeSessions.update(mediaWrapper)
+            self.firstAdjust(mediaWrapper)
             self.checkMedia(mediaWrapper)
             self.media_sessions[mediaWrapper.pasIdentifier] = mediaWrapper
         else:
