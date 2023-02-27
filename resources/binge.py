@@ -115,7 +115,6 @@ class BingeSessions():
 
     def clean(self) -> None:
         for session in list(self.sessions.values()):
-            print(session.sinceLastUpdate)
             if session.sinceLastUpdate > self.TIMEOUT:
                 self.log.debug("Binge starter %s hasn't been updated in %d seconds, removing" % (session, self.TIMEOUT))
                 del self.sessions[session.clientIdentifier]
