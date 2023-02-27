@@ -304,7 +304,7 @@ class MediaWrapper():
         return len(self.chapters + self.markers + self.customMarkers) > 0
 
     @staticmethod
-    def getSessionClientIdentifier(sessionKey, clientIdentifier) -> str:
+    def getSessionClientIdentifier(sessionKey: str, clientIdentifier: str) -> str:
         return "%s-%s" % (sessionKey, clientIdentifier)
 
     @property
