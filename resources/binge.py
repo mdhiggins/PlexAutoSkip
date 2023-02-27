@@ -26,11 +26,11 @@ class BingeSession():
         self.__updateMediaWrapper__()
 
     @property
-    def identifier(self) -> str:
+    def clientIdentifier(self) -> str:
         return self.current.clientIdentifier
 
     @property
-    def sinceLastUpdate(self) -> int:
+    def sinceLastUpdate(self) -> float:
         return (datetime.now() - self.lastUpdate).total_seconds()
 
     def __updateMediaWrapper__(self) -> None:
@@ -40,7 +40,7 @@ class BingeSession():
             self.current.updateMarkers()
 
     def update(self, mediaWrapper: MediaWrapper) -> bool:
-        if self.current.clientIdentifier == mediaWrapper.clientIdentifier and self.current.plexsession.user == mediaWrapper.plexsession.user:
+        if self.clientIdentifier == mediaWrapper.clientIdentifier and self.current.plexsession.user == mediaWrapper.plexsession.user:
             if self.sameShowOnly and hasattr(self.current.media, "grandparentRatingKey") and hasattr(mediaWrapper.media, "grandparentRatingKey") and self.current.media.grandparentRatingKey != mediaWrapper.media.grandparentRatingKey:
                 return False
             if mediaWrapper.media != self.current.media:
@@ -61,7 +61,7 @@ class BingeSession():
         return r if r > 0 else 0
 
     def __repr__(self) -> str:
-        return "%s-%s" % (self.current.clientIdentifier, self.current.playQueueID)
+        return "%s-%s" % (self.clientIdentifier, self.current.playQueueID)
 
 
 class BingeSessions():
@@ -115,6 +115,7 @@ class BingeSessions():
 
     def clean(self) -> None:
         for session in list(self.sessions.values()):
+            print(session.sinceLastUpdate)
             if session.sinceLastUpdate > self.TIMEOUT:
                 self.log.debug("Binge starter %s hasn't been updated in %d seconds, removing" % (session, self.TIMEOUT))
                 del self.sessions[session.clientIdentifier]

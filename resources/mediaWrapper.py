@@ -319,11 +319,11 @@ class MediaWrapper():
         return self.seekTarget > 0
 
     @property
-    def sinceLastUpdate(self) -> int:
+    def sinceLastUpdate(self) -> float:
         return (datetime.now() - self.lastUpdate).total_seconds()
 
     @property
-    def sinceLastAlert(self) -> int:
+    def sinceLastAlert(self) -> float:
         return (datetime.now() - self.lastAlert).total_seconds()
 
     @property
