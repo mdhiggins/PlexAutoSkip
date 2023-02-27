@@ -60,7 +60,7 @@ class BingeSession():
 
 
 class BingeSessions():
-    TIMEOUT = 30
+    TIMEOUT = 300
 
     def __init__(self, settings: Settings, logger: logging.Logger = None) -> None:
         self.log = logger or getLogger(__name__)
