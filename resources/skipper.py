@@ -268,6 +268,11 @@ class Skipper():
         self.removeSession(mediaWrapper)
         self.ignoreSession(mediaWrapper)
 
+        if self.bingeSessions.blockSkipNext(mediaWrapper):
+            self.log.debug("Maximum skipNext achieved, stopping playback")
+            player.stop()
+            return True
+
         server = server or mediaWrapper.server
         if mediaWrapper.plexsession.user != server.myPlexAccount():
             try:
@@ -425,8 +430,6 @@ class Skipper():
                     if not mediaSession.ended and state in [STOPPEDKEY, PAUSEDKEY] and not self.getMediaSession(sessionKey):
                         self.media_sessions[pasIdentifier].ended = True
                     self.bingeSessions.update(mediaSession)
-
-
             except KeyboardInterrupt:
                 raise
             except:

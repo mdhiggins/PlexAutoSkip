@@ -14,34 +14,25 @@ class BingeSession():
     class BingeSessionException(Exception):
         pass
 
-    class BingeSessionWrongTypeException(BingeSessionException):
-        pass
-
-    class BingeSessionMixedContentException(BingeSessionException):
-        pass
-
-    class BingeSessionNoPlayQueueException(BingeSessionException):
-        pass
-
-    class BingeSessionLastInQueueException(BingeSessionException):
-        pass
-
-    def __init__(self, mediaWrapper: MediaWrapper, blockCount: int, safeTags: List[str], sameShowOnly: bool) -> None:
+    def __init__(self, mediaWrapper: MediaWrapper, blockCount: int, maxCount: int, safeTags: List[str], sameShowOnly: bool) -> None:
         if mediaWrapper.media.type != self.EPISODETYPE:
             raise self.BingeSessionWrongTypeException
+
+        self.blockCount: int = blockCount
 
         try:
             pq: PlayQueue = PlayQueue.get(mediaWrapper.server, mediaWrapper.playQueueID)
             if pq.items[-1] == mediaWrapper.media:
-                raise self.BingeSessionLastInQueueException
+                self.blockCount = 0
             if sameShowOnly and hasattr(mediaWrapper.media, GRANDPARENTRATINGKEY) and any([x for x in pq.items if hasattr(x, GRANDPARENTRATINGKEY) and x.grandparentRatingKey != mediaWrapper.media.grandparentRatingKey]):
-                raise self.BingeSessionMixedContentException
+                self.blockCount = 0
         except IndexError:
-            raise self.BingeSessionNoPlayQueueException
+            self.blockCount = 0
 
         self.current: MediaWrapper = mediaWrapper
         self.count: int = 1
-        self.blockCount: int = blockCount
+        self.maxCount: int = maxCount
+        self._maxCount: int = maxCount
         self.safeTags: List[str] = safeTags
         self.lastUpdate: datetime = datetime.now()
         self.sameShowOnly: bool = sameShowOnly
@@ -66,10 +57,12 @@ class BingeSession():
         if self.clientIdentifier == mediaWrapper.clientIdentifier and self.current.plexsession.user == mediaWrapper.plexsession.user:
             if self.sameShowOnly and hasattr(self.current.media, GRANDPARENTRATINGKEY) and hasattr(mediaWrapper.media, GRANDPARENTRATINGKEY) and self.current.media.grandparentRatingKey != mediaWrapper.media.grandparentRatingKey:
                 return False
-            if mediaWrapper.media != self.current.media:
-                self.current = mediaWrapper
+            if mediaWrapper.media != self.current.media or (mediaWrapper.media == self.current.media and self.current.ended and not mediaWrapper.ended):
                 if self.current.media.duration and (self.current.viewOffset / self.current.media.duration) > self.WATCHED_PERCENTAGE:
+                    if self.blockSkipNext:
+                        self.maxCount += self._maxCount + 1
                     self.count += 1
+                self.current = mediaWrapper
                 self.__updateMediaWrapper__()
             self.lastUpdate = datetime.now()
             return True
@@ -78,6 +71,12 @@ class BingeSession():
     @property
     def block(self) -> bool:
         return self.count <= self.blockCount
+
+    @property
+    def blockSkipNext(self) -> bool:
+        if not self.maxCount:
+            return False
+        return self.count > self.maxCount
 
     @property
     def remaining(self) -> int:
@@ -99,9 +98,6 @@ class BingeSessions():
         self.ignored: List[str] = []
 
     def update(self, mediaWrapper: MediaWrapper) -> None:
-        if not self.settings.binge:
-            return
-
         if mediaWrapper.ended:
             return
 
@@ -109,30 +105,33 @@ class BingeSessions():
             return
 
         if mediaWrapper.clientIdentifier in self.sessions:
+            oldCount = self.sessions[mediaWrapper.clientIdentifier].count
             if self.sessions[mediaWrapper.clientIdentifier].update(mediaWrapper):
-                self.log.debug("Updating binge starter (%s) with %s, remaining %d" % ("active" if self.sessions[mediaWrapper.clientIdentifier].block else "inactive", mediaWrapper, self.sessions[mediaWrapper.clientIdentifier].remaining))
+                if oldCount != self.sessions[mediaWrapper.clientIdentifier].count:
+                    self.log.debug("Updating binge watcher (%s) with %s, remaining %d total %d" % ("active" if self.sessions[mediaWrapper.clientIdentifier].block else "inactive", mediaWrapper, self.sessions[mediaWrapper.clientIdentifier].remaining, self.sessions[mediaWrapper.clientIdentifier].count))
                 return
             else:
-                self.log.debug("Binge starter %s is no longer relavant, player is playing alternative content, deleting" % (self.sessions[mediaWrapper.clientIdentifier]))
+                self.log.debug("Binge watcher %s is no longer relavant, player is playing alternative content, deleting" % (self.sessions[mediaWrapper.clientIdentifier]))
                 del self.sessions[mediaWrapper.clientIdentifier]
 
         try:
-            self.sessions[mediaWrapper.clientIdentifier] = BingeSession(mediaWrapper, self.settings.binge, self.settings.bingesafetags, self.settings.bingesameshowonly)
-            self.log.debug("Creating binge starter (%s) for %s, remaining %d" % ("active" if self.sessions[mediaWrapper.clientIdentifier].block else "inactive", mediaWrapper, self.sessions[mediaWrapper.clientIdentifier].remaining))
+            self.sessions[mediaWrapper.clientIdentifier] = BingeSession(mediaWrapper, self.settings.binge, self.settings.skipnextmax, self.settings.bingesafetags, self.settings.bingesameshowonly)
+            self.log.debug("Creating binge watcher (%s) for %s, remaining %d total %d" % ("active" if self.sessions[mediaWrapper.clientIdentifier].block else "inactive", mediaWrapper, self.sessions[mediaWrapper.clientIdentifier].remaining, self.sessions[mediaWrapper.clientIdentifier].count))
         except BingeSession.BingeSessionException:
             self.ignored.append(mediaWrapper.playQueueID)
             self.ignored = self.ignored[-self.IGNORED_CAP:]
 
-    def shouldBlockSkipping(self, mediaWrapper: MediaWrapper) -> bool:
-        if not self.settings.binge:
+    def blockSkipNext(self, mediaWrapper: MediaWrapper) -> bool:
+        if not self.settings.skipnextmax:
             return False
 
-        if mediaWrapper.clientIdentifier in self.sessions:
-            return self.sessions[mediaWrapper.clientIdentifier].block
+        session: BingeSession = self.sessions.get(mediaWrapper.clientIdentifier)
+        if session:
+            return session.blockSkipNext
         return False
 
     def clean(self) -> None:
         for session in list(self.sessions.values()):
             if session.sinceLastUpdate > self.TIMEOUT:
-                self.log.debug("Binge starter %s hasn't been updated in %d seconds, removing" % (session, self.TIMEOUT))
+                self.log.debug("Binge watcher %s hasn't been updated in %d seconds, removing" % (session, self.TIMEOUT))
                 del self.sessions[session.clientIdentifier]
