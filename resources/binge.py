@@ -16,7 +16,7 @@ class BingeSession():
 
     def __init__(self, mediaWrapper: MediaWrapper, blockCount: int, maxCount: int, safeTags: List[str], sameShowOnly: bool) -> None:
         if mediaWrapper.media.type != self.EPISODETYPE:
-            raise self.BingeSessionWrongTypeException
+            raise self.BingeSessionException
 
         self.blockCount: int = blockCount
 
