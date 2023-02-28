@@ -8,6 +8,7 @@ from typing import Dict, List
 
 class BingeSession():
     EPISODETYPE = "episode"
+    WATCHED_PERCENTAGE = 0.5  # Consider replacing with server watched percentage setting when available in PlexAPI future update
 
     class BingeSessionException(Exception):
         pass
@@ -45,7 +46,8 @@ class BingeSession():
                 return False
             if mediaWrapper.media != self.current.media:
                 self.current = mediaWrapper
-                self.count += 1
+                if self.current.media.duration and (self.current.viewOffset / self.current.media.duration) > self.WATCHED_PERCENTAGE:
+                    self.count += 1
                 self.__updateMediaWrapper__()
             self.lastUpdate = datetime.now()
             return True
@@ -65,7 +67,7 @@ class BingeSession():
 
 
 class BingeSessions():
-    TIMEOUT = 30
+    TIMEOUT = 300
 
     def __init__(self, settings: Settings, logger: logging.Logger = None) -> None:
         self.log = logger or getLogger(__name__)
@@ -76,7 +78,7 @@ class BingeSessions():
         if not self.settings.binge:
             return
 
-        if mediaWrapper.state in [STOPPEDKEY]:
+        if mediaWrapper.state in [STOPPEDKEY] or mediaWrapper.ended:
             return
 
         if mediaWrapper.clientIdentifier in self.sessions:
@@ -92,18 +94,6 @@ class BingeSessions():
             self.log.debug("Creating binge starter (%s) for %s, remaining %d" % ("active" if self.sessions[mediaWrapper.clientIdentifier].block else "inactive", mediaWrapper, self.sessions[mediaWrapper.clientIdentifier].remaining))
         except BingeSession.BingeSessionException:
             pass
-
-    def ping(self, clientIdentifier: str, playQueueID: int, state: str) -> None:
-        if not self.settings.binge:
-            return
-
-        if state in [STOPPEDKEY]:
-            return
-
-        if clientIdentifier in self.sessions:
-            session: BingeSession = self.sessions[clientIdentifier]
-            if session.current.playQueueID == playQueueID:
-                session.update(session.current)
 
     def shouldBlockSkipping(self, mediaWrapper: MediaWrapper) -> bool:
         if not self.settings.binge:

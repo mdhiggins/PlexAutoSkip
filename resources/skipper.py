@@ -422,9 +422,10 @@ class Skipper():
                 else:
                     mediaSession = self.media_sessions[pasIdentifier]
                     mediaSession.updateOffset(viewOffset, state=state)
-                    self.bingeSessions.ping(clientIdentifier, playQueueID, state)
                     if not mediaSession.ended and state in [STOPPEDKEY, PAUSEDKEY] and not self.getMediaSession(sessionKey):
                         self.media_sessions[pasIdentifier].ended = True
+                    self.bingeSessions.update(mediaSession)
+
 
             except KeyboardInterrupt:
                 raise
