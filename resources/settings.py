@@ -70,8 +70,6 @@ class Settings:
             "first-episode-series": "Watched",
             "first-episode-season": "Always",
             "first-safe-tags": "",
-            "subsequent-session-episodes-after": 0,
-            "session-length": 120,
             "next": False
         },
         "Binge": {
