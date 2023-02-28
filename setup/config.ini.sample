@@ -28,6 +28,7 @@ next = False
 ignore-skip-for = 0
 safe-tags = 
 same-show-only = False
+skip-next-max = 0
 
 [Offsets]
 start = 3000
