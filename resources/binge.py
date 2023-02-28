@@ -76,7 +76,7 @@ class BingeSessions():
         if not self.settings.binge:
             return
 
-        if mediaWrapper.state in [STOPPEDKEY, PAUSEDKEY]:
+        if mediaWrapper.state in [STOPPEDKEY]:
             return
 
         if mediaWrapper.clientIdentifier in self.sessions:
@@ -97,7 +97,7 @@ class BingeSessions():
         if not self.settings.binge:
             return
 
-        if state in [STOPPEDKEY, PAUSEDKEY]:
+        if state in [STOPPEDKEY]:
             return
 
         if clientIdentifier in self.sessions:
