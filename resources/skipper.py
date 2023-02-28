@@ -6,7 +6,7 @@ import os
 from resources.settings import Settings
 from resources.customEntries import CustomEntries
 from resources.sslAlertListener import SSLAlertListener
-from resources.mediaWrapper import Media, MediaWrapper, PLAYINGKEY, STOPPEDKEY, PAUSEDKEY, BUFFERINGKEY, DURATION_TOLERANCE, rd
+from resources.mediaWrapper import Media, MediaWrapper, PLAYINGKEY, STOPPEDKEY, PAUSEDKEY, BUFFERINGKEY, DURATION_TOLERANCE, GRANDPARENTRATINGKEY, PARENTRATINGKEY, rd
 from resources.binge import BingeSessions
 from resources.log import getLogger
 from xml.etree.ElementTree import ParseError
@@ -268,7 +268,7 @@ class Skipper():
         self.removeSession(mediaWrapper)
         self.ignoreSession(mediaWrapper)
 
-        server = server or self.server
+        server = server or mediaWrapper.server
         if mediaWrapper.plexsession.user != server.myPlexAccount():
             try:
                 self.log.debug("Creating new server session with user %s" % (mediaWrapper.plexsession._username))
@@ -475,14 +475,14 @@ class Skipper():
         if media.ratingKey in self.customEntries.blockedKeys:
             self.log.debug("Blocking %s for ratingKey %s" % (mediaWrapper, media.ratingKey))
             return False
-        if hasattr(media, "parentRatingKey"):
+        if hasattr(media, PARENTRATINGKEY):
             if media.parentRatingKey in self.customEntries.allowedKeys:
                 self.log.debug("Allowing %s for parentRatingKey %s" % (mediaWrapper, media.parentRatingKey))
                 allowed = True
             if media.parentRatingKey in self.customEntries.blockedKeys:
                 self.log.debug("Blocking %s for parentRatingKey %s" % (mediaWrapper, media.parentRatingKey))
                 return False
-        if hasattr(media, "grandparentRatingKey"):
+        if hasattr(media, GRANDPARENTRATINGKEY):
             if media.grandparentRatingKey in self.customEntries.allowedKeys:
                 self.log.debug("Allowing %s for grandparentRatingKey %s" % (mediaWrapper, media.grandparentRatingKey))
                 allowed = True

@@ -1,8 +1,9 @@
 import logging
 from datetime import datetime
-from resources.mediaWrapper import MediaWrapper, STOPPEDKEY
+from resources.mediaWrapper import MediaWrapper, GRANDPARENTRATINGKEY
 from resources.log import getLogger
 from resources.settings import Settings
+from plexapi.playqueue import PlayQueue
 from typing import Dict, List
 
 
@@ -13,9 +14,30 @@ class BingeSession():
     class BingeSessionException(Exception):
         pass
 
+    class BingeSessionWrongTypeException(BingeSessionException):
+        pass
+
+    class BingeSessionMixedContentException(BingeSessionException):
+        pass
+
+    class BingeSessionNoPlayQueueException(BingeSessionException):
+        pass
+
+    class BingeSessionLastInQueueException(BingeSessionException):
+        pass
+
     def __init__(self, mediaWrapper: MediaWrapper, blockCount: int, safeTags: List[str], sameShowOnly: bool) -> None:
         if mediaWrapper.media.type != self.EPISODETYPE:
-            raise self.BingeSessionException
+            raise self.BingeSessionWrongTypeException
+
+        try:
+            pq: PlayQueue = PlayQueue.get(mediaWrapper.server, mediaWrapper.playQueueID)
+            if pq.items[-1] == mediaWrapper.media:
+                raise self.BingeSessionLastInQueueException
+            if sameShowOnly and hasattr(mediaWrapper.media, GRANDPARENTRATINGKEY) and any([x for x in pq.items if hasattr(x, GRANDPARENTRATINGKEY) and x.grandparentRatingKey != mediaWrapper.media.grandparentRatingKey]):
+                raise self.BingeSessionMixedContentException
+        except IndexError:
+            raise self.BingeSessionNoPlayQueueException
 
         self.current: MediaWrapper = mediaWrapper
         self.count: int = 1
@@ -42,7 +64,7 @@ class BingeSession():
 
     def update(self, mediaWrapper: MediaWrapper) -> bool:
         if self.clientIdentifier == mediaWrapper.clientIdentifier and self.current.plexsession.user == mediaWrapper.plexsession.user:
-            if self.sameShowOnly and hasattr(self.current.media, "grandparentRatingKey") and hasattr(mediaWrapper.media, "grandparentRatingKey") and self.current.media.grandparentRatingKey != mediaWrapper.media.grandparentRatingKey:
+            if self.sameShowOnly and hasattr(self.current.media, GRANDPARENTRATINGKEY) and hasattr(mediaWrapper.media, GRANDPARENTRATINGKEY) and self.current.media.grandparentRatingKey != mediaWrapper.media.grandparentRatingKey:
                 return False
             if mediaWrapper.media != self.current.media:
                 self.current = mediaWrapper
@@ -68,17 +90,22 @@ class BingeSession():
 
 class BingeSessions():
     TIMEOUT = 300
+    IGNORED_CAP = 200
 
     def __init__(self, settings: Settings, logger: logging.Logger = None) -> None:
         self.log = logger or getLogger(__name__)
         self.settings: Settings = settings
         self.sessions: Dict[BingeSession] = {}
+        self.ignored: List[str] = []
 
     def update(self, mediaWrapper: MediaWrapper) -> None:
         if not self.settings.binge:
             return
 
-        if mediaWrapper.state in [STOPPEDKEY] or mediaWrapper.ended:
+        if mediaWrapper.ended:
+            return
+
+        if mediaWrapper.playQueueID in self.ignored:
             return
 
         if mediaWrapper.clientIdentifier in self.sessions:
@@ -93,7 +120,8 @@ class BingeSessions():
             self.sessions[mediaWrapper.clientIdentifier] = BingeSession(mediaWrapper, self.settings.binge, self.settings.bingesafetags, self.settings.bingesameshowonly)
             self.log.debug("Creating binge starter (%s) for %s, remaining %d" % ("active" if self.sessions[mediaWrapper.clientIdentifier].block else "inactive", mediaWrapper, self.sessions[mediaWrapper.clientIdentifier].remaining))
         except BingeSession.BingeSessionException:
-            pass
+            self.ignored.append(mediaWrapper.playQueueID)
+            self.ignored = self.ignored[-self.IGNORED_CAP:]
 
     def shouldBlockSkipping(self, mediaWrapper: MediaWrapper) -> bool:
         if not self.settings.binge:

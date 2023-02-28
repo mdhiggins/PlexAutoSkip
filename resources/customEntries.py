@@ -7,6 +7,7 @@ from resources.log import getLogger
 
 
 GuidMedia = TypeVar("GuidMedia", Show, Season, Episode, Movie)
+RATINGKEY = "ratingKey"
 
 
 class CustomEntries():
@@ -135,7 +136,7 @@ class CustomEntries():
     def loadRatingKeys(server: PlexServer, logger: logging.Logger = None) -> dict:
         log = logger or getLogger(__name__)
         log.debug("Generating ratingKey match table")
-        ratingKeyLookup = {item.ratingKey: item for item in server.library.all() if hasattr(item, "ratingKey")}
+        ratingKeyLookup = {item.ratingKey: item for item in server.library.all() if hasattr(item, RATINGKEY)}
         for v in list(ratingKeyLookup.values()):
             if v.type == "show":
                 for e in v.episodes():

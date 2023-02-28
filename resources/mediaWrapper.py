@@ -36,6 +36,9 @@ CHAPTERPREFIX = "c"
 
 DURATION_TOLERANCE = 0.995
 
+PARENTRATINGKEY = "parentRatingKey"
+GRANDPARENTRATINGKEY = "grandparentRatingKey"
+
 
 # During paused/stopped states some PlexClients will report viewOffset rounded down to the nearest 1000, round accordingly
 def rd(num: int, place: int = 1000) -> int:
@@ -105,6 +108,7 @@ class MediaWrapper():
     def __init__(self, session: PlexSession, clientIdentifier: str, state: str, playQueueID: int, server: PlexServer, settings: Settings, custom: CustomEntries = None, logger: logging.Logger = None) -> None:
         self._viewOffset: int = session.viewOffset
         self.plexsession: PlexSession = session
+        self.server: PlexServer = server
         self.media: Media = session.source()
 
         self.clientIdentifier = clientIdentifier
@@ -163,7 +167,7 @@ class MediaWrapper():
             self.player.proxyThroughServer(True, server)
 
         if custom:
-            if hasattr(self.media, "grandparentRatingKey"):
+            if hasattr(self.media, GRANDPARENTRATINGKEY):
                 if str(self.media.grandparentRatingKey) in custom.markers:
                     for markerdata in custom.markers[str(self.media.grandparentRatingKey)]:
                         try:
@@ -183,7 +187,7 @@ class MediaWrapper():
                 if str(self.media.grandparentRatingKey) in custom.mode:
                     self.mode = Settings.MODE_MATCHER.get(custom.mode[str(self.media.grandparentRatingKey)], self.mode)
 
-            if hasattr(self.media, "parentRatingKey"):
+            if hasattr(self.media, PARENTRATINGKEY):
                 if str(self.media.parentRatingKey) in custom.markers:
                     filtered = [x for x in self.customMarkers if x.cascade]
                     if self.customMarkers != filtered:
