@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from resources.mediaWrapper import MediaWrapper, STOPPEDKEY, PAUSEDKEY
+from resources.mediaWrapper import MediaWrapper, STOPPEDKEY
 from resources.log import getLogger
 from resources.settings import Settings
 from typing import Dict, List
