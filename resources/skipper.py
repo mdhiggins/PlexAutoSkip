@@ -13,7 +13,7 @@ from xml.etree.ElementTree import ParseError
 from urllib3.exceptions import ReadTimeoutError
 from requests.exceptions import ReadTimeout
 from socket import timeout
-from plexapi.exceptions import BadRequest
+from plexapi.exceptions import BadRequest, NotFound
 from plexapi.client import PlexClient
 from plexapi.server import PlexServer
 from plexapi.playqueue import PlayQueue
@@ -261,6 +261,10 @@ class Skipper():
                 self.logErrorMessage(br, "BadRequest exception seekPlayerTo")
                 mediaWrapper.badSeek()
                 return self.seekPlayerTo(self.recoverPlayer(player), mediaWrapper, targetOffset, pq, server)
+            except NotFound as nf:
+                self.logErrorMessage(nf, "NotFound exception seekPlayerTo")
+                mediaWrapper.badSeek()
+                return self.seekPlayerTo(self.recoverPlayer(player), mediaWrapper, targetOffset, pq, server)
         except:
             raise
 
@@ -359,6 +363,9 @@ class Skipper():
                 return True
             except BadRequest as br:
                 self.logErrorMessage(br, "BadRequest exception setPlayerVolume")
+                return self.setPlayerVolume(self.recoverPlayer(player), mediaWrapper, volume, lowering)
+            except NotFound as nf:
+                self.logErrorMessage(nf, "NotFound exception setPlayerVolume")
                 return self.setPlayerVolume(self.recoverPlayer(player), mediaWrapper, volume, lowering)
         except:
             raise
