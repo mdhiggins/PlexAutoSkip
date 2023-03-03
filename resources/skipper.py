@@ -27,7 +27,8 @@ class Skipper():
     TROUBLESHOOT_URL = "https://github.com/mdhiggins/PlexAutoSkip/wiki/Troubleshooting"
     ERRORS = {
         "FrameworkException: Unable to find player with identifier": "BadRequest Error, see %s#badrequest-error" % TROUBLESHOOT_URL,
-        "HTTPError: HTTP Error 403: Forbidden": "Forbidden Error, see %s#forbidden-error" % TROUBLESHOOT_URL
+        "HTTPError: HTTP Error 403: Forbidden": "Forbidden Error, see %s#forbidden-error" % TROUBLESHOOT_URL,
+        "(404) not_found": "404 Error, see %s#badrequest-error" % TROUBLESHOOT_URL
     }
 
     CLIENT_PORTS = {
