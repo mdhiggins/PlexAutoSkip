@@ -261,11 +261,13 @@ class Skipper():
             except BadRequest as br:
                 self.logErrorMessage(br, "BadRequest exception seekPlayerTo")
                 mediaWrapper.badSeek()
-                return self.seekPlayerTo(self.recoverPlayer(player), mediaWrapper, targetOffset, pq, server)
+                return False
+                # return self.seekPlayerTo(self.recoverPlayer(player), mediaWrapper, targetOffset, pq, server)
             except NotFound as nf:
                 self.logErrorMessage(nf, "NotFound exception seekPlayerTo")
                 mediaWrapper.badSeek()
-                return self.seekPlayerTo(self.recoverPlayer(player), mediaWrapper, targetOffset, pq, server)
+                return False
+                # return self.seekPlayerTo(self.recoverPlayer(player), mediaWrapper, targetOffset, pq, server)
         except:
             raise
 
@@ -364,10 +366,12 @@ class Skipper():
                 return True
             except BadRequest as br:
                 self.logErrorMessage(br, "BadRequest exception setPlayerVolume")
-                return self.setPlayerVolume(self.recoverPlayer(player), mediaWrapper, volume, lowering)
+                return False
+                # return self.setPlayerVolume(self.recoverPlayer(player), mediaWrapper, volume, lowering)
             except NotFound as nf:
                 self.logErrorMessage(nf, "NotFound exception setPlayerVolume")
-                return self.setPlayerVolume(self.recoverPlayer(player), mediaWrapper, volume, lowering)
+                return False
+                # return self.setPlayerVolume(self.recoverPlayer(player), mediaWrapper, volume, lowering)
         except:
             raise
 
@@ -379,7 +383,14 @@ class Skipper():
         if bad and player.version and parse_version(self.safeVersion(player.version)) >= parse_version(bad):
             self.log.error("Bad %s version %s due to Plex team removing 'Advertise as Player/Plex Companion' functionality. Please visit %s#notice to review this issue and voice your support on the Plex forums for this feature to be restored" % (player.product, player.version, self.TROUBLESHOOT_URL))
             return False
-        return True
+
+        if player not in self.server.clients():
+            self.log.debug("Player %s (%s) is missing from the Plex server client list, attempting to direct connect" % (player.title, player.product))
+            player = self.recoverPlayer(player)
+
+        if player:
+            return True
+        return False
 
     def recoverPlayer(self, player: PlexClient, protocol: str = "http://") -> PlexClient:
         if player.product in self.PROXY_ONLY:
@@ -534,11 +545,11 @@ class Skipper():
                     mediaWrapper.updateMarkers()
 
     def addSession(self, mediaWrapper: MediaWrapper) -> None:
+        if mediaWrapper.customOnly:
+            self.log.info("Found blocked session %s viewOffset %d %s on %s, using custom markers only, sessions: %d" % (mediaWrapper, mediaWrapper.plexsession.viewOffset, mediaWrapper.plexsession._username, mediaWrapper.plexsession.player.product, len(self.media_sessions)))
+        else:
+            self.log.info("Found new session %s viewOffset %d %s on %s, sessions: %d" % (mediaWrapper, mediaWrapper.plexsession.viewOffset, mediaWrapper.plexsession._username, mediaWrapper.plexsession.player.product, len(self.media_sessions)))
         if mediaWrapper.player and self.validPlayer(mediaWrapper.player):
-            if mediaWrapper.customOnly:
-                self.log.info("Found blocked session %s viewOffset %d %s on %s, using custom markers only, sessions: %d" % (mediaWrapper, mediaWrapper.plexsession.viewOffset, mediaWrapper.plexsession._username, mediaWrapper.plexsession.player.product, len(self.media_sessions)))
-            else:
-                self.log.info("Found new session %s viewOffset %d %s on %s, sessions: %d" % (mediaWrapper, mediaWrapper.plexsession.viewOffset, mediaWrapper.plexsession._username, mediaWrapper.plexsession.player.product, len(self.media_sessions)))
             self.purgeOldSessions(mediaWrapper)
             self.bingeSessions.update(mediaWrapper)
             self.firstAdjust(mediaWrapper)
