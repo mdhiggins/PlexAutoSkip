@@ -105,6 +105,18 @@ class CustomMarker():
 
 
 class MediaWrapper():
+    CLIENT_PORTS = {
+        "Plex for Roku": 8324,
+        "Plex for Android (TV)": 32500,
+        "Plex for Android (Mobile)": 32500,
+        "Plex for iOS": 32500,
+        "Plex for Apple TV": 32500,
+        "Plex for Windows": 32700,
+        "Plex for Mac": 32700
+    }
+
+    DEFAULT_CLIENT_PORT = 32500
+
     def __init__(self, session: PlexSession, clientIdentifier: str, state: str, playQueueID: int, server: PlexServer, settings: Settings, custom: CustomEntries = None, logger: logging.Logger = None) -> None:
         self._viewOffset: int = session.viewOffset
         self.plexsession: PlexSession = session
@@ -153,6 +165,7 @@ class MediaWrapper():
         except NotFound:
             self.userToken: str = None
 
+        client = next((c for c in server.clients() if c.machineIdentifier == self.player.machineIdentifier), None)
         if custom and self.player.title in custom.clients:
             self.player._baseurl = custom.clients[self.player.title].strip('/')
             self.player._baseurl = self.player._baseurl if self.player._baseurl.startswith("http://") else "http://%s" % (self.player._baseurl)
@@ -163,6 +176,12 @@ class MediaWrapper():
             self.player._baseurl = self.player._baseurl if self.player._baseurl.startswith("http://") else "http://%s" % (self.player._baseurl)
             self.player.proxyThroughServer(False)
             self.log.debug("Overriding player %s with custom baseURL %s, will not proxy through server" % (self.clientIdentifier, self.player._baseurl))
+        elif not client or client.address == self.player.address:
+            # If there is no client, direct connect. If there is a client but its IP address matches the device IP, still direct connect. In devices that are proxy dependent 127.0.0.1 will usually be reported
+            port = int(self.server._myPlexClientPorts().get(self.player.machineIdentifier, self.CLIENT_PORTS.get(self.player.product, self.DEFAULT_CLIENT_PORT)))
+            baseurl = "http://%s:%d" % (self.player.address, port)
+            self.player._baseurl = baseurl
+            self.player.proxyThroughServer(False)
         else:
             self.player.proxyThroughServer(True, server)
 

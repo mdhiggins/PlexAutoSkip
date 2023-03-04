@@ -31,16 +31,6 @@ class Skipper():
         "(404) not_found": "404 Error, see %s#badrequest-error" % TROUBLESHOOT_URL
     }
 
-    CLIENT_PORTS = {
-        "Plex for Roku": 8324,
-        "Plex for Android (TV)": 32500,
-        "Plex for Android (Mobile)": 32500,
-        "Plex for iOS": 32500,
-        "Plex for Apple TV": 32500,
-        "Plex for Windows": 32700,
-        "Plex for Mac": 32700
-    }
-
     CREDIT_SKIP_FIX = {
         "Plex for Roku": 1500
     }
@@ -53,14 +43,6 @@ class Skipper():
         "Plex for Linux": "1.46.1"
     }
 
-    PROXY_ONLY = [
-        "Plex Web",
-        "Plex for Windows",
-        "Plex for Mac",
-        "Plex for Linux"
-    ]
-
-    DEFAULT_CLIENT_PORT = 32500
     TIMEOUT = 30
     IGNORED_CAP = 200
 
@@ -367,11 +349,9 @@ class Skipper():
             except BadRequest as br:
                 self.logErrorMessage(br, "BadRequest exception setPlayerVolume")
                 return False
-                # return self.setPlayerVolume(self.recoverPlayer(player), mediaWrapper, volume, lowering)
             except NotFound as nf:
                 self.logErrorMessage(nf, "NotFound exception setPlayerVolume")
                 return False
-                # return self.setPlayerVolume(self.recoverPlayer(player), mediaWrapper, volume, lowering)
         except:
             raise
 
@@ -384,28 +364,9 @@ class Skipper():
             self.log.error("Bad %s version %s due to Plex team removing 'Advertise as Player/Plex Companion' functionality. Please visit %s#notice to review this issue and voice your support on the Plex forums for this feature to be restored" % (player.product, player.version, self.TROUBLESHOOT_URL))
             return False
 
-        if player not in self.server.clients():
-            self.log.debug("Player %s (%s) is missing from the Plex server client list, attempting to direct connect" % (player.title, player.product))
-            player = self.recoverPlayer(player)
-
-        if player:
+        if player and (player._proxyThroughServer or player._baseurl):
             return True
         return False
-
-    def recoverPlayer(self, player: PlexClient, protocol: str = "http://") -> PlexClient:
-        if player.product in self.PROXY_ONLY:
-            self.log.debug("Player %s (%s) does not support direct IP connections, nothing to fall back upon, returning None" % (player.title, player.product))
-            return None
-
-        if not player._proxyThroughServer:
-            self.log.debug("Player %s (%s) is already not proxying through server, no fallback options left" % (player.title, player.product))
-            return None
-        port = int(self.server._myPlexClientPorts().get(player.machineIdentifier, self.CLIENT_PORTS.get(player.product, self.DEFAULT_CLIENT_PORT)))
-        baseurl = "%s%s:%d" % (protocol, player.address, port)
-        self.log.debug("Modifying client for direct connection using baseURL %s for player %s (%s)" % (baseurl, player.title, player._baseurl))
-        player._baseurl = baseurl
-        player.proxyThroughServer(False)
-        return player
 
     def processAlert(self, data: dict) -> None:
         if data['type'] == 'playing':
@@ -546,9 +507,9 @@ class Skipper():
 
     def addSession(self, mediaWrapper: MediaWrapper) -> None:
         if mediaWrapper.customOnly:
-            self.log.info("Found blocked session %s viewOffset %d %s on %s, using custom markers only, sessions: %d" % (mediaWrapper, mediaWrapper.plexsession.viewOffset, mediaWrapper.plexsession._username, mediaWrapper.plexsession.player.product, len(self.media_sessions)))
+            self.log.info("Found blocked session %s viewOffset %d %s on %s (proxying: %s), using custom markers only, sessions: %d" % (mediaWrapper, mediaWrapper.plexsession.viewOffset, mediaWrapper.plexsession._username, mediaWrapper.player.product, mediaWrapper.player._proxyThroughServer, len(self.media_sessions)))
         else:
-            self.log.info("Found new session %s viewOffset %d %s on %s, sessions: %d" % (mediaWrapper, mediaWrapper.plexsession.viewOffset, mediaWrapper.plexsession._username, mediaWrapper.plexsession.player.product, len(self.media_sessions)))
+            self.log.info("Found new session %s viewOffset %d %s on %s (proxying: %s), sessions: %d" % (mediaWrapper, mediaWrapper.plexsession.viewOffset, mediaWrapper.plexsession._username, mediaWrapper.player.product, mediaWrapper.player._proxyThroughServer, len(self.media_sessions)))
         if mediaWrapper.player and self.validPlayer(mediaWrapper.player):
             self.purgeOldSessions(mediaWrapper)
             self.bingeSessions.update(mediaWrapper)
