@@ -404,6 +404,8 @@ class Skipper():
                                     self.addSession(wrapper)
                                 else:
                                     self.ignoreSession(wrapper)
+                        else:
+                            self.ignoreSession(wrapper)
                 else:
                     mediaSession = self.media_sessions[pasIdentifier]
                     mediaSession.updateOffset(viewOffset, state=state)
