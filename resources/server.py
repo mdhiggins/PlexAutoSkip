@@ -3,7 +3,7 @@ from plexapi.server import PlexServer
 from plexapi.myplex import MyPlexAccount
 from resources.log import getLogger
 from resources.settings import Settings
-from typing import Tuple
+from typing import Tuple, Dict
 from ssl import CERT_NONE
 from pkg_resources import parse_version
 import requests
@@ -23,9 +23,9 @@ def getPlexServer(settings: Settings, logger: logging.Logger = None) -> Tuple[Pl
         log.error("PlexAutoSkip requires version %s please update to %s or greater, current version is %s" % (MINVERSION, MINVERSION, PLEXAPIVERSION))
         return None, None
 
-    plex = None
-    sslopt = None
-    session = None
+    plex: PlexServer = None
+    sslopt: Dict = None
+    session: requests.Session = None
 
     if settings.ignore_certs:
         sslopt = {"cert_reqs": CERT_NONE}
