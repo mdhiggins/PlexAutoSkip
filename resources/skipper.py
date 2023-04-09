@@ -293,7 +293,7 @@ class Skipper():
                             startItemIndex = episodes.index(mediaWrapper.media) + 1
                             startItem = episodes[startItemIndex]
                             self.log.debug("New queue contains %d items, selecting %s with index %s" % (len(episodes), startItem, startItemIndex))
-                            pq = PASPlayQueue.create(server, episodes, startItemIndex)
+                            pq = PASPlayQueue.create(server, episodes, startItem)
                         else:
                             self.log.debug("No remaining episodes in series to build a PlayQueue")
                     except:
