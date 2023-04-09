@@ -272,11 +272,15 @@ class Skipper():
 
         if not pq:
             try:
-                current = PlayQueue.get(self.server, mediaWrapper.playQueueID)
-                nextItem: Media = current[current.items.index(mediaWrapper.media) + 1]
-                pq = PlayQueue.create(server, list(current.items), nextItem)
-                self.log.debug("Creating new PlayQueue %d with start item %s" % (pq.playQueueID, nextItem))
+                current = PASPlayQueue.get(self.server, mediaWrapper.playQueueID)
+                if current.items[-1] != mediaWrapper.media:
+                    nextItem: Media = current[current.items.index(mediaWrapper.media) + 1]
+                    pq = PASPlayQueue.create(server, list(current.items), nextItem)
+                    self.log.debug("Creating new PlayQueue %d with start item %s" % (pq.playQueueID, nextItem))
+                else:
+                    self.log.debug("No more items in PlayQueue %d, at the end" % (current.playQueueID))
             except Exception as e:
+                self.log.exception("")
                 self.log.debug("Seek target is the end but unable to get existing PlayQueue %d (%s) data from server" % (mediaWrapper.playQueueID, mediaWrapper.media.playQueueItemID))
                 if self.verbose:
                     self.log.debug(e)
@@ -286,18 +290,27 @@ class Skipper():
                         episodes = mediaWrapper.media.show().episodes()
                         if episodes and episodes[-1] != mediaWrapper.media:
                             self.log.debug("Generating new PlayQueue using remaining episodes in series")
-                            pq = PlayQueue.create(server, episodes, episodes[episodes.index(mediaWrapper.media) + 1])
+                            startItemIndex = episodes.index(mediaWrapper.media) + 1
+                            startItem = episodes[startItemIndex]
+                            self.log.debug("New queue contains %d items, selecting %s with index %s" % (len(episodes), startItem, startItemIndex))
+                            pq = PASPlayQueue.create(server, episodes, startItemIndex)
                         else:
-                            data = server.query(mediaWrapper.media._details_key)
-                            items = mediaWrapper.media.findItems(data, rtag='OnDeck')
-                            if items:
-                                self.log.debug("Generating new PlayQueue using on deck episodes in series")
-                                items = [mediaWrapper.media] + items
-                                pq = PlayQueue.create(server, items, items[1])
-                            else:
-                                self.log.debug("No remaining episodes found to build a PlayQueue")
+                            self.log.debug("No remaining episodes in series to build a PlayQueue")
                     except:
                         self.log.exception("Unable to create new PlayQueue for %s" % (mediaWrapper))
+
+        if mediaWrapper.media.type == "episode" and not pq or not pq.items:
+            try:
+                data = server.query(mediaWrapper.media.show()._details_key)
+                items = mediaWrapper.media.findItems(data, rtag='OnDeck')
+                if items:
+                    self.log.debug("Generating new PlayQueue using on deck episodes in series")
+                    items = [mediaWrapper.media] + items
+                    pq = PASPlayQueue.create(server, items, items[1])
+                else:
+                    self.log.debug("No on deck episodes found to build a PlayQueue")
+            except:
+                self.log.exception("Unable to create new on deck PlayQueue for %s" % (mediaWrapper))
 
         if not pq or not pq.items:
             self.log.warning("No available PlayQueue data %d (%s), using seekTo to go to media end" % (mediaWrapper.playQueueID, mediaWrapper.media.playQueueItemID))
@@ -549,3 +562,18 @@ class Skipper():
                 self.log.error(self.ERRORS[e])
                 return
         self.log.exception("%s, see %s" % (default, self.TROUBLESHOOT_URL))
+
+
+class PASPlayQueue(PlayQueue):
+    def __getitem__(self, key):
+        log = logging.getLogger(__name__)
+        try:
+            if not self.items:
+                return None
+            return self.items[key]
+        except IndexError:
+            log.error(self.playQueueSelectedItemOffset)
+            log.error(self.size)
+            for i, item in enumerate(self.items):
+                log.error("%s: %s" % (i, item))
+            raise
