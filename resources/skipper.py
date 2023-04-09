@@ -572,6 +572,7 @@ class PASPlayQueue(PlayQueue):
                 return None
             return self.items[key]
         except IndexError:
+            log.error(key)
             log.error(self.playQueueSelectedItemOffset)
             log.error(self.size)
             for i, item in enumerate(self.items):
