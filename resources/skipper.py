@@ -576,4 +576,5 @@ class PASPlayQueue(PlayQueue):
             log.error(self.size)
             for i, item in enumerate(self.items):
                 log.error("%s: %s" % (i, item))
+            log.error(self._data)
             raise
