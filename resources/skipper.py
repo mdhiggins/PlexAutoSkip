@@ -570,3 +570,4 @@ class PASPlayQueue(PlayQueue):
             super()._loadData(data)
         except IndexError:
             self.selectedItem = next(i for i in self.items if i.playQueueItemID == self.playQueueSelectedItemID)
+            self.playQueueSelectedItemOffset = self.items.index(self.selectedItem)
