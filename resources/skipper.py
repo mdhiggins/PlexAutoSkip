@@ -565,6 +565,12 @@ class Skipper():
 
 
 class PASPlayQueue(PlayQueue):
+    def _loadData(self, data):
+        try:
+            super()._loadData(data)
+        except IndexError:
+            self.selectedItem = next(i for i in self.items if i.playQueueItemID == self.playQueueSelectedItemID)
+
     def __getitem__(self, key):
         log = logging.getLogger(__name__)
         try:
@@ -572,10 +578,9 @@ class PASPlayQueue(PlayQueue):
                 return None
             return self.items[key]
         except IndexError:
-            log.error(key)
-            log.error(self.playQueueSelectedItemOffset)
-            log.error(self.size)
+            log.error(self.playQueueSelectedItemID)
+            item: Media
             for i, item in enumerate(self.items):
-                log.error("%s: %s" % (i, item))
+                log.error("%s: %s %s" % (i, item, item.playQueueItemID))
             log.error(self._data)
             raise
