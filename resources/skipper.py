@@ -569,5 +569,5 @@ class PASPlayQueue(PlayQueue):
         try:
             super()._loadData(data)
         except IndexError:
-            self.selectedItem = next(i for i in self.items if i.playQueueItemID == self.playQueueSelectedItemID)
+            self.selectedItem = next(item for item in self.items if item.playQueueItemID == self.playQueueSelectedItemID)
             self.playQueueSelectedItemOffset = self.items.index(self.selectedItem)
