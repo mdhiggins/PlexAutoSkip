@@ -570,17 +570,3 @@ class PASPlayQueue(PlayQueue):
             super()._loadData(data)
         except IndexError:
             self.selectedItem = next(i for i in self.items if i.playQueueItemID == self.playQueueSelectedItemID)
-
-    def __getitem__(self, key):
-        log = logging.getLogger(__name__)
-        try:
-            if not self.items:
-                return None
-            return self.items[key]
-        except IndexError:
-            log.error(self.playQueueSelectedItemID)
-            item: Media
-            for i, item in enumerate(self.items):
-                log.error("%s: %s %s" % (i, item, item.playQueueItemID))
-            log.error(self._data)
-            raise
