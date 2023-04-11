@@ -272,10 +272,10 @@ class Skipper():
 
         if not pq:
             try:
-                current = PASPlayQueue.get(self.server, mediaWrapper.playQueueID)
+                current = PlayQueue.get(self.server, mediaWrapper.playQueueID)
                 if current.items[-1] != mediaWrapper.media:
                     nextItem: Media = current[current.items.index(mediaWrapper.media) + 1]
-                    pq = PASPlayQueue.create(server, list(current.items), nextItem)
+                    pq = PlayQueue.create(server, list(current.items), nextItem)
                     self.log.debug("Creating new PlayQueue %d with start item %s" % (pq.playQueueID, nextItem))
                 else:
                     self.log.debug("No more items in PlayQueue %d, at the end" % (current.playQueueID))
@@ -293,7 +293,7 @@ class Skipper():
                             startItemIndex = episodes.index(mediaWrapper.media) + 1
                             startItem = episodes[startItemIndex]
                             self.log.debug("New queue contains %d items, selecting %s with index %s" % (len(episodes), startItem, startItemIndex))
-                            pq = PASPlayQueue.create(server, episodes, startItem)
+                            pq = PlayQueue.create(server, episodes, startItem)
                         else:
                             self.log.debug("No remaining episodes in series to build a PlayQueue")
                     except:
@@ -306,7 +306,7 @@ class Skipper():
                 if items:
                     self.log.debug("Generating new PlayQueue using on deck episodes in series")
                     items = [mediaWrapper.media] + items
-                    pq = PASPlayQueue.create(server, items, items[1])
+                    pq = PlayQueue.create(server, items, items[1])
                 else:
                     self.log.debug("No on deck episodes found to build a PlayQueue")
             except:
@@ -562,12 +562,3 @@ class Skipper():
                 self.log.error(self.ERRORS[e])
                 return
         self.log.exception("%s, see %s" % (default, self.TROUBLESHOOT_URL))
-
-
-class PASPlayQueue(PlayQueue):
-    def _loadData(self, data):
-        try:
-            super()._loadData(data)
-        except IndexError:
-            self.selectedItem = next(item for item in self.items if item.playQueueItemID == self.playQueueSelectedItemID)
-            self.playQueueSelectedItemOffset = self.items.index(self.selectedItem)
