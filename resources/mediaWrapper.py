@@ -172,10 +172,14 @@ class MediaWrapper():
             self.player.proxyThroughServer(False)
             self.log.debug("Overriding player %s with custom baseURL %s, will not proxy through server" % (self.player.title, self.player._baseurl))
         elif custom and self.clientIdentifier in custom.clients:
-            self.player._baseurl = custom.clients[self.clientIdentifier].strip('/')
-            self.player._baseurl = self.player._baseurl if self.player._baseurl.startswith("http://") else "http://%s" % (self.player._baseurl)
-            self.player.proxyThroughServer(False)
-            self.log.debug("Overriding player %s with custom baseURL %s, will not proxy through server" % (self.clientIdentifier, self.player._baseurl))
+            if custom.clients[self.clientIdentifier] == "proxy":
+                self.player.proxyThroughServer(True, server)
+                self.log.debug("Overriding player %s to force proxying through the server" % (self.clientIdentifier))
+            else:
+                self.player._baseurl = custom.clients[self.clientIdentifier].strip('/')
+                self.player._baseurl = self.player._baseurl if self.player._baseurl.startswith("http://") else "http://%s" % (self.player._baseurl)
+                self.player.proxyThroughServer(False)
+                self.log.debug("Overriding player %s with custom baseURL %s, will not proxy through server" % (self.clientIdentifier, self.player._baseurl))
         elif not client or (client.address == self.player.address and "playback" in client.protocolCapabilities):
             # If there is no client, direct connect. If there is a client but its IP address matches the device IP, still direct connect. In devices that are proxy dependent 127.0.0.1 will usually be reported
             port = int(self.server._myPlexClientPorts().get(self.player.machineIdentifier, self.CLIENT_PORTS.get(self.player.product, self.DEFAULT_CLIENT_PORT)))
