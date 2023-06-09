@@ -167,10 +167,14 @@ class MediaWrapper():
 
         client = next((c for c in server.clients() if c.machineIdentifier == self.player.machineIdentifier), None)
         if custom and self.player.title in custom.clients:
-            self.player._baseurl = custom.clients[self.player.title].strip('/')
-            self.player._baseurl = self.player._baseurl if self.player._baseurl.startswith("http://") else "http://%s" % (self.player._baseurl)
-            self.player.proxyThroughServer(False)
-            self.log.debug("Overriding player %s with custom baseURL %s, will not proxy through server" % (self.player.title, self.player._baseurl))
+            if custom.clients[self.player.title] == "proxy":
+                self.player.proxyThroughServer(True, server)
+                self.log.debug("Overriding player %s to force proxying through the server" % (self.player.title))
+            else:
+                self.player._baseurl = custom.clients[self.player.title].strip('/')
+                self.player._baseurl = self.player._baseurl if self.player._baseurl.startswith("http://") else "http://%s" % (self.player._baseurl)
+                self.player.proxyThroughServer(False)
+                self.log.debug("Overriding player %s with custom baseURL %s, will not proxy through server" % (self.player.title, self.player._baseurl))
         elif custom and self.clientIdentifier in custom.clients:
             if custom.clients[self.clientIdentifier] == "proxy":
                 self.player.proxyThroughServer(True, server)
