@@ -102,6 +102,8 @@ class Skipper():
                 self.reconnect = False
                 self.listener.stop()
                 break
+        else:
+            self.log.error("Connection lost")
         if self.reconnect:
             self.start(sslopt)
 
