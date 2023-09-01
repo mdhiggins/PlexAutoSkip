@@ -59,7 +59,7 @@ class Skipper():
         self.media_sessions: Dict[str, MediaWrapper] = {}
         self.delete: List[str] = []
         self.ignored: List[str] = []
-        self.reconnect: bool = True
+        self.reconnect: bool = False
         self.bingeSessions = BingeSessions(self.settings, self.log)
 
         self.log.debug("%s init with leftOffset %d rightOffset %d" % (self.__class__.__name__, self.settings.leftOffset, self.settings.rightOffset))
@@ -90,6 +90,7 @@ class Skipper():
         self.listener = SSLAlertListener(self.server, self.processAlert, self.error, sslopt=sslopt, logger=self.log)
         self.log.debug("Starting listener")
         self.listener.start()
+        self.reconnect = self.listener.is_alive()
         while self.listener.is_alive():
             try:
                 for session in list(self.media_sessions.values()):
