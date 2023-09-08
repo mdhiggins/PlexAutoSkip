@@ -70,6 +70,9 @@ class Settings:
             "first-episode-series": "Watched",
             "first-episode-season": "Always",
             "first-safe-tags": "",
+            "last-episode-series": "Watched",
+            "last-episode-season": "Always",
+            "last-safe-tags": "",
             "next": False
         },
         "Binge": {
@@ -154,6 +157,9 @@ class Settings:
         self.skipE01: Settings.SKIP_TYPES = Settings.SKIP_TYPES.ALWAYS
         self.skipS01E01: Settings.SKIP_TYPES = Settings.SKIP_TYPES.ALWAYS
         self.firstsafetags: list = []
+        self.skiplastepisodeseason: Settings.SKIP_TYPES = Settings.SKIP_TYPES.ALWAYS
+        self.skiplastepisodeseries: Settings.SKIP_TYPES = Settings.SKIP_TYPES.ALWAYS
+        self.lastsafetags: list = []
         self.binge: int = 0
         self.bingesafetags: list = []
         self.bingesameshowonly: bool = False
@@ -320,6 +326,9 @@ class Settings:
         except ValueError:
             self.skipE01 = self.SKIP_MATCHER.get(config.get("Skip", "first-episode-season").lower(), self.SKIP_TYPES.ALWAYS)
         self.firstsafetags = config.getlist("Skip", "first-safe-tags", replace=[])
+        self.skiplastepisodeseries = self.SKIP_MATCHER.get(config.get("Skip", "last-episode-series").lower(), self.SKIP_TYPES.ALWAYS)
+        self.skiplastepisodeseason = self.SKIP_MATCHER.get(config.get("Skip", "last-episode-season").lower(), self.SKIP_TYPES.ALWAYS)
+        self.lastsafetags = config.getlist("Skip", "last-safe-tags", replace=[])
         self.skipnext = config.getboolean("Skip", "next")
 
         self.binge = config.getint("Binge", "ignore-skip-for")

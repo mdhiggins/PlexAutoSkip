@@ -22,6 +22,9 @@ unwatched = True
 first-episode-series = Watched
 first-episode-season = Always
 first-safe-tags = 
+last-episode-series = Watched
+last-episode-season = Always
+last-safe-tags = 
 next = False
 
 [Binge]
