@@ -68,6 +68,8 @@ class Skipper():
         self.log.debug("Skip tags %s" % (self.settings.tags))
         self.log.debug("Skip S01E01 %s" % (self.settings.skipS01E01))
         self.log.debug("Skip S**E01 %s" % (self.settings.skipE01))
+        self.log.debug("Skip last episode series %s" % (self.settings.skiplastepisodeseries))
+        self.log.debug("Skip last episode season %s" % (self.settings.skiplastepisodeseason))
         self.log.debug("Skip last chapter %s" % (self.settings.skiplastchapter))
         self.log.debug("Binge ignore skip for length %s" % (self.settings.binge))
 
