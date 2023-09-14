@@ -68,6 +68,8 @@ class Skipper():
         self.log.debug("Skip tags %s" % (self.settings.tags))
         self.log.debug("Skip S01E01 %s" % (self.settings.skipS01E01))
         self.log.debug("Skip S**E01 %s" % (self.settings.skipE01))
+        self.log.debug("Skip last episode series %s" % (self.settings.skiplastepisodeseries))
+        self.log.debug("Skip last episode season %s" % (self.settings.skiplastepisodeseason))
         self.log.debug("Skip last chapter %s" % (self.settings.skiplastchapter))
         self.log.debug("Binge ignore skip for length %s" % (self.settings.binge))
 
@@ -523,6 +525,32 @@ class Skipper():
                     mediaWrapper.tags = [t for t in mediaWrapper.tags if t in self.settings.firstsafetags]
                     mediaWrapper.updateMarkers()
 
+    def lastAdjust(self, mediaWrapper: MediaWrapper) -> None:
+        media = mediaWrapper.media
+
+        if hasattr(media, "episodeNumber") and hasattr(media, "seasonNumber"):
+            series = self.server.fetchItem(media.grandparentRatingKey)
+            curr_season = series.season(season=media.seasonNumber)
+            last_season = series.seasons()[-1]
+            if media.episodeNumber == curr_season.episodes()[-1].episodeNumber:
+                if self.settings.skiplastepisodeseason == Settings.SKIP_TYPES.NEVER:
+                    self.log.debug("Erasing tags %s, last episode in season and skip-last-episode-season is %s" % (mediaWrapper, self.settings.skiplastepisodeseason))
+                    mediaWrapper.tags = [t for t in mediaWrapper.tags if t in self.settings.lastsafetags]
+                    mediaWrapper.updateMarkers()
+                elif self.settings.skiplastepisodeseason == Settings.SKIP_TYPES.WATCHED and not media.isWatched:
+                    self.log.debug("Erasing tags %s, last episode in season and skip-last-episode-season is %s and isWatched %s" % (mediaWrapper, self.settings.skiplastepisodeseason, media.isWatched))
+                    mediaWrapper.tags = [t for t in mediaWrapper.tags if t in self.settings.lastsafetags]
+                    mediaWrapper.updateMarkers()
+            if media.seasonNumber == last_season.seasonNumber and media.episodeNumber == last_season.episodes()[-1].episodeNumber:
+                if self.settings.skiplastepisodeseries == Settings.SKIP_TYPES.NEVER:
+                    self.log.debug("Erasing tags %s, last episode in series and skip-last-episode-series is %s" % (mediaWrapper, self.settings.skiplastepisodeseries))
+                    mediaWrapper.tags = [t for t in mediaWrapper.tags if t in self.settings.lastsafetags]
+                    mediaWrapper.updateMarkers()
+                elif self.settings.skiplastepisodeseries == Settings.SKIP_TYPES.WATCHED and not media.isWatched:
+                    self.log.debug("Erasing tags %s, last episode in series and skip-last-episode-series is %s and isWatched %s" % (mediaWrapper, self.settings.skiplastepisodeseries, media.isWatched))
+                    mediaWrapper.tags = [t for t in mediaWrapper.tags if t in self.settings.lastsafetags]
+                    mediaWrapper.updateMarkers()
+
     def addSession(self, mediaWrapper: MediaWrapper) -> None:
         if mediaWrapper.customOnly:
             self.log.info("Found blocked session %s viewOffset %d %s on %s (proxying: %s), using custom markers only, sessions: %d" % (mediaWrapper, mediaWrapper.plexsession.viewOffset, mediaWrapper.plexsession._username, mediaWrapper.player.product, mediaWrapper.player._proxyThroughServer, len(self.media_sessions)))
@@ -532,6 +560,7 @@ class Skipper():
             self.purgeOldSessions(mediaWrapper)
             self.bingeSessions.update(mediaWrapper)
             self.firstAdjust(mediaWrapper)
+            self.lastAdjust(mediaWrapper)
             self.checkMedia(mediaWrapper)
             self.media_sessions[mediaWrapper.pasIdentifier] = mediaWrapper
         else:
