@@ -304,7 +304,7 @@ class Skipper():
                     except:
                         self.log.exception("Unable to create new PlayQueue for %s" % (mediaWrapper))
 
-        if mediaWrapper.media.type == "episode" and not pq or not pq.items:
+        if mediaWrapper.media.type == "episode" and (not pq or not pq.items):
             try:
                 data = server.query(mediaWrapper.media.show()._details_key)
                 items = mediaWrapper.media.findItems(data, rtag='OnDeck')
