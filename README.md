@@ -4,6 +4,12 @@ PlexAutoSkip
 
 A background python script that monitors local playback on your server and will automatically 'press' the Skip Intro button or skip other similarly tagged content automatically. Maintains real-time playback states for your server (not dependent on API updates) for accurate skip timing. Threaded to handle multiple players simultaneously. Several layers of state validation to prevent unnecessary stuttering/buffering. Custom definitions allow you to expand on features and functionality beyond what is automatically detected by Plex. Works with all automatically tagged markers including intros, credits, and advertisements.
 
+Notice
+--------------
+Plex is moving towards adding native intro skipping at the client level which is ultimately the better solution. As a result there won't be any new major features being added to this project. Will continue to maintain minor bug fixes so it keeps working for unsupported players and will be happy to review pull requests
+
+https://forums.plex.tv/t/player-experience/857990
+
 Requirements
 --------------
 - LAN sessions (not remote) as Plex does not allow seeking adjustments via the API for remote sessions
