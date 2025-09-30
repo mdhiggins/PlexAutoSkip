@@ -20,7 +20,7 @@ from plexapi.playqueue import PlayQueue
 from plexapi.base import PlexSession
 from threading import Thread
 from typing import Dict, List
-from pkg_resources import parse_version
+from packaging.version import Version
 
 
 class Skipper():
@@ -378,7 +378,7 @@ class Skipper():
 
     def validPlayer(self, player: PlexClient) -> bool:
         bad = self.BROKEN_CLIENTS.get(player.product)
-        if bad and player.version and parse_version(self.safeVersion(player.version)) >= parse_version(bad):
+        if bad and player.version and Version(self.safeVersion(player.version)) >= Version(bad):
             self.log.error("Bad %s version %s due to Plex team removing 'Advertise as Player/Plex Companion' functionality. Please visit %s#notice to review this issue and voice your support on the Plex forums for this feature to be restored" % (player.product, player.version, self.TROUBLESHOOT_URL))
             return False
 

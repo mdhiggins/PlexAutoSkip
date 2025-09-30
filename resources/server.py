@@ -5,7 +5,7 @@ from resources.log import getLogger
 from resources.settings import Settings
 from typing import Tuple, Dict
 from ssl import CERT_NONE
-from pkg_resources import parse_version
+from packaging.version import Version
 import requests
 import logging
 
@@ -19,7 +19,7 @@ def getPlexServer(settings: Settings, logger: logging.Logger = None) -> Tuple[Pl
         log.error("No plex server settings specified, please update your configuration file")
         return None, None
 
-    if parse_version(PLEXAPIVERSION) < parse_version(MINVERSION):
+    if Version(PLEXAPIVERSION) < Version(MINVERSION):
         log.error("PlexAutoSkip requires version %s please update to %s or greater, current version is %s" % (MINVERSION, MINVERSION, PLEXAPIVERSION))
         return None, None
 
