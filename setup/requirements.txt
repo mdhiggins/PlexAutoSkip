@@ -1,3 +1,4 @@
 plexapi >= 4.12
 requests
 websocket-client
+setuptools
